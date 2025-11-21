@@ -1,4 +1,4 @@
-## Name of website
+## Accessible Games Website
 
 ## Features
 
