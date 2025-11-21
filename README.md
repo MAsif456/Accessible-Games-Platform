@@ -2,23 +2,29 @@
 
 ## Features
 
-## Qu9ick started
-### Pre requisits
+## Quick start
+
+### Prerequisites
+
 ### Installation
 
 ## Usage
 
-## development
-### testing
-### Project structure
+## Development
 
-## Technology stack
+### Testing
 
-## Cicd Pipeline
+### Project Structure
+
+## Technology Stack
+
+## CI/CD Pipeline
 
 ## Deployment
-### Database configuration
-### Production setup
+
+### Database Configuration
+
+### Production Setup
 
 ## Contributing
 
