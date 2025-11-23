@@ -10,6 +10,7 @@ export interface NavbarProps {
   onClearSearch: () => void;
   currentPath?: string;
   onNavigate?: (path: string) => void;
+  onLogout?: () => void;
 }
 
 const navItems = [
@@ -28,6 +29,7 @@ const Navbar: React.FC<NavbarProps> = ({
   onClearSearch,
   currentPath = '/',
   onNavigate,
+  onLogout,
 }) => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
@@ -184,6 +186,28 @@ const Navbar: React.FC<NavbarProps> = ({
                             />
                             <span>Inbox</span>
                             <span className="navbar__profile-menu-dot" aria-hidden="true" />
+                          </button>
+                        </li>
+                        <li role="none">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="navbar__profile-menu-item"
+                            onClick={async () => {
+                              if (onLogout) {
+                                await onLogout();
+                              } else {
+                                // fallback: just call onNavigate if present
+                                if (onNavigate) onNavigate('/signin');
+                              }
+                              setIsAccountOpen(false);
+                            }}
+                          >
+                            <span
+                              className="navbar__profile-menu-icon navbar__nav-icon--lock"
+                              aria-hidden="true"
+                            />
+                            <span>Log out</span>
                           </button>
                         </li>
                       </ul>

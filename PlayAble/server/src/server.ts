@@ -4,7 +4,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import './models/user';
-import authRoutes from '../routes/authRoutes';
+import authRoutes from './routes/authRoutes';
 
 const app: Express = express();
 const PORT = process.env.PORT || 5001;

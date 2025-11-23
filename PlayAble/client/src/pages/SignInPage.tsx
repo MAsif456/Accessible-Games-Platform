@@ -4,11 +4,12 @@ import '../styles/SignIn.css';
 
 interface SignInPageProps {
   onNavigate: (path: string) => void;
+  showPrompt?: (message: string, type?: 'success' | 'error') => void;
 }
 
 type TabType = 'signin' | 'signup';
 
-const SignInPage: React.FC<SignInPageProps> = ({ onNavigate }) => {
+const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
   const { signup, login } = useAuth();
   
   const [activeTab, setActiveTab] = useState<TabType>('signin');
@@ -47,6 +48,14 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate }) => {
       
       if (response.success) {
         setMessage({ type: 'success', text: 'Login successful!' });
+        if (showPrompt) {
+          // Use user's name if available, fallback to generic
+          const name = response.user?.name || '';
+          showPrompt(
+            name ? `Welcome Back, ${name}!` : 'Welcome Back!',
+            'success'
+          );
+        }
         // Redirect to browse page after short delay
         setTimeout(() => {
           onNavigate('/browse');
@@ -72,6 +81,10 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate }) => {
       
       if (response.success) {
         setMessage({ type: 'success', text: 'Account created successfully!' });
+        setSignupData({ fullName: '', email: '', password: '', confirmPassword: '' }); // Clear fields
+        if (showPrompt) {
+          showPrompt(`Welcome to Accessible Games Platform, ${signupData.fullName}!`, 'success');
+        }
         // Redirect to browse page after short delay
         setTimeout(() => {
           onNavigate('/browse');
@@ -229,9 +242,8 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate }) => {
               aria-labelledby="signup-tab"
               className="signin-form-container"
             >
-              <h2 className="form-section-title">Create Account</h2>
-              
               <form onSubmit={handleSignUp} className="signin-form">
+                <h2 className="form-section-title" style={{ marginBottom: '1.5rem' }}>Create Account</h2>
                 <div className="form-group">
                   <label htmlFor="signup-fullname" className="form-label">
                     Full Name <span className="required">*</span>
@@ -324,6 +336,25 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate }) => {
                 >
                   {isLoading ? 'Creating Account...' : 'Create Account'}
                 </button>
+
+                <div className="accessible-signin-section">
+                  <h3 className="accessible-signin-title">Accessible Sign In Options</h3>
+                  <button
+                    type="button"
+                    className="accessible-signin-button"
+                    onClick={() => alert('Voice sign-up feature coming soon')}
+                  >
+                    <span className="accessible-signin-icon" aria-hidden="true">🎤</span>
+                    <span>Sign up with Voice</span>
+                  </button>
+                  <div className="keyboard-navigation-info">
+                    <span className="keyboard-icon" aria-hidden="true">⌨️</span>
+                    <div className="keyboard-text">
+                      <strong>Keyboard Navigation:</strong>
+                      <p>Press Tab to move between fields and Enter to create your account. All interactive elements are keyboard accessible.</p>
+                    </div>
+                  </div>
+                </div>
               </form>
             </div>
           )}
