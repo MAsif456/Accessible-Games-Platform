@@ -33,6 +33,7 @@ const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
@@ -193,15 +194,7 @@ const Navbar: React.FC<NavbarProps> = ({
                             type="button"
                             role="menuitem"
                             className="navbar__profile-menu-item"
-                            onClick={async () => {
-                              if (onLogout) {
-                                await onLogout();
-                              } else {
-                                // fallback: just call onNavigate if present
-                                if (onNavigate) onNavigate('/signin');
-                              }
-                              setIsAccountOpen(false);
-                            }}
+                            onClick={() => setShowLogoutConfirm(true)}
                           >
                             <span
                               className="navbar__profile-menu-icon navbar__nav-icon--lock"
@@ -236,6 +229,83 @@ const Navbar: React.FC<NavbarProps> = ({
       {isVoiceOpen && (
         <div className="voice-popup" aria-label="Voice listening popup">
           {/* Empty placeholder popup for future implementation */}
+        </div>
+      )}
+      {showLogoutConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-dialog-title"
+          aria-describedby="logout-dialog-desc"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.25)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+              padding: '2.5rem 2.5rem 2rem',
+              minWidth: 340,
+              maxWidth: '90vw',
+              textAlign: 'center',
+            }}
+          >
+            <h2 id="logout-dialog-title" style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: 8 }}>
+              Are you sure you want to log out?
+            </h2>
+            <p id="logout-dialog-desc" style={{ color: '#6b7280', marginBottom: 32 }}>
+              This will end your session and log you out of your account.
+            </p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  padding: '0.7rem 2.2rem',
+                  borderRadius: 12,
+                  border: '2px solid #d1d5db',
+                  background: '#fff',
+                  color: '#111827',
+                  fontWeight: 600,
+                  fontSize: '1.1rem',
+                  marginRight: 8,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowLogoutConfirm(false);
+                  if (onLogout) await onLogout();
+                }}
+                style={{
+                  padding: '0.7rem 2.2rem',
+                  borderRadius: 12,
+                  border: 'none',
+                  background: '#11111f',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </header>
