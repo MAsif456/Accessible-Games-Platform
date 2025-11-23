@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/ui/Navbar';
 import Footer from './components/ui/Footer';
 import BrowsePage from './pages/BrowsePage';
@@ -25,11 +26,21 @@ export type AppPath =
   | '/about'
   | '/report';
 
-function App() {
+// Protected pages that require authentication
+const protectedPaths: AppPath[] = [
+  '/favourites',
+  '/recently-viewed',
+  '/my-profile',
+  '/inbox',
+];
+
+function AppContent() {
+  const { user, isAuthenticated } = useAuth();
   const [path, setPath] = useState<AppPath>('/');
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleNavigate = (newPath: string) => {
+    // Type guard to ensure newPath is a valid AppPath
     if (
       newPath === '/' ||
       newPath === '/browse' ||
@@ -43,6 +54,12 @@ function App() {
       newPath === '/about' ||
       newPath === '/report'
     ) {
+      // Check if trying to access protected route without authentication
+      if (protectedPaths.includes(newPath) && !isAuthenticated) {
+        setPath('/signin');
+        return;
+      }
+      
       setPath(newPath);
     }
   };
@@ -57,10 +74,13 @@ function App() {
     // TODO: reset search results here
   };
 
+  // Get user role for navbar
+  const userRole = user?.role || 'guest';
+
   return (
     <div className="App">
       <Navbar
-        role="user"
+        role={userRole}
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
         onSearchSubmit={() => {}}
@@ -75,7 +95,7 @@ function App() {
         {path === '/recently-viewed' && <RecentlyViewedPage />}
         {path === '/settings' && <SettingsPage />}
         {path === '/admin' && <AdminPage />}
-        {path === '/signin' && <SignInPage />}
+        {path === '/signin' && <SignInPage onNavigate={handleNavigate} />}
         {path === '/my-profile' && <MyProfilePage />}
         {path === '/inbox' && <InboxPage />}
         {path === '/about' && <AboutPage />}
@@ -87,5 +107,12 @@ function App() {
   );
 }
 
-export default App;
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
 
+export default App;
