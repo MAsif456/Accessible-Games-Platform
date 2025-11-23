@@ -37,11 +37,60 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
     confirm: false,
   });
 
+  // Validation state
+  const [loginErrors, setLoginErrors] = useState<{ email?: string; password?: string }>({});
+  const [signupErrors, setSignupErrors] = useState<{ fullName?: string; email?: string; password?: string; confirmPassword?: string }>({});
+
+  // Email regex for validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Enhanced password validation for signup
+  const passwordHasNumber = (password: string) => /\d/.test(password);
+
+  // Validate Sign In form
+  const validateLogin = () => {
+    const errors: { email?: string; password?: string } = {};
+    if (!emailRegex.test(loginData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    if (!loginData.password || loginData.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
+    }
+    setLoginErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Validate Sign Up form
+  const validateSignup = () => {
+    const errors: { fullName?: string; email?: string; password?: string; confirmPassword?: string } = {};
+    if (!signupData.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    }
+    if (!emailRegex.test(signupData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    if (!signupData.password || signupData.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
+    } else if (!passwordHasNumber(signupData.password)) {
+      errors.password = 'Password must include at least one number';
+    }
+    if (signupData.password !== signupData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    setSignupErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Handle Sign In
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
     setIsLoading(true);
+    setLoginErrors({});
+    if (!validateLogin()) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await login(loginData);
@@ -61,10 +110,17 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
           onNavigate('/browse');
         }, 1000);
       } else {
-        setMessage({ type: 'error', text: response.message || 'Login failed' });
+        // Show prompt for invalid credentials or email
+        if (showPrompt) {
+          showPrompt('Incorrect email or password. Please try again.', 'error');
+        }
+        setLoginData({ email: '', password: '' });
       }
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'An error occurred' });
+      if (showPrompt) {
+        showPrompt('Incorrect email or password. Please try again.', 'error');
+      }
+      setLoginData({ email: '', password: '' });
     } finally {
       setIsLoading(false);
     }
@@ -75,6 +131,11 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
     e.preventDefault();
     setMessage(null);
     setIsLoading(true);
+    setSignupErrors({});
+    if (!validateSignup()) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await signup(signupData);
@@ -90,10 +151,17 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
           onNavigate('/browse');
         }, 1000);
       } else {
-        setMessage({ type: 'error', text: response.message || 'Signup failed' });
+        // Show prompt for duplicate email
+        if (response.message && response.message.includes('already exists') && showPrompt) {
+          showPrompt('An account with this email already exists', 'error');
+        } else if (showPrompt) {
+          showPrompt(response.message || 'Signup failed', 'error');
+        }
       }
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'An error occurred' });
+      if (showPrompt) {
+        showPrompt('Signup failed. Please try again.', 'error');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -152,7 +220,7 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
               aria-labelledby="signin-tab"
               className="signin-form-container"
             >
-              <form onSubmit={handleSignIn} className="signin-form">
+              <form onSubmit={handleSignIn} className="signin-form" noValidate>
                 <div className="form-group">
                   <label htmlFor="signin-email" className="form-label">
                     Email address <span className="required">*</span>
@@ -160,13 +228,19 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                   <input
                     type="email"
                     id="signin-email"
-                    className="form-input"
+                    className={`form-input${loginErrors.email ? ' form-input--error' : ''}`}
                     placeholder="you@example.com"
                     value={loginData.email}
                     onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                     required
                     aria-required="true"
+                    aria-invalid={!!loginErrors.email}
                   />
+                  {loginErrors.email && (
+                    <div className="form-error" style={{ color: '#dc2626', fontSize: '0.95rem', marginTop: 4 }}>
+                      <span style={{ fontSize: '1.1em', marginRight: 4 }}>❗</span>{loginErrors.email}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -177,12 +251,13 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                     <input
                       type={showPassword.login ? 'text' : 'password'}
                       id="signin-password"
-                      className="form-input"
+                      className={`form-input${loginErrors.password ? ' form-input--error' : ''}`}
                       placeholder="Enter your password"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       required
                       aria-required="true"
+                      aria-invalid={!!loginErrors.password}
                     />
                     <button
                       type="button"
@@ -194,6 +269,11 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                     </button>
                   </div>
                   <p className="form-hint">Must be at least 8 characters</p>
+                  {loginErrors.password && (
+                    <div className="form-error" style={{ color: '#dc2626', fontSize: '0.95rem', marginTop: 4 }}>
+                      <span style={{ fontSize: '1.1em', marginRight: 4 }}>❗</span>{loginErrors.password}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-actions">
@@ -242,7 +322,7 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
               aria-labelledby="signup-tab"
               className="signin-form-container"
             >
-              <form onSubmit={handleSignUp} className="signin-form">
+              <form onSubmit={handleSignUp} className="signin-form" noValidate>
                 <h2 className="form-section-title" style={{ marginBottom: '1.5rem' }}>Create Account</h2>
                 <div className="form-group">
                   <label htmlFor="signup-fullname" className="form-label">
@@ -251,13 +331,19 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                   <input
                     type="text"
                     id="signup-fullname"
-                    className="form-input"
+                    className={`form-input${signupErrors.fullName ? ' form-input--error' : ''}`}
                     placeholder="Enter your full name"
                     value={signupData.fullName}
                     onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
                     required
                     aria-required="true"
+                    aria-invalid={!!signupErrors.fullName}
                   />
+                  {signupErrors.fullName && (
+                    <div className="form-error" style={{ color: '#dc2626', fontSize: '0.95rem', marginTop: 4 }}>
+                      <span style={{ fontSize: '1.1em', marginRight: 4 }}>❗</span>{signupErrors.fullName}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -267,13 +353,19 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                   <input
                     type="email"
                     id="signup-email"
-                    className="form-input"
+                    className={`form-input${signupErrors.email ? ' form-input--error' : ''}`}
                     placeholder="you@example.com"
                     value={signupData.email}
                     onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
                     required
                     aria-required="true"
+                    aria-invalid={!!signupErrors.email}
                   />
+                  {signupErrors.email && (
+                    <div className="form-error" style={{ color: '#dc2626', fontSize: '0.95rem', marginTop: 4 }}>
+                      <span style={{ fontSize: '1.1em', marginRight: 4 }}>❗</span>{signupErrors.email}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -284,12 +376,13 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                     <input
                       type={showPassword.signup ? 'text' : 'password'}
                       id="signup-password"
-                      className="form-input"
+                      className={`form-input${signupErrors.password ? ' form-input--error' : ''}`}
                       placeholder="Create a password"
                       value={signupData.password}
                       onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
                       required
                       aria-required="true"
+                      aria-invalid={!!signupErrors.password}
                     />
                     <button
                       type="button"
@@ -300,7 +393,12 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                       👁 {showPassword.signup ? 'Hide' : 'Show'}
                     </button>
                   </div>
-                  <p className="form-hint">Must be at least 8 characters</p>
+                  <p className="form-hint">Must be at least 8 characters and include at least one number</p>
+                  {signupErrors.password && (
+                    <div className="form-error" style={{ color: '#dc2626', fontSize: '0.95rem', marginTop: 4 }}>
+                      <span style={{ fontSize: '1.1em', marginRight: 4 }}>❗</span>{signupErrors.password}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -311,12 +409,13 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                     <input
                       type={showPassword.confirm ? 'text' : 'password'}
                       id="signup-confirm-password"
-                      className="form-input"
+                      className={`form-input${signupErrors.confirmPassword ? ' form-input--error' : ''}`}
                       placeholder="Confirm your password"
                       value={signupData.confirmPassword}
                       onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
                       required
                       aria-required="true"
+                      aria-invalid={!!signupErrors.confirmPassword}
                     />
                     <button
                       type="button"
@@ -327,6 +426,11 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                       👁 {showPassword.confirm ? 'Hide' : 'Show'}
                     </button>
                   </div>
+                  {signupErrors.confirmPassword && (
+                    <div className="form-error" style={{ color: '#dc2626', fontSize: '0.95rem', marginTop: 4 }}>
+                      <span style={{ fontSize: '1.1em', marginRight: 4 }}>❗</span>{signupErrors.confirmPassword}
+                    </div>
+                  )}
                 </div>
 
                 <button
