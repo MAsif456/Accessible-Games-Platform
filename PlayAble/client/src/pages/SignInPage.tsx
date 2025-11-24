@@ -1,3 +1,9 @@
+// SignInPage.tsx
+// Handles all user authentication flows: sign in, create account, and password reset.
+// Accessibility and usability are prioritised, with clear error messages, keyboard navigation, and ARIA attributes.
+// Password reset uses a one-time code sent by email, supporting both security and users with assistive technology.
+// All validation logic is client-side for immediate feedback, but server-side validation is also enforced for security.
+
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import '../styles/SignIn.css';
@@ -15,6 +21,15 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
   const [activeTab, setActiveTab] = useState<TabType>('signin');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetStep, setResetStep] = useState<'enter' | 'check' | 'reset' | 'complete'>('enter');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetTimer, setResetTimer] = useState(60);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetResent, setResetResent] = useState(false);
 
   // Sign In form state
   const [loginData, setLoginData] = useState({
@@ -167,6 +182,87 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
     }
   };
 
+  // Handle password reset request
+  const handleRequestReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetError('');
+    try {
+      const res = await fetch('/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      if (res.ok) {
+        setResetStep('check');
+        setResetTimer(60);
+        setResetResent(false);
+      } else {
+        setResetError('Failed to send reset email.');
+      }
+    } catch {
+      setResetError('Failed to send reset email.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // Timer for resend link
+  React.useEffect(() => {
+    if (resetStep === 'check' && resetTimer > 0) {
+      const t = setTimeout(() => setResetTimer(resetTimer - 1), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [resetStep, resetTimer]);
+
+  // Handle resend
+  const handleResend = async () => {
+    setResetResent(false);
+    setResetLoading(true);
+    setResetError('');
+    try {
+      const res = await fetch('/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      if (res.ok) {
+        setResetResent(true);
+        setResetTimer(60);
+      } else {
+        setResetError('Failed to resend email.');
+      }
+    } catch {
+      setResetError('Failed to resend email.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // Handle code and new password submit
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetError('');
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail, code: resetCode, newPassword: resetNewPassword }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResetStep('complete');
+      } else {
+        setResetError(data.message || 'Failed to reset password.');
+      }
+    } catch {
+      setResetError('Failed to reset password.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="signin-page">
       <div className="signin-container">
@@ -213,7 +309,7 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
           )}
 
           {/* Sign In Form */}
-          {activeTab === 'signin' && (
+          {!showResetPassword && activeTab === 'signin' && (
             <div
               id="signin-panel"
               role="tabpanel"
@@ -277,9 +373,14 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                 </div>
 
                 <div className="form-actions">
-                  <a href="#" className="forgot-password">
+                  <button
+                    type="button"
+                    className="forgot-password"
+                    style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0 }}
+                    onClick={() => setShowResetPassword(true)}
+                  >
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
 
                 <button
@@ -311,6 +412,207 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                   </div>
                 </div>
               </form>
+            </div>
+          )}
+
+          {showResetPassword && (
+            <div className="signin-form-container" style={{ maxWidth: 600, margin: '0 auto' }}>
+              {/* Stepper */}
+              <div style={{ color: '#2563eb', fontWeight: 500, marginBottom: 24, fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+                <span style={{ color: resetStep === 'enter' ? '#2563eb' : '#444' }}>Enter Email</span>
+                <span style={{ margin: '0 12px', color: '#888' }}>&gt;</span>
+                <span style={{ color: resetStep === 'check' ? '#2563eb' : '#444' }}>Check Email</span>
+                <span style={{ margin: '0 12px', color: '#888' }}>&gt;</span>
+                <span style={{ color: resetStep === 'reset' ? '#2563eb' : '#444' }}>Reset Password</span>
+                <span style={{ margin: '0 12px', color: '#888' }}>&gt;</span>
+                <span style={{ color: resetStep === 'complete' ? '#2563eb' : '#444' }}>Complete</span>
+              </div>
+              {/* Step: Enter Email */}
+              {resetStep === 'enter' && (
+                <>
+                  <button
+                    type="button"
+                    style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', marginBottom: 16, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => setShowResetPassword(false)}
+                  >
+                    <span style={{ fontSize: '1.2em' }}>&larr;</span> Back to Sign In
+                  </button>
+                  <h2 style={{ fontWeight: 600, fontSize: '1.2rem', marginBottom: 8 }}>Reset your password</h2>
+                  <p style={{ color: '#444', marginBottom: 24 }}>
+                    Enter the email address associated with your account and we'll send you a link to reset your password.
+                  </p>
+                  <form className="signin-form" onSubmit={handleRequestReset}>
+                    <div className="form-group">
+                      <label htmlFor="reset-email" className="form-label">
+                        Email address <span className="required">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        id="reset-email"
+                        className="form-input"
+                        placeholder="you@example.com"
+                        required
+                        aria-required="true"
+                        value={resetEmail}
+                        onChange={e => setResetEmail(e.target.value)}
+                      />
+                      <p className="form-hint">We'll send a password reset link to this email address</p>
+                    </div>
+                    {resetError && <div className="form-error" style={{ color: '#dc2626', marginBottom: 8 }}>{resetError}</div>}
+                    <button
+                      type="submit"
+                      className="submit-button"
+                      style={{ marginTop: 16 }}
+                      disabled={resetLoading}
+                    >
+                      {resetLoading ? 'Sending...' : 'Send reset link'}
+                    </button>
+                  </form>
+                  <div style={{ marginTop: 32, textAlign: 'center', color: '#444' }}>
+                    Remember your password?{' '}
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', fontSize: '1rem' }}
+                      onClick={() => setShowResetPassword(false)}
+                    >
+                      Sign in
+                    </button>
+                  </div>
+                </>
+              )}
+              {/* Step: Check Email */}
+              {resetStep === 'check' && (
+                <>
+                  <button
+                    type="button"
+                    style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', marginBottom: 16, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => setResetStep('enter')}
+                  >
+                    <span style={{ fontSize: '1.2em' }}>&larr;</span> Back to Enter Email
+                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
+                    <div style={{ background: '#e0e7ff', borderRadius: '50%', width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                      <span style={{ fontSize: '2.5rem', color: '#2563eb' }}>✉️</span>
+                    </div>
+                    <h2 style={{ fontWeight: 600, fontSize: '1.15rem', marginBottom: 8 }}>Check your email</h2>
+                    <p style={{ color: '#444', marginBottom: 24, textAlign: 'center' }}>
+                      We've sent a password reset link to <b>{resetEmail}</b>. If it doesn't appear in a few minutes, check your spam folder.
+                    </p>
+                    <button
+                      type="button"
+                      className="submit-button"
+                      style={{ width: 220, marginBottom: 24 }}
+                      onClick={() => { setShowResetPassword(false); setResetStep('enter'); }}
+                    >
+                      Return to Sign In
+                    </button>
+                  </div>
+                  <hr style={{ margin: '32px 0', border: 'none', borderTop: '1px solid #e5e7eb' }} />
+                  <div style={{ textAlign: 'center', color: '#444' }}>
+                    Didn't receive the email?
+                    <br />
+                    <button
+                      type="button"
+                      className="submit-button"
+                      style={{ marginTop: 12, marginBottom: 8, background: '#fff', color: '#2563eb', border: '1.5px solid #2563eb', fontWeight: 500, opacity: resetTimer > 0 ? 0.6 : 1, cursor: resetTimer > 0 ? 'not-allowed' : 'pointer' }}
+                      onClick={handleResend}
+                      disabled={resetTimer > 0 || resetLoading}
+                    >
+                      Resend link {resetTimer > 0 ? `(${resetTimer}s)` : ''}
+                    </button>
+                    <div style={{ fontSize: '0.95rem', color: '#888' }}>
+                      Please wait {resetTimer}s before requesting a new link
+                    </div>
+                    {resetResent && <div style={{ color: '#22c55e', marginTop: 8 }}>A new reset link has been sent.</div>}
+                  </div>
+                  <div style={{ textAlign: 'center', marginTop: 24 }}>
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', fontSize: '1rem' }}
+                      onClick={() => setResetStep('reset')}
+                    >
+                      Already have a code? Reset Password
+                    </button>
+                  </div>
+                </>
+              )}
+              {/* Step: Reset Password */}
+              {resetStep === 'reset' && (
+                <>
+                  <button
+                    type="button"
+                    style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', marginBottom: 16, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => setResetStep('check')}
+                  >
+                    <span style={{ fontSize: '1.2em' }}>&larr;</span> Back to Check Email
+                  </button>
+                  <h2 style={{ fontWeight: 600, fontSize: '1.15rem', marginBottom: 8 }}>Reset your password</h2>
+                  <form className="signin-form" onSubmit={handleResetPassword}>
+                    <div className="form-group">
+                      <label htmlFor="reset-code" className="form-label">
+                        One-time code <span className="required">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="reset-code"
+                        className="form-input"
+                        placeholder="Enter the 6-digit code"
+                        required
+                        aria-required="true"
+                        value={resetCode}
+                        onChange={e => setResetCode(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="reset-new-password" className="form-label">
+                        New password <span className="required">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        id="reset-new-password"
+                        className="form-input"
+                        placeholder="Enter your new password"
+                        required
+                        aria-required="true"
+                        value={resetNewPassword}
+                        onChange={e => setResetNewPassword(e.target.value)}
+                      />
+                      <p className="form-hint">Must be at least 8 characters and include a number</p>
+                    </div>
+                    {resetError && <div className="form-error" style={{ color: '#dc2626', marginBottom: 8 }}>{resetError}</div>}
+                    <button
+                      type="submit"
+                      className="submit-button"
+                      style={{ marginTop: 16 }}
+                      disabled={resetLoading}
+                    >
+                      {resetLoading ? 'Resetting...' : 'Reset Password'}
+                    </button>
+                  </form>
+                </>
+              )}
+              {/* Step: Complete */}
+              {resetStep === 'complete' && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
+                    <div style={{ background: '#e0e7ff', borderRadius: '50%', width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                      <span style={{ fontSize: '2.5rem', color: '#2563eb' }}>✅</span>
+                    </div>
+                    <h2 style={{ fontWeight: 600, fontSize: '1.15rem', marginBottom: 8 }}>Password reset complete</h2>
+                    <p style={{ color: '#444', marginBottom: 24, textAlign: 'center' }}>
+                      Your password has been reset. You can now sign in with your new password.
+                    </p>
+                    <button
+                      type="button"
+                      className="submit-button"
+                      style={{ width: 220, marginBottom: 24 }}
+                      onClick={() => { setShowResetPassword(false); setResetStep('enter'); }}
+                    >
+                      Return to Sign In
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

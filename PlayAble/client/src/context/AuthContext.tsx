@@ -1,3 +1,7 @@
+// AuthContext.tsx
+// Provides authentication state and actions to the entire React application using Context API.
+// Centralises user session management and ensures consistent authentication logic across all components.
+// Uses localStorage for persistence and verifies tokens with the backend for security.
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import authService, { SignupData, LoginData, AuthResponse } from '../services/authService';
 import { UserRole } from '../components/ui/Navbar';
@@ -29,6 +33,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Custom hook for accessing authentication context. Throws if used outside AuthProvider.
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -41,11 +46,12 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// The AuthProvider wraps the app and supplies authentication state and actions.
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for stored user on mount
+  // Initialises authentication by checking for stored user and verifying token validity.
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -53,22 +59,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const token = authService.getToken();
 
         if (storedUser && token) {
-          // Verify token is still valid by fetching current user
+          // Verifies token validity by fetching current user from the backend.
           try {
             const response = await authService.getCurrentUser();
             if (response.success && response.user) {
               setUser(response.user as User);
             } else {
-              // Token expired or invalid
+              // Handles expired or invalid tokens by logging out.
               authService.logout();
             }
           } catch (error) {
-            // Token verification failed
+            // Handles token verification failure by logging out.
             authService.logout();
           }
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        console.error('Auth initialisation error:', error);
       } finally {
         setIsLoading(false);
       }

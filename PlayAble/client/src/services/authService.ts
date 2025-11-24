@@ -1,3 +1,7 @@
+// authService.ts
+// Provides a unified interface for authentication-related API calls from the frontend.
+// Handles token and user data storage in localStorage for session persistence.
+// All methods return JSON responses for consistency with backend API.
 const API_URL = '/api';
 
 export interface SignupData {
@@ -33,7 +37,7 @@ export interface AuthResponse {
 }
 
 class AuthService {
-  // Sign up new user
+  // Registers a new user and stores the token for session management.
   async signup(data: SignupData): Promise<AuthResponse> {
     const response = await fetch(`${API_URL}/auth/signup`, {
       method: 'POST',
@@ -53,7 +57,7 @@ class AuthService {
     return result;
   }
 
-  // Login user
+  // Logs in a user and stores the token for session management.
   async login(data: LoginData): Promise<AuthResponse> {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
@@ -73,7 +77,7 @@ class AuthService {
     return result;
   }
 
-  // Logout user
+  // Logs out the user by removing session data from localStorage.
   async logout(): Promise<void> {
     const token = localStorage.getItem('token');
 
@@ -94,7 +98,7 @@ class AuthService {
     localStorage.removeItem('user');
   }
 
-  // Get current user
+  // Fetches the current user's profile using the stored token.
   async getCurrentUser(): Promise<AuthResponse> {
     const token = localStorage.getItem('token');
 
@@ -112,18 +116,18 @@ class AuthService {
     return response.json();
   }
 
-  // Check if user is logged in
+  // Checks if a user is currently logged in by verifying the presence of a token.
   isLoggedIn(): boolean {
     return !!localStorage.getItem('token');
   }
 
-  // Get stored user data
+  // Retrieves stored user data from localStorage for quick access.
   getStoredUser(): AuthResponse['user'] | null {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   }
 
-  // Get stored token
+  // Retrieves the stored authentication token from localStorage.
   getToken(): string | null {
     return localStorage.getItem('token');
   }

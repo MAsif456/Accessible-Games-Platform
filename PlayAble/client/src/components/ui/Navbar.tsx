@@ -1,3 +1,7 @@
+// Navbar.tsx
+// Main navigation bar for the PlayAble platform, providing access to all key pages and user account actions.
+// Accessibility is prioritised: keyboard navigation, ARIA roles, and high-contrast support are included to meet WCAG 2.1 AA standards.
+// The logout action uses a confirmation dialog to prevent accidental sign-outs, improving user experience for all users.
 import React, { useState } from 'react';
 
 export type UserRole = 'guest' | 'user' | 'admin';
