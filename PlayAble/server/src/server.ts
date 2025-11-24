@@ -9,6 +9,10 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import './models/user';
 import authRoutes from '../routes/authRoutes';
+import './models/settings';
+import UserSettings from './models/settings';
+
+dotenv.config();
 
 const app: Express = express();
 const PORT = process.env.PORT || 5001;
@@ -34,6 +38,79 @@ mongoose
 // Health check endpoint for monitoring and deployment verification.
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'Server is running' });
+});
+
+// Settings Routes
+// For now, we'll use a temporary userId. In production, this would come from authentication
+const TEMP_USER_ID = '507f1f77bcf86cd799439011'; // Placeholder ObjectId
+
+// Get user settings
+app.get('/api/settings', async (req: Request, res: Response) => {
+  try {
+    const userId = new mongoose.Types.ObjectId(TEMP_USER_ID);
+    let settings = await UserSettings.findOne({ userId });
+
+    // If no settings exist, create default settings
+    if (!settings) {
+      settings = await UserSettings.create({ userId });
+    }
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+// Update user settings
+app.put('/api/settings', async (req: Request, res: Response) => {
+  try {
+    const userId = new mongoose.Types.ObjectId(TEMP_USER_ID);
+    const { voiceInput, captions, microphoneActive, highContrastMode, reducedMotion, darkMode } = req.body;
+
+    const settings = await UserSettings.findOneAndUpdate(
+      { userId },
+      {
+        voiceInput,
+        captions,
+        microphoneActive,
+        highContrastMode,
+        reducedMotion,
+        darkMode,
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Reset settings to defaults
+app.post('/api/settings/reset', async (req: Request, res: Response) => {
+  try {
+    const userId = new mongoose.Types.ObjectId(TEMP_USER_ID);
+
+    const settings = await UserSettings.findOneAndUpdate(
+      { userId },
+      {
+        voiceInput: true,
+        captions: true,
+        microphoneActive: true,
+        highContrastMode: false,
+        reducedMotion: false,
+        darkMode: false,
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json({ message: 'Settings reset to defaults', settings });
+  } catch (error) {
+    console.error('Error resetting settings:', error);
+    res.status(500).json({ error: 'Failed to reset settings' });
+  }
 });
 
 // Main authentication and user account routes.
