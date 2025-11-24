@@ -640,11 +640,13 @@ body {
   color: #374151;
   text-align: left;
   transition: all 0.2s;
+  color: #111827;
 }
 
 .settings-page__nav-item:hover {
   background-color: #f3f4f6;
   border-color: #e5e7eb;
+  color: #111827;
 }
 
 .settings-page__nav-item:focus-visible {
@@ -1322,6 +1324,7 @@ body {
 .dark-mode .settings-page__nav-item:hover {
   background-color: #374151;
   border-color: #4b5563;
+  color: #f3f4f6;
 }
 
 .dark-mode .settings-page__nav-item--active {
