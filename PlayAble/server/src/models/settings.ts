@@ -6,6 +6,7 @@ export interface IUserSettings extends Document {
   captions: boolean;
   microphoneActive: boolean;
   highContrastMode: boolean;
+  highContrastTheme: string;
   reducedMotion: boolean;
   darkMode: boolean;
   createdAt: Date;
@@ -35,6 +36,11 @@ const UserSettingsSchema = new Schema<IUserSettings>(
     highContrastMode: {
       type: Boolean,
       default: false,
+    },
+    highContrastTheme: {
+      type: String,
+      default: 'tidepool',
+      enum: ['tidepool', 'sunset', 'twilight', 'midnight'],
     },
     reducedMotion: {
       type: Boolean,

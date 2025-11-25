@@ -66,7 +66,15 @@ app.get('/api/settings', async (req: Request, res: Response) => {
 app.put('/api/settings', async (req: Request, res: Response) => {
   try {
     const userId = new mongoose.Types.ObjectId(TEMP_USER_ID);
-    const { voiceInput, captions, microphoneActive, highContrastMode, reducedMotion, darkMode } = req.body;
+    const {
+      voiceInput,
+      captions,
+      microphoneActive,
+      highContrastMode,
+      highContrastTheme,
+      reducedMotion,
+      darkMode,
+    } = req.body;
 
     const settings = await UserSettings.findOneAndUpdate(
       { userId },
@@ -75,6 +83,7 @@ app.put('/api/settings', async (req: Request, res: Response) => {
         captions,
         microphoneActive,
         highContrastMode,
+        highContrastTheme: highContrastTheme || 'tidepool',
         reducedMotion,
         darkMode,
       },
@@ -100,6 +109,7 @@ app.post('/api/settings/reset', async (req: Request, res: Response) => {
         captions: true,
         microphoneActive: true,
         highContrastMode: false,
+        highContrastTheme: 'tidepool',
         reducedMotion: false,
         darkMode: false,
       },
