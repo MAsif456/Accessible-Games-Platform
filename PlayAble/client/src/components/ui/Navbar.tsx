@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import useKeyboardNavigation from '../../hooks/useKeyboardNavigation';
-import useFocusTrap from '../../hooks/useFocusTrap';
+import React, { useState, useRef, useEffect } from 'react';
+import useFocusTrap from '../../hooks/navigation/useFocusTrap';
 
 export type UserRole = 'guest' | 'user' | 'admin';
 
@@ -33,48 +32,14 @@ const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
-
   // Refs for navigation elements
-  const navRef = useRef<HTMLUListElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
-  const navButtonsRef = useRef<HTMLButtonElement[]>([]);
-
   // Focus trap for account dropdown menu
   const { containerRef: accountDropdownRef } = useFocusTrap<HTMLDivElement>({
     isActive: isAccountOpen,
     initialFocus: 'first',
     restoreFocus: true
   });
-
-  // Get all navigation buttons for keyboard navigation
-  const getNavButtons = useCallback((): HTMLButtonElement[] => {
-    if (!navRef.current) return [];
-    return Array.from(navRef.current.querySelectorAll('button[type="button"]'));
-  }, []);
-
-  // Keyboard navigation for main nav items
-  const { handleKeyDown: handleNavKeyDown, currentIndex: navCurrentIndex } = useKeyboardNavigation(
-    getNavButtons(),
-    { direction: 'horizontal', loop: true }
-  );
-
-  // Update nav buttons ref when they change
-  useEffect(() => {
-    navButtonsRef.current = getNavButtons();
-  }, [getNavButtons]);
-
-  // Handle keyboard events for main navigation
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Only handle if focus is within navigation
-      if (navRef.current?.contains(event.target as Node)) {
-        handleNavKeyDown(event);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleNavKeyDown]);
 
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
@@ -162,8 +127,8 @@ const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
         </div>        <nav className="navbar__nav" aria-label="Primary">
-          <ul className="navbar__nav-list" ref={navRef} role="menubar">
-            {navItems.map((item, index) => {
+          <ul className="navbar__nav-list" role="menubar">
+            {navItems.map((item) => {
               const isActive = currentPath === item.path || (item.key === 'browse' && currentPath === '/');
               return (
                 <li key={item.key} role="none">
@@ -175,9 +140,7 @@ const Navbar: React.FC<NavbarProps> = ({
                       'navbar__nav-button' +
                       (item.key === 'voice' ? ' navbar__nav-button--voice' : '') +
                       (isActive ? ' navbar__nav-button--primary' : '')
-                    }
-                    aria-current={isActive ? 'page' : undefined}
-                    tabIndex={navCurrentIndex === -1 || navCurrentIndex === index ? 0 : -1}
+                    }                    aria-current={isActive ? 'page' : undefined}
                   >
                     <span
                       className={`navbar__nav-icon navbar__nav-icon--${item.icon}`}
@@ -194,9 +157,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={() => handleNavClick('/admin')}
-                  className="navbar__nav-button"
-                  tabIndex={-1}
+                  onClick={() => handleNavClick('/admin')}                  className="navbar__nav-button"
                 >
                   <span
                     className="navbar__nav-icon navbar__nav-icon--admin"
@@ -216,9 +177,7 @@ const Navbar: React.FC<NavbarProps> = ({
                     className="navbar__nav-button navbar__nav-button--profile"
                     aria-haspopup="menu"
                     aria-expanded={isAccountOpen}
-                    onClick={() => setIsAccountOpen((prev) => !prev)}
-                    onKeyDown={handleAccountKeyDown}
-                    tabIndex={-1}
+                    onClick={() => setIsAccountOpen((prev) => !prev)}                    onKeyDown={handleAccountKeyDown}
                   >
                     <span
                       className="navbar__nav-icon navbar__nav-icon--user"
@@ -293,9 +252,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={() => handleNavClick('/signin')}
-                  className="navbar__nav-button navbar__nav-button--signin"
-                  tabIndex={-1}
+                  onClick={() => handleNavClick('/signin')}                  className="navbar__nav-button navbar__nav-button--signin"
                 >
                   <span
                     className="navbar__nav-icon navbar__nav-icon--lock"

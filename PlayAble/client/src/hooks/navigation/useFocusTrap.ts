@@ -1,3 +1,7 @@
+/**
+ * Traps focus within a container (for modals, dropdowns, etc.)
+ * Stops Tab from escaping to the page behind.
+ */
 import { useEffect, useRef, useCallback } from 'react';
 
 export interface UseFocusTrapOptions {
@@ -14,10 +18,10 @@ export function useFocusTrap<T extends HTMLElement>(
     initialFocus = 'first',
     restoreFocus = true
   } = options;
-
   const containerRef = useRef<T>(null);
   const previousActiveElementRef = useRef<Element | null>(null);
 
+  // Get all focusable elements in the container
   const getFocusableElements = useCallback((): HTMLElement[] => {
     if (!containerRef.current) return [];
 
@@ -35,11 +39,9 @@ export function useFocusTrap<T extends HTMLElement>(
     return Array.from(elements).filter(element => {
       return element.offsetWidth > 0 && 
              element.offsetHeight > 0 && 
-             !element.hasAttribute('hidden') && 
-             window.getComputedStyle(element).visibility !== 'hidden';
-    });
-  }, []);
+             !element.hasAttribute('hidden') &&             window.getComputedStyle(element).visibility !== 'hidden';    });  }, []);
 
+  // Focus the initial element when trap activates
   const setInitialFocus = useCallback(() => {
     const focusableElements = getFocusableElements();
     if (focusableElements.length === 0) return;
@@ -54,11 +56,9 @@ export function useFocusTrap<T extends HTMLElement>(
       elementToFocus = initialFocus;
     }
 
-    if (elementToFocus) {
-      elementToFocus.focus();
-    }
-  }, [getFocusableElements, initialFocus]);
+    if (elementToFocus) {      elementToFocus.focus();    }  }, [getFocusableElements, initialFocus]);
 
+  // Handle Tab/Shift+Tab to trap focus
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (!isActive || event.key !== 'Tab') return;
 
@@ -80,35 +80,37 @@ export function useFocusTrap<T extends HTMLElement>(
       if (activeElement === lastElement || !focusableElements.includes(activeElement)) {
         event.preventDefault();
         firstElement.focus();
-      }
-    }
-  }, [isActive, getFocusableElements]);
+      }    }  }, [isActive, getFocusableElements]);
 
+  /**
+   * Handles Escape key for modal dismissal.
+   */
   const handleEscapeKey = useCallback((event: KeyboardEvent) => {
     if (event.key === 'Escape' && isActive) {
       // Allow parent components to handle escape
       return false;
-    }
-  }, [isActive]);
+    }  }, [isActive]);
 
+  // Set up and tear down the focus trap
   useEffect(() => {
     if (isActive) {
-      // Store the currently focused element
+      // Store the currently focused element so we can return to it later
       previousActiveElementRef.current = document.activeElement;
       
-      // Set initial focus
+      // Set initial focus based on configuration
       setInitialFocus();
       
-      // Add event listeners
+      // Add keyboard event listeners for Tab trapping
       document.addEventListener('keydown', handleKeyDown);
       document.addEventListener('keydown', handleEscapeKey);
     } else {
-      // Restore focus when trap is deactivated
+      // Restore focus to the previously focused element when trap deactivates
       if (restoreFocus && previousActiveElementRef.current instanceof HTMLElement) {
         previousActiveElementRef.current.focus();
       }
     }
 
+    // Clean up event listeners when component unmounts or trap deactivates
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keydown', handleEscapeKey);

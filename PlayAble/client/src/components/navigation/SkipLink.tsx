@@ -1,3 +1,7 @@
+/**
+ * Skip to main content link - appears at top when you press Tab.
+ * Lets keyboard users bypass the navbar.
+ */
 import React from 'react';
 
 interface SkipLinkProps {
@@ -11,7 +15,7 @@ const SkipLink: React.FC<SkipLinkProps> = ({ href, children }) => {
     const target = document.querySelector(href);
     if (target instanceof HTMLElement) {
       target.focus();
-      // Add tabindex="-1" to make non-focusable elements focusable
+      // Make sure target is focusable
       if (!target.hasAttribute('tabindex')) {
         target.setAttribute('tabindex', '-1');
       }
@@ -20,8 +24,7 @@ const SkipLink: React.FC<SkipLinkProps> = ({ href, children }) => {
 
   return (
     <a
-      href={href}
-      className="skip-link"
+      href={href}      className="skip-link"
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {

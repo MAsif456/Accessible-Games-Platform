@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import SkipLink from './components/navigation/SkipLink';
-import Navbar from './components/navigation/Navbar';
+import Navbar from './components/ui/Navbar';
 import Footer from './components/ui/Footer';
 import { useGlobalKeyboardNavigation } from './hooks/useGlobalKeyboardNavigation';
 import BrowsePage from './pages/BrowsePage';
@@ -28,11 +28,7 @@ export type AppPath =
   | '/report';
 
 function App() {
-  const [path, setPath] = useState<AppPath>('/');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Enable global keyboard navigation for the entire app
-  useGlobalKeyboardNavigation();
+  const [path, setPath] = useState<AppPath>('/');  const [searchTerm, setSearchTerm] = useState('');
 
   // Enable global keyboard navigation for the entire app
   useGlobalKeyboardNavigation();

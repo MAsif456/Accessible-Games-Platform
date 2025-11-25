@@ -1,6 +1,11 @@
 import { useEffect, useCallback } from 'react';
 
+/**
+ * Global keyboard navigation - automatically handles arrow keys, Home/End, etc.
+ * Works across the whole app without manual setup for each page.
+ */
 export function useGlobalKeyboardNavigation() {
+  // Find all focusable elements currently visible
   const findFocusableElements = useCallback((): HTMLElement[] => {
     const selectors = [
       'a[href]:not([tabindex="-1"]):not([disabled])',
@@ -27,15 +32,14 @@ export function useGlobalKeyboardNavigation() {
         style.visibility !== 'hidden' &&
         style.display !== 'none' &&
         !element.hasAttribute('hidden')
-      );
-    });
-  }, []);
+      );    });  }, []);
 
+  // Get focusable elements within a container
   const findElementsInContainer = useCallback((container: Element): HTMLElement[] => {
     const allElements = findFocusableElements();
-    return allElements.filter(element => container.contains(element));
-  }, [findFocusableElements]);
+    return allElements.filter(element => container.contains(element));  }, [findFocusableElements]);
 
+  // Work out what kind of navigation context we're in (navbar, grid, etc.)
   const getNavigationContext = useCallback((element: HTMLElement) => {
     // Determine if element is part of a navigation group
     const navbar = element.closest('.navbar__nav-list, [role="menubar"]');
@@ -48,11 +52,9 @@ export function useGlobalKeyboardNavigation() {
     if (footer) return { type: 'footer', container: footer, direction: 'horizontal' };
     if (grid) return { type: 'grid', container: grid, direction: 'both' };
     if (toolbar) return { type: 'toolbar', container: toolbar, direction: 'horizontal' };
-    if (menu) return { type: 'menu', container: menu, direction: 'vertical' };
-    
-    return null;
-  }, []);
+    if (menu) return { type: 'menu', container: menu, direction: 'vertical' };      return null;  }, []);
 
+  // Move focus to another element, with looping at boundaries
   const navigateInContext = useCallback((
     currentElement: HTMLElement, 
     direction: 'next' | 'previous' | 'up' | 'down' | 'first' | 'last',
@@ -91,15 +93,17 @@ export function useGlobalKeyboardNavigation() {
       elements[targetIndex].focus();
       return true;
     }
-    
-    return false;
-  }, [findElementsInContainer]);
+      return false;  }, [findElementsInContainer]);
 
+  /**
+   * Global keyboard event handler that processes all keyboard interactions.
+   * Handles arrow keys, Home/End, Enter/Space, and Escape based on the current context.
+   */
   const handleGlobalKeyDown = useCallback((event: KeyboardEvent) => {
     const activeElement = document.activeElement as HTMLElement;
     if (!activeElement) return;
 
-    // Don't interfere with text input
+    // Don't interfere with text input fields where users are typing
     if (
       activeElement.tagName === 'INPUT' && 
       ['text', 'search', 'email', 'password', 'url'].includes((activeElement as HTMLInputElement).type)
@@ -109,34 +113,37 @@ export function useGlobalKeyboardNavigation() {
     if (activeElement.contentEditable === 'true') return;
 
     const context = getNavigationContext(activeElement);
-    if (!context) return;
+    if (!context) return;    let handled = false;
 
-    let handled = false;
-
+    // Handle keyboard navigation based on the key pressed
     switch (event.key) {
       case 'ArrowLeft':
+        // Navigate to previous item in horizontal layouts (navbar, footer, toolbar)
         if (context.direction === 'horizontal' || context.direction === 'both') {
           handled = navigateInContext(activeElement, 'previous', context);
         }
         break;
         
       case 'ArrowRight':
+        // Navigate to next item in horizontal layouts
         if (context.direction === 'horizontal' || context.direction === 'both') {
           handled = navigateInContext(activeElement, 'next', context);
         }
         break;
         
       case 'ArrowUp':
+        // Navigate to previous item in vertical layouts (menus, grids)
         if (context.direction === 'vertical' || context.direction === 'both') {
           handled = navigateInContext(activeElement, 'up', context);
         }
         break;
         
       case 'ArrowDown':
+        // Navigate to next item in vertical layouts
         if (context.direction === 'vertical' || context.direction === 'both') {
           handled = navigateInContext(activeElement, 'down', context);
         }
-        // Special case: open dropdown menus
+        // Special case: open dropdown menus when pressing down on a menu trigger
         if (context.type === 'navbar' && activeElement.getAttribute('aria-haspopup') === 'menu') {
           activeElement.click();
           handled = true;
@@ -144,16 +151,17 @@ export function useGlobalKeyboardNavigation() {
         break;
         
       case 'Home':
-        handled = navigateInContext(activeElement, 'first', context);
-        break;
+        // Jump to first item in the navigation group
+        handled = navigateInContext(activeElement, 'first', context);        break;
         
       case 'End':
+        // Jump to last item in the navigation group
         handled = navigateInContext(activeElement, 'last', context);
         break;
         
       case 'Enter':
       case ' ':
-        // Activate buttons and links
+        // Activate buttons, links, and menu items when Enter or Space is pressed
         if (
           activeElement.tagName === 'BUTTON' ||
           activeElement.tagName === 'A' ||
@@ -165,10 +173,9 @@ export function useGlobalKeyboardNavigation() {
           handled = true;
         }
         break;
-        
-      case 'Escape':
-        // Close open dropdowns/menus
-        const openDropdown = document.querySelector('[aria-expanded="true"]');
+          case 'Escape':
+        // Close open dropdowns/menus and return focus to the trigger element
+        const openDropdown = document.querySelector('[aria-expanded="true"]') as HTMLElement;
         if (openDropdown) {
           openDropdown.setAttribute('aria-expanded', 'false');
           openDropdown.focus();
@@ -179,13 +186,15 @@ export function useGlobalKeyboardNavigation() {
 
     if (handled) {
       event.preventDefault();
-      event.stopPropagation();
-    }
+      event.stopPropagation();    }
   }, [getNavigationContext, navigateInContext]);
 
+  // Set up global keyboard event listener when component mounts
   useEffect(() => {
+    // Use capture phase (true) to ensure we handle events before they bubble
     document.addEventListener('keydown', handleGlobalKeyDown, true);
     
+    // Clean up event listener when component unmounts
     return () => {
       document.removeEventListener('keydown', handleGlobalKeyDown, true);
     };

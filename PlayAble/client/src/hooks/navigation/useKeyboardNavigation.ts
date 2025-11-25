@@ -1,3 +1,7 @@
+/**
+ * Arrow key navigation for lists and grids.
+ * Handles direction and looping behaviour.
+ */
 import { useEffect, useState, useCallback, useRef } from 'react';
 
 export interface UseKeyboardNavigationOptions {
@@ -19,18 +23,17 @@ export function useKeyboardNavigation<T extends HTMLElement>(
   const [currentIndex, setCurrentIndex] = useState(-1);
   const currentIndexRef = useRef(currentIndex);
 
-  // Keep ref in sync with state
-  useEffect(() => {
-    currentIndexRef.current = currentIndex;
+  // Keep ref in sync with state to avoid stale closures
+  useEffect(() => {    currentIndexRef.current = currentIndex;
   }, [currentIndex]);
 
+  // Focus a specific item
   const setFocus = useCallback((index: number) => {
     if (items[index]) {
-      items[index].focus();
-      setCurrentIndex(index);
-    }
+      items[index].focus();      setCurrentIndex(index);    }
   }, [items]);
 
+  // Navigate to next/previous/first/last item
   const moveFocus = useCallback((direction: 'next' | 'previous' | 'first' | 'last') => {
     if (!items.length) return;
 
@@ -55,11 +58,22 @@ export function useKeyboardNavigation<T extends HTMLElement>(
       case 'last':
         newIndex = items.length - 1;
         break;
-    }
-
-    setFocus(newIndex);
+    }    setFocus(newIndex);
   }, [items, loop, setFocus]);
 
+  /**
+   * Keyboard event handler for processing navigation keys.
+   * 
+   * Processes arrow keys, Home/End, and Enter/Space based on the configured direction.
+   * Prevents default browser scrolling behaviour for handled keys.
+   * 
+   * @param {KeyboardEvent} event - The keyboard event to handle
+   * @returns {boolean} True if the event was handled, false otherwise
+   * 
+   * @remarks
+   * Attach this handler to the container element or document to enable keyboard navigation.
+   * The handler only processes keys relevant to the configured direction.
+   */
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (!items.length) return;
 
@@ -108,13 +122,13 @@ export function useKeyboardNavigation<T extends HTMLElement>(
       const currentItem = items[currentIndexRef.current];
       if (currentItem) {
         currentItem.click();
-      }
-      handled = true;
+      }      handled = true;
     }
 
     return handled;
   }, [items, direction, moveFocus, selectOnFocus]);
 
+  // Set initial focus on mount or when items change
   const initializeFocus = useCallback((startIndex = 0) => {
     if (items.length > 0) {
       setFocus(startIndex);
