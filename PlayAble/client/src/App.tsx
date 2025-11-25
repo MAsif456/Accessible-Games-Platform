@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import Navbar from './components/ui/Navbar';
+import SkipLink from './components/navigation/SkipLink';
+import Navbar from './components/navigation/Navbar';
 import Footer from './components/ui/Footer';
+import { useGlobalKeyboardNavigation } from './hooks/useGlobalKeyboardNavigation';
 import BrowsePage from './pages/BrowsePage';
 import FavouritesPage from './pages/FavouritesPage';
 import RecentlyViewedPage from './pages/RecentlyViewedPage';
@@ -29,6 +31,12 @@ function App() {
   const [path, setPath] = useState<AppPath>('/');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Enable global keyboard navigation for the entire app
+  useGlobalKeyboardNavigation();
+
+  // Enable global keyboard navigation for the entire app
+  useGlobalKeyboardNavigation();
+
   const handleNavigate = (newPath: string) => {
     if (
       newPath === '/' ||
@@ -56,9 +64,9 @@ function App() {
     setSearchTerm('');
     // TODO: reset search results here
   };
-
   return (
     <div className="App">
+      <SkipLink href="#main-content">Skip to main content</SkipLink>
       <Navbar
         role="user"
         searchTerm={searchTerm}
@@ -70,16 +78,18 @@ function App() {
       />
 
       <div className="App__content">
-        {(path === '/' || path === '/browse') && <BrowsePage />}
-        {path === '/favourites' && <FavouritesPage />}
-        {path === '/recently-viewed' && <RecentlyViewedPage />}
-        {path === '/settings' && <SettingsPage />}
-        {path === '/admin' && <AdminPage />}
-        {path === '/signin' && <SignInPage />}
-        {path === '/my-profile' && <MyProfilePage />}
-        {path === '/inbox' && <InboxPage />}
-        {path === '/about' && <AboutPage />}
-        {path === '/report' && <ReportPage />}
+        <main id="main-content" tabIndex={-1}>
+          {(path === '/' || path === '/browse') && <BrowsePage />}
+          {path === '/favourites' && <FavouritesPage />}
+          {path === '/recently-viewed' && <RecentlyViewedPage />}
+          {path === '/settings' && <SettingsPage />}
+          {path === '/admin' && <AdminPage />}
+          {path === '/signin' && <SignInPage />}
+          {path === '/my-profile' && <MyProfilePage />}
+          {path === '/inbox' && <InboxPage />}
+          {path === '/about' && <AboutPage />}
+          {path === '/report' && <ReportPage />}
+        </main>
       </div>
 
       <Footer onNavigate={handleNavigate} />
