@@ -64,7 +64,7 @@ const UserSchema = new Schema<IUser>(
   {
     timestamps: true,
     collection: 'users',
-  }
+  },
 );
 
 // Hash password before saving
@@ -83,7 +83,6 @@ UserSchema.methods.comparePassword = async function (
   return bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
-const UserModel =
-  mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+const UserModel = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 
 export default UserModel;

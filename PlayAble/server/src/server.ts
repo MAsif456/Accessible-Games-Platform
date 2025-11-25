@@ -4,14 +4,16 @@
 // All API responses are JSON for consistency and accessibility.
 import dotenv from 'dotenv';
 dotenv.config();
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import path from 'path';
 import './models/user';
+import GameModel, { seedGamesIfEmpty } from './models/game';
+import gamesRouter from '../routes/games.routes';
 import authRoutes from '../routes/authRoutes';
 import './models/settings';
 import UserSettings from './models/settings';
-import authRoutes from './routes/auth';
 
 dotenv.config();
 
@@ -23,16 +25,21 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Connect to MongoDB. Connection string is loaded from environment variables for security and flexibility.
-const MONGODB_URI =
-  process.env.MONGODB_URI || 'mongodb://localhost:27017/playabledb';
+// Serve static images
+app.use('/images', express.static(path.join(__dirname, '../public/images')));
+
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/playabledb';
 
 mongoose
   .connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('Connected to MongoDB');
+
+    // Seed games collection from JSON if empty
+    await seedGamesIfEmpty();
   })
-  .catch((error) => {
+  .catch(error => {
     console.error('MongoDB connection error:', error);
   });
 
@@ -41,8 +48,11 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
+// Games API routes
+app.use('/api', gamesRouter);
 app.use('/api/auth', authRoutes);
 
+// Fix syntax error in `pickFirstString` function
 const pickFirstString = (value: unknown): string | undefined => {
   if (typeof value === 'string') return value;
   if (Array.isArray(value) && value.length > 0) {
@@ -201,4 +211,3 @@ app.listen(PORT, () => {
 });
 
 export default app;
-

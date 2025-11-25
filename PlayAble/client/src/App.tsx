@@ -26,7 +26,7 @@ export type AppPath =
   | '/about'
   | '/report';
 
-// Protected pages that require authentication
+const PAGE_SIZE = 9;
 const protectedPaths: AppPath[] = [
   '/favourites',
   '/recently-viewed',
@@ -34,16 +34,24 @@ const protectedPaths: AppPath[] = [
   '/inbox',
 ];
 
-function AppContent() {
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
+    </AuthProvider>
+  );
+}
+
+function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protectedPaths: AppPath[] }) {
   const { user, isAuthenticated, logout } = useAuth();
   const [path, setPath] = useState<AppPath>('/');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [favourites, setFavourites] = useState<Set<string>>(new Set());
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const promptTimeout = useRef<NodeJS.Timeout | null>(null);
-  // Track if last auth event was signup or login
   const lastAuthEvent = useRef<'signup' | 'login' | null>(null);
 
-  // Show a prompt for a short duration
   const showPrompt = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setPrompt({ message, type });
     if (promptTimeout.current) clearTimeout(promptTimeout.current);
@@ -51,35 +59,16 @@ function AppContent() {
   }, []);
 
   const handleNavigate = (newPath: string) => {
-    // Type guard to ensure newPath is a valid AppPath
-    if (
-      newPath === '/' ||
-      newPath === '/browse' ||
-      newPath === '/favourites' ||
-      newPath === '/recently-viewed' ||
-      newPath === '/settings' ||
-      newPath === '/admin' ||
-      newPath === '/signin' ||
-      newPath === '/my-profile' ||
-      newPath === '/inbox' ||
-      newPath === '/about' ||
-      newPath === '/report'
-    ) {
-      // Check if trying to access protected route without authentication
-      if (protectedPaths.includes(newPath) && !isAuthenticated) {
-        setPath('/signin');
-        return;
-      }
-
-      if (newPath === '/signin') {
-        lastAuthEvent.current = null; // reset on manual nav
-      }
-
-      setPath(newPath);
+    if (protectedPaths.includes(newPath as AppPath) && !isAuthenticated) {
+      setPath('/signin');
+      return;
     }
+    if (newPath === '/signin') {
+      lastAuthEvent.current = null;
+    }
+    setPath(newPath as AppPath);
   };
 
-  // Custom logout handler: log out and go to home page
   const handleLogout = async () => {
     await logout();
     setPath('/');
@@ -88,18 +77,38 @@ function AppContent() {
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
-    // TODO: trigger search filtering here
+  };
+
+  const handleSearchSubmit = () => {
+    setPath('/browse');
+    setCurrentPage(1);
   };
 
   const handleClearSearch = () => {
     setSearchTerm('');
-    // TODO: reset search results here
+    setCurrentPage(1);
   };
 
-  // Get user role for navbar
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleToggleFavourite = (gameId: string) => {
+    setFavourites(prev => {
+      const next = new Set(prev);
+      if (next.has(gameId)) next.delete(gameId);
+      else next.add(gameId);
+      return next;
+    });
+  };
+
+  const handleGameClick = (gameId: string) => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    console.log('Open details for', gameId);
+  };
+
   const userRole = user?.role || 'guest';
 
-  // Listen for signup/login event from SignInPage
   useEffect(() => {
     if (lastAuthEvent.current === 'signup' && user) {
       showPrompt(`Welcome to Accessible Games Platform, ${user.name || 'user'}!`, 'success');
@@ -143,7 +152,7 @@ function AppContent() {
         role={userRole}
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
-        onSearchSubmit={() => {}}
+        onSearchSubmit={handleSearchSubmit}
         onClearSearch={handleClearSearch}
         currentPath={path}
         onNavigate={handleNavigate}
@@ -151,7 +160,19 @@ function AppContent() {
       />
 
       <div className="App__content">
-        {(path === '/' || path === '/browse') && <BrowsePage />}
+        {(path === '/' || path === '/browse') && (
+          <BrowsePage
+            currentPath={path}
+            currentPage={currentPage}
+            pageSize={PAGE_SIZE}
+            onPageChange={handlePageChange}
+            searchTerm={searchTerm}
+            onGameClick={handleGameClick}
+            onToggleFavourite={handleToggleFavourite}
+            favourites={favourites}
+            onSearchChange={handleSearchChange}
+          />
+        )}
         {path === '/favourites' && <FavouritesPage />}
         {path === '/recently-viewed' && <RecentlyViewedPage />}
         {path === '/settings' && <SettingsPage />}
@@ -167,16 +188,6 @@ function AppContent() {
               }
               showPrompt(msg, type);
             }}
-            navbarProps={{
-              role: userRole,
-              searchTerm,
-              onSearchChange: handleSearchChange,
-              onSearchSubmit: () => {},
-              onClearSearch: handleClearSearch,
-              currentPath: path,
-              onNavigate: handleNavigate,
-              onLogout: handleLogout,
-            }}
           />
         )}
         {path === '/my-profile' && <MyProfilePage />}
@@ -187,14 +198,6 @@ function AppContent() {
 
       <Footer onNavigate={handleNavigate} />
     </div>
-  );
-}
-
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
   );
 }
 
