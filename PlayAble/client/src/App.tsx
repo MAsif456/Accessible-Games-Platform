@@ -25,9 +25,13 @@ export type AppPath =
   | '/about'
   | '/report';
 
+const PAGE_SIZE = 9;
+
 function App() {
   const [path, setPath] = useState<AppPath>('/');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [favourites, setFavourites] = useState<Set<string>>(new Set());
 
   const handleNavigate = (newPath: string) => {
     if (
@@ -43,18 +47,41 @@ function App() {
       newPath === '/about' ||
       newPath === '/report'
     ) {
-      setPath(newPath);
+      setPath(newPath as AppPath);
     }
   };
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
-    // TODO: trigger search filtering here
+  };
+
+  const handleSearchSubmit = () => {
+    setPath('/browse');
+    setCurrentPage(1);
   };
 
   const handleClearSearch = () => {
     setSearchTerm('');
-    // TODO: reset search results here
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleToggleFavourite = (gameId: string) => {
+    setFavourites(prev => {
+      const next = new Set(prev);
+      if (next.has(gameId)) next.delete(gameId);
+      else next.add(gameId);
+      return next;
+    });
+  };
+
+  const handleGameClick = (gameId: string) => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    // later: navigate to /game/:id
+    console.log('Open details for', gameId);
   };
 
   return (
@@ -63,14 +90,26 @@ function App() {
         role="user"
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
-        onSearchSubmit={() => {}}
+        onSearchSubmit={handleSearchSubmit}
         onClearSearch={handleClearSearch}
         currentPath={path}
         onNavigate={handleNavigate}
       />
 
       <div className="App__content">
-        {(path === '/' || path === '/browse') && <BrowsePage />}
+        {(path === '/' || path === '/browse') && (
+          <BrowsePage
+            currentPath={path}
+            currentPage={currentPage}
+            pageSize={PAGE_SIZE}
+            onPageChange={handlePageChange}
+            searchTerm={searchTerm}
+            onGameClick={handleGameClick}
+            onToggleFavourite={handleToggleFavourite}
+            favourites={favourites}
+            onSearchChange={handleSearchChange}
+          />
+        )}
         {path === '/favourites' && <FavouritesPage />}
         {path === '/recently-viewed' && <RecentlyViewedPage />}
         {path === '/settings' && <SettingsPage />}
@@ -88,4 +127,3 @@ function App() {
 }
 
 export default App;
-

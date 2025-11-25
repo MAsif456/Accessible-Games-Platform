@@ -34,8 +34,7 @@ const Navbar: React.FC<NavbarProps> = ({
 
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
-      // Toggle voice popup instead of navigation
-      setIsVoiceOpen((prev) => !prev);
+      setIsVoiceOpen(prev => !prev);
       return;
     }
     if (onNavigate) onNavigate(path);
@@ -53,14 +52,21 @@ const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="navbar" aria-label="Main navigation">
       <div className="navbar__inner">
-        <div className="navbar__brand" onClick={() => handleNavClick('/')}
-          role="button" tabIndex={0}
-          onKeyDown={(e) => {
+        <div
+          className="navbar__brand"
+          onClick={() => handleNavClick('/')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') handleNavClick('/');
           }}
         >
           <div className="navbar__logo" aria-hidden="true">
-            <img src="/src/assets/branding/playable-app-logo-branding.png" alt="PlayAble Logo" style={{ width: '60px', height: '50px', borderRadius: '12px' }} />
+            <img
+              src="/src/assets/branding/playable-app-logo-branding.png"
+              alt="PlayAble Logo"
+              style={{ width: '60px', height: '50px', borderRadius: '12px' }}
+            />
           </div>
           <span className="navbar__title">PlayAble</span>
         </div>
@@ -73,29 +79,33 @@ const Navbar: React.FC<NavbarProps> = ({
             <input
               id="global-search"
               type="search"
-              className="navbar__search-input"
+              className="navbar__search-input navbar__search-input--wide"
               placeholder="Search games..."
               value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
+              onChange={e => onSearchChange(e.target.value)}
               onKeyDown={handleSearchKeyDown}
             />
             {searchTerm && (
               <button
                 type="button"
-                className="navbar__search-clear"
+                className="navbar__search-clear navbar__search-clear--full"
                 onClick={onClearSearch}
-                aria-label="Clear search"
               >
-                ×
+                <span aria-hidden="true" className="browse-page__search-clear-icon">
+                  ×
+                </span>
+                <span className="browse-page__search-clear-label">Clear</span>
               </button>
             )}
           </div>
+          <div className="navbar__search-error" aria-live="polite"></div>
         </div>
 
         <nav className="navbar__nav" aria-label="Primary">
           <ul className="navbar__nav-list">
-            {navItems.map((item) => {
-              const isActive = currentPath === item.path || (item.key === 'browse' && currentPath === '/');
+            {navItems.map(item => {
+              const isActive =
+                currentPath === item.path || (item.key === 'browse' && currentPath === '/');
               return (
                 <li key={item.key}>
                   <button
@@ -125,10 +135,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => handleNavClick('/admin')}
                   className="navbar__nav-button"
                 >
-                  <span
-                    className="navbar__nav-icon navbar__nav-icon--admin"
-                    aria-hidden="true"
-                  />
+                  <span className="navbar__nav-icon navbar__nav-icon--admin" aria-hidden="true" />
                   <span>Admin</span>
                 </button>
               </li>
@@ -142,12 +149,9 @@ const Navbar: React.FC<NavbarProps> = ({
                     className="navbar__nav-button navbar__nav-button--profile"
                     aria-haspopup="menu"
                     aria-expanded={isAccountOpen}
-                    onClick={() => setIsAccountOpen((prev) => !prev)}
+                    onClick={() => setIsAccountOpen(prev => !prev)}
                   >
-                    <span
-                      className="navbar__nav-icon navbar__nav-icon--user"
-                      aria-hidden="true"
-                    />
+                    <span className="navbar__nav-icon navbar__nav-icon--user" aria-hidden="true" />
                     <span>My Account</span>
                     <span className="navbar__nav-caret" aria-hidden="true">
                       ▾
@@ -198,10 +202,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => handleNavClick('/signin')}
                   className="navbar__nav-button navbar__nav-button--signin"
                 >
-                  <span
-                    className="navbar__nav-icon navbar__nav-icon--lock"
-                    aria-hidden="true"
-                  />
+                  <span className="navbar__nav-icon navbar__nav-icon--lock" aria-hidden="true" />
                   <span>Sign in</span>
                 </button>
               </li>
