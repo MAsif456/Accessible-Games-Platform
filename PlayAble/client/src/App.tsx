@@ -160,13 +160,22 @@ function AppContent() {
           <SignInPage
             onNavigate={handleNavigate}
             showPrompt={(msg, type) => {
-              // If the prompt is a signup welcome, set the flag
               if (msg && msg.startsWith('Welcome to Accessible Games Platform')) {
                 lastAuthEvent.current = 'signup';
               } else if (msg && msg === 'Login successful!') {
                 lastAuthEvent.current = 'login';
               }
               showPrompt(msg, type);
+            }}
+            navbarProps={{
+              role: userRole,
+              searchTerm,
+              onSearchChange: handleSearchChange,
+              onSearchSubmit: () => {},
+              onClearSearch: handleClearSearch,
+              currentPath: path,
+              onNavigate: handleNavigate,
+              onLogout: handleLogout,
             }}
           />
         )}

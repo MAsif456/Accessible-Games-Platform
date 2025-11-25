@@ -8,8 +8,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import './models/user';
-import authRoutes from './routes/authRoutes';
-import emailTestRoutes from '../routes/emailTestRoutes';
+import authRoutes from '../routes/authRoutes';
 
 const app: Express = express();
 const PORT = process.env.PORT || 5001;
@@ -39,8 +38,6 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 // Main authentication and user account routes.
 app.use('/api/auth', authRoutes);
-// Development-only route for testing email delivery. Remove before production.
-app.use('/api/test', emailTestRoutes);
 
 // 404 handler for unknown API routes. Ensures all errors are returned as JSON for frontend consistency.
 app.use('/api/*', (req, res) => {

@@ -181,7 +181,7 @@ You should see:
 │   │   ├── context/
 │   │   │   └── AuthContext.tsx
 │   │   ├── pages/
-│   │   │   └── SignInPage.tsx, ...
+│   │   │   └── SignInPage.tsx, BrowsePage.tsx, ...
 │   │   ├── services/
 │   │   │   └── authService.ts
 │   │   └── styles/
@@ -193,19 +193,19 @@ You should see:
 │
 ├── server/                 # Express Backend
 │   ├── src/
-│   │   ├── models/
-│   │   │   └── user.ts  # Users collection schema
-│   │   ├── server.ts      # Main server file
-│   │   └── routes/
-│   │       └── authRoutes.ts
+│   │   ├── server.ts      # Main server file (Express app setup)
+│   │   └── models/
+│   │       ├── index.ts   # Mongoose connection / model bootstrap
+│   │       └── user.ts    # Users collection schema
+│   ├── routes/
+│   │   └── authRoutes.ts  # Authentication and password reset routes
 │   ├── controllers/
 │   │   └── authController.ts
 │   ├── middleware/
-│   │   └── auth.ts
+│   │   └── auth.ts        # JWT auth middleware
 │   ├── services/
-│   │   └── emailService.ts
-│   ├── routes/
-│   │   └── emailTestRoutes.ts
+│   │   └── emailService.ts # Nodemailer email helper (password reset)
+│   ├── utils/             # Shared backend utilities (if any)
 │   ├── package.json       # Backend dependencies
 │   ├── tsconfig.json      # TypeScript config
 │   └── .env               # Environment variables
@@ -366,5 +366,4 @@ The backend uses Nodemailer to send password reset codes via Gmail. To enable th
 - Comments in code focus on "why" decisions, accessibility, and maintainability.
 
 ---
-````
 
