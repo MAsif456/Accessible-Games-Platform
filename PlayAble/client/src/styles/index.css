@@ -880,18 +880,18 @@ body,
   align-items: flex-start;
   gap: 0.5rem;
   padding: 0.75rem;
-  background-color: #eff6ff;
-  border-left: 3px solid #3b82f6;
+  background-color: #eef2ff;
+  border-left: 3px solid #4338ca;
   border-radius: 0.25rem;
   font-size: 0.9rem;
-  color: #1e40af;
+  color: #0f172a;
   margin-top: 0.75rem;
 }
 
 .dark-mode .settings-section__tip {
   background-color: #1e3a8a;
   border-left-color: #60a5fa;
-  color: #bfdbfe;
+  color: #e0e7ff;
 }
 
 .settings-section__tip-icon {
@@ -990,7 +990,7 @@ body,
 
 .settings-section__shortcut-desc {
   font-size: 0.9rem;
-  color: #4b5563;
+  color: #1f2937;
   flex: 1;
 }
 
@@ -1444,6 +1444,35 @@ body.high-contrast .settings-section__wake-word,
 body.high-contrast .settings-section__voice-guide,
 body.high-contrast .settings-section__keyboard-guide {
   background-color: var(--hc-surface);
+}
+
+body.high-contrast h1,
+body.high-contrast h2,
+body.high-contrast h3,
+body.high-contrast h4,
+body.high-contrast h5,
+body.high-contrast h6,
+body.high-contrast .settings-page__title,
+body.high-contrast .settings-section__title,
+body.high-contrast .settings-section__label,
+body.high-contrast .settings-page__nav-item,
+body.high-contrast .navbar__title,
+body.high-contrast .contrast-theme-picker__header h3,
+body.high-contrast .contrast-theme-card__name {
+  color: var(--hc-text);
+}
+
+body.high-contrast p,
+body.high-contrast span,
+body.high-contrast .settings-section__description,
+body.high-contrast .settings-section__note,
+body.high-contrast .settings-section__info,
+body.high-contrast .settings-section__guide-text,
+body.high-contrast .settings-section__command-list li,
+body.high-contrast .settings-section__shortcut-desc,
+body.high-contrast .contrast-theme-card__description,
+body.high-contrast .contrast-theme-picker__header p {
+  color: var(--hc-muted);
 }
 
 .reduced-motion *,
