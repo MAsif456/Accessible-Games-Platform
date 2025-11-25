@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { UserModel, IUser } from '../src/models';
 import { sendEmail } from '../services/emailService';
+import bcrypt from 'bcryptjs';
 
 // Ensure JWT_SECRET exists
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -65,6 +66,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         name: user.name,
         email: user.email,
         role: user.role,
+        bio: (user as any).bio,
       },
     });
   } catch (error: any) {
@@ -115,6 +117,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         name: user.name,
         email: user.email,
         role: user.role,
+        bio: (user as any).bio,
         favourites: user.favourites,
         recentlyViewed: user.recentlyViewed,
         accessibilitySettings: user.accessibilitySettings,
@@ -204,6 +207,7 @@ export const getMe = async (req: Request & { user?: { id: string } }, res: Respo
         name: user.name,
         email: user.email,
         role: user.role,
+        bio: (user as any).bio,
         favourites: user.favourites,
         recentlyViewed: user.recentlyViewed,
         accessibilitySettings: user.accessibilitySettings,
@@ -233,5 +237,106 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       message: 'Error logging out',
       error: error.message,
     });
+  }
+};
+
+export const updateProfile = async (
+  req: Request & { user?: { id: string } },
+  res: Response
+): Promise<void> => {
+  try {
+    const { name, bio } = req.body as { name?: string; bio?: string };
+
+    const user = await UserModel.findById(req.user?.id);
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    if (typeof name === 'string' && name.trim()) {
+      user.name = name.trim();
+    }
+    if (typeof bio === 'string') {
+      user.bio = bio.trim();
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        bio: user.bio,
+        favourites: user.favourites,
+        recentlyViewed: user.recentlyViewed,
+        accessibilitySettings: user.accessibilitySettings,
+      },
+    });
+  } catch (error: any) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ success: false, message: 'Error updating profile', error: error.message });
+  }
+};
+
+export const updateEmailAndPassword = async (
+  req: Request & { user?: { id: string } },
+  res: Response
+): Promise<void> => {
+  try {
+    const { newEmail, currentPassword, newPassword } = req.body as {
+      newEmail?: string;
+      currentPassword?: string;
+      newPassword?: string;
+    };
+
+    const user = await UserModel.findById(req.user?.id).select('+passwordHash');
+    if (!user) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        res.status(400).json({ success: false, message: 'Current password is required' });
+        return;
+      }
+      const isCurrentValid = await user.comparePassword(currentPassword);
+      if (!isCurrentValid) {
+        res.status(400).json({ success: false, message: 'Current password is incorrect' });
+        return;
+      }
+      user.passwordHash = newPassword;
+    }
+
+    if (newEmail && newEmail !== user.email) {
+      const existing = await UserModel.findOne({ email: newEmail });
+      if (existing) {
+        res.status(400).json({ success: false, message: 'Email is already in use' });
+        return;
+      }
+      user.email = newEmail.toLowerCase();
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        bio: user.bio,
+        favourites: user.favourites,
+        recentlyViewed: user.recentlyViewed,
+        accessibilitySettings: user.accessibilitySettings,
+      },
+    });
+  } catch (error: any) {
+    console.error('Update email/password error:', error);
+    res.status(500).json({ success: false, message: 'Error updating account details', error: error.message });
   }
 };

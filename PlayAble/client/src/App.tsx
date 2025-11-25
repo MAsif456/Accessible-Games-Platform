@@ -12,6 +12,7 @@ import MyProfilePage from './pages/MyProfilePage';
 import InboxPage from './pages/InboxPage';
 import AboutPage from './pages/AboutPage';
 import ReportPage from './pages/ReportPage';
+import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
 
 export type AppPath =
   | '/'
@@ -22,6 +23,7 @@ export type AppPath =
   | '/admin'
   | '/signin'
   | '/my-profile'
+  | '/change-email-password'
   | '/inbox'
   | '/about'
   | '/report';
@@ -32,6 +34,7 @@ const protectedPaths: AppPath[] = [
   '/recently-viewed',
   '/my-profile',
   '/inbox',
+  '/change-email-password',
 ];
 
 function App() {
@@ -59,14 +62,35 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   }, []);
 
   const handleNavigate = (newPath: string) => {
-    if (protectedPaths.includes(newPath as AppPath) && !isAuthenticated) {
-      setPath('/signin');
-      return;
+    // Type guard to ensure newPath is a valid AppPath
+    if (
+      newPath === '/' ||
+      newPath === '/browse' ||
+      newPath === '/favourites' ||
+      newPath === '/recently-viewed' ||
+      newPath === '/settings' ||
+      newPath === '/admin' ||
+      newPath === '/signin' ||
+      newPath === '/my-profile' ||
+      newPath === '/change-email-password' ||
+      newPath === '/inbox' ||
+      newPath === '/about' ||
+      newPath === '/report'
+    ) {
+      const typedPath = newPath as AppPath;
+
+      // Check if trying to access protected route without authentication
+      if (protectedPaths.includes(typedPath) && !isAuthenticated) {
+        setPath('/signin');
+        return;
+      }
+
+      if (typedPath === '/signin') {
+        lastAuthEvent.current = null; // reset on manual nav
+      }
+
+      setPath(typedPath);
     }
-    if (newPath === '/signin') {
-      lastAuthEvent.current = null;
-    }
-    setPath(newPath as AppPath);
   };
 
   const handleLogout = async () => {
@@ -190,7 +214,12 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
             }}
           />
         )}
-        {path === '/my-profile' && <MyProfilePage />}
+        {path === '/my-profile' && (
+          <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />
+        )}
+        {path === '/change-email-password' && (
+          <ChangeEmailPasswordPage onNavigate={handleNavigate} />
+        )}
         {path === '/inbox' && <InboxPage />}
         {path === '/about' && <AboutPage />}
         {path === '/report' && <ReportPage />}

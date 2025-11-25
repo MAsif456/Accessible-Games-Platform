@@ -14,6 +14,7 @@ export interface IUser extends Document {
     keyboardNavigation?: boolean;
     voiceControl?: boolean;
   };
+  bio?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -59,6 +60,11 @@ const UserSchema = new Schema<IUser>(
       screenReader: { type: Boolean, default: false },
       keyboardNavigation: { type: Boolean, default: true },
       voiceControl: { type: Boolean, default: false },
+    },
+    bio: {
+      type: String,
+      default: '',
+      trim: true,
     },
   },
   {

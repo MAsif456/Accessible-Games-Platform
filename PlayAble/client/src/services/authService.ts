@@ -33,6 +33,7 @@ export interface AuthResponse {
       keyboardNavigation?: boolean;
       voiceControl?: boolean;
     };
+    bio?: string;
   };
 }
 
@@ -130,6 +131,40 @@ class AuthService {
   // Retrieves the stored authentication token from localStorage.
   getToken(): string | null {
     return localStorage.getItem('token');
+  }
+
+  async updateProfile(data: { name?: string; bio?: string }) {
+    const token = this.getToken();
+    const response = await fetch(`${API_URL}/auth/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (result.success && result.user) {
+      localStorage.setItem('user', JSON.stringify(result.user));
+    }
+    return result;
+  }
+
+  async updateAccount(data: { newEmail?: string; currentPassword?: string; newPassword?: string }) {
+    const token = this.getToken();
+    const response = await fetch(`${API_URL}/auth/account`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (result.success && result.user) {
+      localStorage.setItem('user', JSON.stringify(result.user));
+    }
+    return result;
   }
 }
 
