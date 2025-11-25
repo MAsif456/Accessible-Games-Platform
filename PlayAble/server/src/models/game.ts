@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import gamesData from '../../data/games.json';
 
 export interface IGame extends Document {
   slug: string;
@@ -33,3 +34,22 @@ const GameSchema = new Schema<IGame>(
 const GameModel = mongoose.models.Game || mongoose.model<IGame>('Game', GameSchema);
 
 export default GameModel;
+
+export async function seedGamesIfEmpty() {
+  const count = await GameModel.countDocuments();
+  if (count > 0) return;
+
+  const gamesToInsert = (gamesData as any[]).map(g => ({
+    slug: g.slug,
+    title: g.title,
+    studio: g.studio,
+    description: g.description,
+    thumbnailUrl: g.thumbnailUrl,
+    genres: g.genres,
+    accessibilityTags: g.accessibilityTags,
+    releaseYear: g.releaseYear,
+    isPublished: g.isPublished ?? true,
+  }));
+
+  await GameModel.insertMany(gamesToInsert);
+}

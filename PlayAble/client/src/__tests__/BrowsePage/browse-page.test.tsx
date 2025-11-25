@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import BrowsePage from '../pages/BrowsePage';
-import { GameDto } from '../services/api';
+import BrowsePage from '../../pages/BrowsePage';
+import { GameDto } from '../../services/api';
 
 
-jest.mock('../services/api', () => {
-  const actual = jest.requireActual('../services/api');
+jest.mock('src/services/api', () => {
+  const actual = jest.requireActual('src/services/api');
   return {
     ...actual,
     getGames: jest.fn(

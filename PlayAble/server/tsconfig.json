@@ -13,6 +13,13 @@
     "moduleResolution": "node",
     "sourceMap": true
   },
-  "include": ["src/**/*", "routes/**/*", "services/**/*", "controllers/**/*", "utils/**/*"],
+  "include": [
+    "src/**/*",
+    "routes/**/*",
+    "services/**/*",
+    "controllers/**/*",
+    "utils/**/*"
+  ],
   "exclude": ["node_modules", "dist"]
 }
+

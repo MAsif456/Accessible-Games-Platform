@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import path from 'path';
 import './models/user';
-import './models/game';
+import GameModel, { seedGamesIfEmpty } from './models/game';
 import gamesRouter from '../routes/games.routes';
 
 dotenv.config();
@@ -25,8 +25,11 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/playab
 
 mongoose
   .connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('Connected to MongoDB');
+
+    // Seed games collection from JSON if empty
+    await seedGamesIfEmpty();
   })
   .catch(error => {
     console.error('MongoDB connection error:', error);
