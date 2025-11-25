@@ -1,11 +1,22 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
   name: string;
   email: string;
   passwordHash: string;
+  role: 'guest' | 'user' | 'admin';
+  favourites: mongoose.Types.ObjectId[];
+  recentlyViewed: mongoose.Types.ObjectId[];
+  accessibilitySettings?: {
+    highContrast?: boolean;
+    screenReader?: boolean;
+    keyboardNavigation?: boolean;
+    voiceControl?: boolean;
+  };
   createdAt: Date;
   updatedAt: Date;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -26,6 +37,29 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: true,
     },
+    role: {
+      type: String,
+      enum: ['guest', 'user', 'admin'],
+      default: 'user',
+    },
+    favourites: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Game',
+      },
+    ],
+    recentlyViewed: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Game',
+      },
+    ],
+    accessibilitySettings: {
+      highContrast: { type: Boolean, default: false },
+      screenReader: { type: Boolean, default: false },
+      keyboardNavigation: { type: Boolean, default: true },
+      voiceControl: { type: Boolean, default: false },
+    },
   },
   {
     timestamps: true,
@@ -33,8 +67,23 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
+// Hash password before saving
+UserSchema.pre('save', async function (next) {
+  if (!this.isModified('passwordHash')) return next();
+  
+  const salt = await bcrypt.genSalt(10);
+  this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
+  next();
+});
+
+// Compare password method
+UserSchema.methods.comparePassword = async function (
+  candidatePassword: string
+): Promise<boolean> {
+  return bcrypt.compare(candidatePassword, this.passwordHash);
+};
+
 const UserModel =
   mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 
 export default UserModel;
-
