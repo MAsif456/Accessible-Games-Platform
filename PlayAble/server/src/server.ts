@@ -193,9 +193,6 @@ app.post('/api/settings/reset', async (req: Request, res: Response) => {
   }
 });
 
-// Main authentication and user account routes.
-app.use('/api/auth', authRoutes);
-
 // 404 handler for unknown API routes. Ensures all errors are returned as JSON for frontend consistency.
 app.use('/api/*', (req, res) => {
   res.status(404).json({ success: false, message: 'API route not found' });
