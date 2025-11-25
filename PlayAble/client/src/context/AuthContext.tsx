@@ -4,6 +4,8 @@
 // Uses localStorage for persistence and verifies tokens with the backend for security.
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import authService, { SignupData, LoginData, AuthResponse } from '../services/authService';
+import settingsApi, { UserSettings } from '../services/settingsApi';
+import { applyAccessibilityPreferences } from '../utils/accessibility';
 import { UserRole } from '../components/ui/Navbar';
 
 interface User {
@@ -29,6 +31,9 @@ interface AuthContextType {
   login: (data: LoginData) => Promise<AuthResponse>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
+  userSettings: UserSettings | null;
+  refreshUserSettings: () => Promise<void>;
+  updateUserSettingsState: (settings: UserSettings | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,6 +55,28 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+
+  const loadUserSettings = async (userId: string) => {
+    try {
+      const loaded = await settingsApi.getSettings(userId);
+      setUserSettings(loaded);
+      applyAccessibilityPreferences(loaded);
+    } catch (error) {
+      console.error('Failed to load accessibility settings:', error);
+    }
+  };
+
+  const refreshUserSettings = async () => {
+    if (user?.id) {
+      await loadUserSettings(user.id);
+    }
+  };
+
+  const updateUserSettingsState = (settings: UserSettings | null) => {
+    setUserSettings(settings);
+    applyAccessibilityPreferences(settings);
+  };
 
   // Initialises authentication by checking for stored user and verifying token validity.
   useEffect(() => {
@@ -63,14 +90,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           try {
             const response = await authService.getCurrentUser();
             if (response.success && response.user) {
-              setUser(response.user as User);
+              const currentUser = response.user as User;
+              setUser(currentUser);
+              await loadUserSettings(currentUser.id);
             } else {
               // Handles expired or invalid tokens by logging out.
               authService.logout();
+              updateUserSettingsState(null);
             }
           } catch (error) {
             // Handles token verification failure by logging out.
             authService.logout();
+            updateUserSettingsState(null);
           }
         }
       } catch (error) {
@@ -87,7 +118,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.signup(data);
       if (response.success && response.user) {
-        setUser(response.user as User);
+        const newUser = response.user as User;
+        setUser(newUser);
+        await loadUserSettings(newUser.id);
       }
       return response;
     } catch (error: any) {
@@ -102,7 +135,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authService.login(data);
       if (response.success && response.user) {
-        setUser(response.user as User);
+        const loggedInUser = response.user as User;
+        setUser(loggedInUser);
+        await loadUserSettings(loggedInUser.id);
       }
       return response;
     } catch (error: any) {
@@ -117,6 +152,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await authService.logout();
       setUser(null);
+      updateUserSettingsState(null);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -135,6 +171,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     updateUser,
+    userSettings,
+    refreshUserSettings,
+    updateUserSettingsState,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

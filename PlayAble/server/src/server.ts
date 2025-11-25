@@ -4,13 +4,14 @@
 // All API responses are JSON for consistency and accessibility.
 import dotenv from 'dotenv';
 dotenv.config();
-import express, { Express, Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import './models/user';
 import authRoutes from '../routes/authRoutes';
 import './models/settings';
 import UserSettings from './models/settings';
+import authRoutes from './routes/auth';
 
 dotenv.config();
 
@@ -40,19 +41,69 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// Settings Routes
-// For now, we'll use a temporary userId. In production, this would come from authentication
-const TEMP_USER_ID = '507f1f77bcf86cd799439011'; // Placeholder ObjectId
+app.use('/api/auth', authRoutes);
+
+const pickFirstString = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && value.length > 0) {
+    const first = value[0];
+    if (typeof first === 'string') return first;
+  }
+  return undefined;
+};
+
+const resolveUserId = (req: Request) => {
+  const headerId = pickFirstString(req.headers['x-user-id']);
+  const queryId = pickFirstString(req.query.userId);
+  const bodyId = pickFirstString(req.body?.userId);
+
+  const rawId = headerId || queryId || bodyId;
+
+  if (!rawId) {
+    return null;
+  }
+
+  try {
+    return new mongoose.Types.ObjectId(rawId);
+  } catch {
+    return null;
+  }
+};
 
 // Get user settings
 app.get('/api/settings', async (req: Request, res: Response) => {
   try {
-    const userId = new mongoose.Types.ObjectId(TEMP_USER_ID);
+    const userId = resolveUserId(req);
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required to fetch settings' });
+    }
+
+    // First try to find existing settings
     let settings = await UserSettings.findOne({ userId });
 
     // If no settings exist, create default settings
     if (!settings) {
-      settings = await UserSettings.create({ userId });
+      const defaultSettings = {
+        userId,
+        voiceInput: true,
+        captions: true,
+        microphoneActive: true,
+        highContrastMode: false,
+        highContrastTheme: 'tidepool',
+        reducedMotion: false,
+        darkMode: false,
+      };
+
+      try {
+        settings = await UserSettings.create(defaultSettings);
+      } catch (createError: any) {
+        // If duplicate key error (race condition), fetch the existing one
+        if (createError.code === 11000) {
+          settings = await UserSettings.findOne({ userId });
+        } else {
+          throw createError;
+        }
+      }
     }
 
     res.json(settings);
@@ -65,7 +116,11 @@ app.get('/api/settings', async (req: Request, res: Response) => {
 // Update user settings
 app.put('/api/settings', async (req: Request, res: Response) => {
   try {
-    const userId = new mongoose.Types.ObjectId(TEMP_USER_ID);
+    const userId = resolveUserId(req);
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required to update settings' });
+    }
+
     const {
       voiceInput,
       captions,
@@ -100,7 +155,10 @@ app.put('/api/settings', async (req: Request, res: Response) => {
 // Reset settings to defaults
 app.post('/api/settings/reset', async (req: Request, res: Response) => {
   try {
-    const userId = new mongoose.Types.ObjectId(TEMP_USER_ID);
+    const userId = resolveUserId(req);
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required to reset settings' });
+    }
 
     const settings = await UserSettings.findOneAndUpdate(
       { userId },

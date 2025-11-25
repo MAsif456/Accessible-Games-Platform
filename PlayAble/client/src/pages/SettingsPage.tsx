@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
 import { settingsApi, UserSettings } from '../services/settingsApi';
+import { useAuth } from '../context/AuthContext';
 import '../styles/index.css';
+import {
+  HIGH_CONTRAST_THEMES,
+  DEFAULT_HIGH_CONTRAST_THEME,
+  applyAccessibilityPreferences,
+  HighContrastThemeId,
+} from '../utils/accessibility';
 
 type SettingsSection = 'voice' | 'keyboard' | 'visual';
-type HighContrastThemeId = UserSettings['highContrastTheme'];
 type ToggleableSetting =
   | 'voiceInput'
   | 'captions'
@@ -12,44 +18,8 @@ type ToggleableSetting =
   | 'reducedMotion'
   | 'darkMode';
 
-const HIGH_CONTRAST_THEMES: Array<{
-  id: HighContrastThemeId;
-  name: string;
-  description: string;
-  swatches: string[];
-}> = [
-  {
-    id: 'tidepool',
-    name: 'Tidepool Glow',
-    description: 'Deep blues with neon cyan details for crisp aquatic contrast.',
-    swatches: ['#001427', '#0ea5e9', '#7df9ff', '#fef3c7'],
-  },
-  {
-    id: 'sunset',
-    name: 'Sunset Ember',
-    description: 'Warm golden surfaces with dark ink text inspired by desert light.',
-    swatches: ['#180b00', '#ffb703', '#ffd166', '#fbf3d5'],
-  },
-  {
-    id: 'twilight',
-    name: 'Twilight Alloy',
-    description: 'Cool slate foundations with lavender accents for balanced contrast.',
-    swatches: ['#0f172a', '#475569', '#a78bfa', '#f5f3ff'],
-  },
-  {
-    id: 'midnight',
-    name: 'Midnight Pulse',
-    description: 'Pure black with electric magenta and lime signals for maximum pop.',
-    swatches: ['#000000', '#8b5cf6', '#facc15', '#ffffff'],
-  },
-];
-
-const DEFAULT_HIGH_CONTRAST_THEME: HighContrastThemeId = 'tidepool';
-const HIGH_CONTRAST_THEME_CLASSNAMES = HIGH_CONTRAST_THEMES.map(
-  (theme) => `high-contrast-theme-${theme.id}`
-);
-
 const SettingsPage = () => {
+  const { user, userSettings, updateUserSettingsState } = useAuth();
   const [activeSection, setActiveSection] = useState<SettingsSection>('voice');
   const [settings, setSettings] = useState<UserSettings>({
     voiceInput: true,
@@ -65,31 +35,37 @@ const SettingsPage = () => {
   const [showResetSuccess, setShowResetSuccess] = useState(false);
   const [autoSaveIndicator, setAutoSaveIndicator] = useState(false);
 
-  // Load settings on mount
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const loadedSettings = await settingsApi.getSettings();
-        setSettings({
-          ...loadedSettings,
-          highContrastTheme: loadedSettings.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
-        });
-      } catch (error) {
-        console.error('Failed to load settings:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadSettings();
-  }, []);
+    if (user?.id && userSettings) {
+      // Load saved settings when user is logged in
+      setSettings({
+        ...userSettings,
+        highContrastTheme: userSettings.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+      });
+      setIsLoading(false);
+    } else if (!user?.id) {
+      // For non-logged-in users, use default settings
+      setSettings({
+        voiceInput: true,
+        captions: true,
+        microphoneActive: true,
+        highContrastMode: false,
+        highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        reducedMotion: false,
+        darkMode: false,
+      });
+      setIsLoading(false);
+    }
+  }, [user?.id, userSettings]);
 
   // Auto-save when settings change
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && user?.id) {
       const saveTimeout = setTimeout(async () => {
         setAutoSaveIndicator(true);
         try {
-          await settingsApi.updateSettings(settings);
+          const updated = await settingsApi.updateSettings(user.id, settings);
+          updateUserSettingsState(updated);
         } catch (error) {
           console.error('Failed to save settings:', error);
         } finally {
@@ -99,47 +75,16 @@ const SettingsPage = () => {
 
       return () => clearTimeout(saveTimeout);
     }
-  }, [settings, isLoading]);
+  }, [settings, isLoading, user?.id, updateUserSettingsState]);
 
   // Apply visual settings immediately
   useEffect(() => {
-    const themeClass =
-      settings.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME;
-
-    HIGH_CONTRAST_THEME_CLASSNAMES.forEach((className) => {
-      document.body.classList.remove(className);
-      document.documentElement.classList.remove(className);
-    });
-
-    if (settings.highContrastMode) {
-      document.body.classList.add('high-contrast');
-      document.body.classList.add(`high-contrast-theme-${themeClass}`);
-      document.documentElement.classList.add(`high-contrast-theme-${themeClass}`);
-    } else {
-      document.body.classList.remove('high-contrast');
-      document.documentElement.classList.remove(
-        `high-contrast-theme-${themeClass}`
-      );
-    }
-
-    if (settings.reducedMotion) {
-      document.body.classList.add('reduced-motion');
-    } else {
-      document.body.classList.remove('reduced-motion');
-    }
-
-    if (settings.darkMode) {
-      document.body.classList.add('dark-mode');
-      document.documentElement.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-      document.documentElement.classList.remove('dark-mode');
-    }
+    applyAccessibilityPreferences(settings);
   }, [
     settings.highContrastMode,
+    settings.highContrastTheme,
     settings.reducedMotion,
     settings.darkMode,
-    settings.highContrastTheme,
   ]);
 
   const handleToggle = (key: ToggleableSetting) => {
@@ -158,8 +103,27 @@ const SettingsPage = () => {
 
   const handleReset = async () => {
     try {
-      const result = await settingsApi.resetSettings();
-      setSettings(result.settings);
+      const defaultSettings = {
+        voiceInput: true,
+        captions: true,
+        microphoneActive: true,
+        highContrastMode: false,
+        highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        reducedMotion: false,
+        darkMode: false,
+      };
+
+      if (user?.id) {
+        // For logged-in users, reset in backend and update state
+        const result = await settingsApi.resetSettings(user.id);
+        setSettings(result.settings);
+        updateUserSettingsState(result.settings);
+      } else {
+        // For non-logged-in users, just reset local state
+        setSettings(defaultSettings);
+        applyAccessibilityPreferences(defaultSettings);
+      }
+
       setShowResetDialog(false);
       setShowResetSuccess(true);
       setTimeout(() => setShowResetSuccess(false), 3000);
@@ -188,6 +152,19 @@ const SettingsPage = () => {
         <p className="settings-page__description">
           Customize your experience with our comprehensive accessibility features.
         </p>
+        {!user?.id && (
+          <p className="settings-page__notice" style={{ 
+            marginTop: '0.5rem', 
+            padding: '0.75rem', 
+            background: '#fef3c7', 
+            border: '1px solid #fbbf24', 
+            borderRadius: '6px',
+            color: '#92400e',
+            fontSize: '0.875rem'
+          }}>
+            ⓘ You're not signed in. Your settings will apply during this session but won't be saved. Sign in to save your preferences permanently.
+          </p>
+        )}
       </div>
 
       <div className="settings-page__content">
