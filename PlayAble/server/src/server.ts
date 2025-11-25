@@ -2,7 +2,10 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import path from 'path';
 import './models/user';
+import './models/game';
+import gamesRouter from '../routes/games.routes';
 
 dotenv.config();
 
@@ -14,16 +17,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static images
+app.use('/images', express.static(path.join(__dirname, '../public/images')));
+
 // MongoDB Connection
-const MONGODB_URI =
-  process.env.MONGODB_URI || 'mongodb://localhost:27017/playabledb';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/playabledb';
 
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
     console.log('Connected to MongoDB');
   })
-  .catch((error) => {
+  .catch(error => {
     console.error('MongoDB connection error:', error);
   });
 
@@ -32,10 +37,12 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
+// Games API routes
+app.use('/api', gamesRouter);
+
 // Start server
 app.listen(PORT, () => {
-console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
 
 export default app;
-
