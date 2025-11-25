@@ -1,9 +1,11 @@
 # Step-by-Step Guide: Creating PlayAble
+# Step-by-Step Guide: Creating PlayAble
 
 ## Prerequisites
 - Node.js (v18 or higher) installed
 - npm or yarn package manager
 - MongoDB installed locally OR MongoDB Atlas account (for cloud database)
+- Gmail account for sending password reset emails (see Email Setup below)
 - Gmail account for sending password reset emails (see Email Setup below)
 
 ---
@@ -50,6 +52,15 @@ For TypeScript projects, also install type definitions:
 ```bash
 npm install --save-dev @types/bcryptjs @types/jsonwebtoken
 ```
+- bcryptjs (for password hashing)
+- jsonwebtoken (for JWT authentication)
+- nodemailer (for sending emails)
+
+For TypeScript projects, also install type definitions:
+
+```bash
+npm install --save-dev @types/bcryptjs @types/jsonwebtoken
+```
 
 ---
 
@@ -60,6 +71,7 @@ Create a `.env` file in the server directory:
 ```bash
 cd server
 cp .env.example .env
+cp .env.example .env
 ```
 
 Or manually create `server/.env` with:
@@ -67,6 +79,17 @@ Or manually create `server/.env` with:
 PORT=5001
 MONGODB_URI=mongodb+srv://<db_username>:<db_password>@cluster0.oyjk8lb.mongodb.net/playable_db?retryWrites=true&w=majority&appName=Cluster0
 NODE_ENV=development
+EMAIL_USER=playablehelp@gmail.com
+EMAIL_PASS=wervjuybyknubdnx
+```
+- Replace `<db_password>` with the password for the `<db_username>` database user.
+
+**Important:** You must use the following account details for PlayAble's email service:
+```
+EMAIL_USER=playablehelp@gmail.com
+EMAIL_PASS=wervjuybyknubdnx
+```
+These credentials are required for password reset and notification features to work correctly.
 EMAIL_USER=playablehelp@gmail.com
 EMAIL_PASS=wervjuybyknubdnx
 ```
@@ -144,7 +167,17 @@ You should see:
    - You should see the application itself
 
 2. **Backend**: Open http://localhost:5001/api/health in your browser
+2. **Backend**: Open http://localhost:5001/api/health in your browser
    - You should see: `{"status":"OK","message":"Server is running"}`
+
+---
+
+## Email Setup and Password Reset
+
+- The backend uses Nodemailer and your Gmail account to send password reset codes.
+- When a user requests a password reset, a one-time code is emailed to them.
+- The user enters this code and a new password in the UI to complete the reset.
+- For development, you can test email delivery using the `/api/test/test-email` endpoint.
 
 ---
 
@@ -239,10 +272,16 @@ You should see:
 ### Port Already in Use
 - Change the port in `server/.env` (PORT=5001) or `client/vite.config.ts` (port: 3001)
 - If you see `EADDRINUSE`, stop the process using the port (Ctrl+C in terminal, or use Task Manager/PowerShell)
+- If you see `EADDRINUSE`, stop the process using the port (Ctrl+C in terminal, or use Task Manager/PowerShell)
 
 ### TypeScript Errors
 - Make sure all dependencies are installed
 - Run `npm install` again if needed
+
+### Email Issues
+- Ensure your Gmail credentials and App Password are correct in `.env`
+- Check spam folder for test/reset emails
+- Use `/api/test/test-email` to verify email delivery
 
 ### Email Issues
 - Ensure your Gmail credentials and App Password are correct in `.env`
