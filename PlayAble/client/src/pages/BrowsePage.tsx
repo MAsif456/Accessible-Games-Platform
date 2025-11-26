@@ -171,8 +171,9 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-
   const [allGamesForFilters, setAllGamesForFilters] = useState<GameDto[]>([]);
+
+  const safeAllGamesForFilters = allGamesForFilters ?? [];
 
   const effectiveSearchTerm = searchTerm;
 
@@ -189,13 +190,13 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
   }, [sortBy]);
 
   const allGenres = useMemo(
-    () => Array.from(new Set(allGamesForFilters.flatMap(g => g.genres))).sort(),
-    [allGamesForFilters],
+    () => Array.from(new Set(safeAllGamesForFilters.flatMap(g => g.genres || []))).sort(),
+    [safeAllGamesForFilters],
   );
 
   const allAccessibility = useMemo(
-    () => Array.from(new Set(allGamesForFilters.flatMap(g => g.accessibilityTags))).sort(),
-    [allGamesForFilters],
+    () => Array.from(new Set(safeAllGamesForFilters.flatMap(g => g.accessibilityTags || []))).sort(),
+    [safeAllGamesForFilters],
   );
 
   const toggleSelection = (value: string, current: string[], setter: (val: string[]) => void) => {
@@ -236,7 +237,6 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
       isCancelled = true;
     };
   }, [currentPage, pageSize, effectiveSearchTerm, selectedGenres, selectedAccessibility, apiSort]);
-
 
   useEffect(() => {
     let isCancelled = false;
@@ -299,7 +299,6 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
   };
 
   const hasActiveFilters = appliedFilterCount > 0;
-
 
   const handleSearchSubmit = () => {
     const term = browseSearchInput.trim();
@@ -466,18 +465,21 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
       ) : (
         <>
           <section className="browse-page__grid" aria-label="Game catalogue">
-            {pageGames.map(game => (
-              <GameCard
-                key={game.id}
-                game={game}
-                isFavourite={favourites.has(game.id)}
-                onClick={() => {
-                  window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-                  onGameClick(game.id);
-                }}
-                onToggleFavourite={() => onToggleFavourite(game.id)}
-              />
-            ))}
+            {(() => {
+              const safePageGames = pageGames ?? [];
+              return safePageGames.map(game => (
+                <GameCard
+                  key={game.id}
+                  game={game}
+                  isFavourite={favourites.has(game.id)}
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+                    onGameClick(game.id);
+                  }}
+                  onToggleFavourite={() => onToggleFavourite(game.id)}
+                />
+              ));
+            })()}
           </section>
 
           {totalPages > 1 && (
