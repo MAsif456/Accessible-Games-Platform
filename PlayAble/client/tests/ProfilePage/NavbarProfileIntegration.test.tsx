@@ -26,8 +26,8 @@ test('My Account dropdown shows Profile and Inbox and navigates to Profile', asy
   const myAccountButton = await screen.findByRole('button', { name: /my account/i });
   fireEvent.click(myAccountButton);
 
-  const profileOption = screen.getByText(/profile/i);
-  const inboxOption = screen.getByText(/inbox/i);
+  const profileOption = await screen.findByText(/profile/i);
+  const inboxOption = await screen.findByText(/inbox/i);
 
   expect(profileOption).toBeInTheDocument();
   expect(inboxOption).toBeInTheDocument();
