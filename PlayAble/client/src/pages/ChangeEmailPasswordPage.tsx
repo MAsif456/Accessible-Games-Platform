@@ -13,8 +13,10 @@ interface ChangeEmailPasswordPageProps {
 
 const ChangeEmailPasswordPage: React.FC<ChangeEmailPasswordPageProps> = ({ onNavigate }) => {
   const { user, updateUser } = useAuth();
+
   const [newEmail, setNewEmail] = useState(user?.email || '');
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -39,40 +41,79 @@ const ChangeEmailPasswordPage: React.FC<ChangeEmailPasswordPageProps> = ({ onNav
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const response = await authService.updateAccount({ newEmail });
-    if (response.success && response.user) {
-      updateUser(response.user as any);
-      setEmailMessage('Email address updated successfully.');
-    } else {
-      setEmailMessage(response.message || 'Could not update email.');
+    setEmailMessage(null);
+    setEmailError(null);
+
+    const trimmedEmail = newEmail.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+
+    if (trimmedEmail === user?.email) {
+      setEmailError('New email address must be different from your current email.');
+      return;
+    }
+
+    try {
+      const response = await authService.updateAccount({ newEmail: trimmedEmail });
+      if (response.success && response.user) {
+        updateUser(response.user as any);
+        setEmailMessage('Email address updated successfully.');
+      } else if (response.message && response.message.toLowerCase().includes('already in use')) {
+        setEmailError('This email address is already in use.');
+      } else if (response.message) {
+        setEmailError(response.message);
+      } else {
+        setEmailError('Unable to update email address. Please try again.');
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Unable to update email address. Please try again.';
+      if (msg.toLowerCase().includes('already in use')) {
+        setEmailError('This email address is already in use.');
+      } else {
+        setEmailError(msg);
+      }
     }
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const error = validatePassword();
-    if (error) {
-      setPasswordError(error);
-      setPasswordMessage(null);
+    setPasswordMessage(null);
+
+    const basicError = validatePassword();
+    if (basicError) {
+      setPasswordError(basicError);
       return;
     }
-    const response = await authService.updateAccount({
-      currentPassword,
-      newPassword,
-    });
-    if (!response.success) {
-      setPasswordError(response.message || 'Could not change password.');
-      setPasswordMessage(null);
+
+    if (!currentPassword) {
+      setPasswordError('Please enter your current password.');
       return;
     }
-    if (response.success && response.user) {
-      updateUser(response.user as any);
+
+    try {
+      const response = await authService.updateAccount({
+        currentPassword,
+        newPassword,
+      });
+      if (response.success) {
+        setPasswordError(null);
+        setPasswordMessage('Password changed successfully.');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else if (response.message) {
+        setPasswordError(response.message);
+      } else {
+        setPasswordError('Unable to change password. Please try again.');
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Unable to change password. Please try again.';
+      setPasswordError(msg);
     }
-    setPasswordError(null);
-    setPasswordMessage('Password changed successfully.');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
   };
 
   return (
@@ -109,13 +150,11 @@ const ChangeEmailPasswordPage: React.FC<ChangeEmailPasswordPageProps> = ({ onNav
                 onChange={(e) => setNewEmail(e.target.value)}
               />
             </div>
-            {emailMessage && (
-              <p
-                className={emailMessage.includes('already in use') ? 'form-error' : 'form-success'}
-                role="status"
-              >
-                {emailMessage}
-              </p>
+            {emailError && (
+              <p className="form-error" role="alert">{emailError}</p>
+            )}
+            {emailMessage && !emailError && (
+              <p className="form-success" role="status">{emailMessage}</p>
             )}
             <button type="submit" className="btn btn-primary" style={{ marginTop: 16 }}>
               Update Email Address

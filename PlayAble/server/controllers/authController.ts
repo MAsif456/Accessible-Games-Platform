@@ -5,9 +5,9 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { UserModel, IUser } from '../src/models';
 import { sendEmail } from '../services/emailService';
-import bcrypt from 'bcryptjs';
 
 // Ensure JWT_SECRET exists
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -66,7 +66,10 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         name: user.name,
         email: user.email,
         role: user.role,
-        bio: (user as any).bio,
+        bio: user.bio,
+        favourites: user.favourites,
+        recentlyViewed: user.recentlyViewed,
+        accessibilitySettings: user.accessibilitySettings,
       },
     });
   } catch (error: any) {
@@ -117,7 +120,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         name: user.name,
         email: user.email,
         role: user.role,
-        bio: (user as any).bio,
+        bio: user.bio,
         favourites: user.favourites,
         recentlyViewed: user.recentlyViewed,
         accessibilitySettings: user.accessibilitySettings,
@@ -207,7 +210,7 @@ export const getMe = async (req: Request & { user?: { id: string } }, res: Respo
         name: user.name,
         email: user.email,
         role: user.role,
-        bio: (user as any).bio,
+        bio: user.bio,
         favourites: user.favourites,
         recentlyViewed: user.recentlyViewed,
         accessibilitySettings: user.accessibilitySettings,
@@ -277,7 +280,9 @@ export const updateProfile = async (
     });
   } catch (error: any) {
     console.error('Update profile error:', error);
-    res.status(500).json({ success: false, message: 'Error updating profile', error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: 'Error updating profile', error: error.message });
   }
 };
 
@@ -300,12 +305,16 @@ export const updateEmailAndPassword = async (
 
     if (newPassword) {
       if (!currentPassword) {
-        res.status(400).json({ success: false, message: 'Current password is required' });
+        res
+          .status(400)
+          .json({ success: false, message: 'Current password is required' });
         return;
       }
       const isCurrentValid = await user.comparePassword(currentPassword);
       if (!isCurrentValid) {
-        res.status(400).json({ success: false, message: 'Current password is incorrect' });
+        res
+          .status(400)
+          .json({ success: false, message: 'Current password is incorrect' });
         return;
       }
       user.passwordHash = newPassword;
@@ -337,6 +346,10 @@ export const updateEmailAndPassword = async (
     });
   } catch (error: any) {
     console.error('Update email/password error:', error);
-    res.status(500).json({ success: false, message: 'Error updating account details', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Error updating account details',
+      error: error.message,
+    });
   }
 };

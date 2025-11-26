@@ -3,7 +3,16 @@
 // All authentication-related endpoints are defined here.
 
 import express from 'express';
-import { signup, login, logout, getMe, requestPasswordReset, resetPassword, updateProfile, updateEmailAndPassword } from '../controllers/authController';
+import {
+  signup,
+  login,
+  logout,
+  getMe,
+  requestPasswordReset,
+  resetPassword,
+  updateProfile,
+  updateEmailAndPassword,
+} from '../controllers/authController';
 import { protect } from '../middleware/auth';
 
 const router = express.Router();

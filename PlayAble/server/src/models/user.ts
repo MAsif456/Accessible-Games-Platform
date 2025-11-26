@@ -63,8 +63,8 @@ const UserSchema = new Schema<IUser>(
     },
     bio: {
       type: String,
-      default: '',
       trim: true,
+      default: '',
     },
   },
   {

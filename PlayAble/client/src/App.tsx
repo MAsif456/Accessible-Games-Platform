@@ -26,7 +26,8 @@ export type AppPath =
   | '/change-email-password'
   | '/inbox'
   | '/about'
-  | '/report';
+  | '/report'
+  | '/change-email-password';
 
 const PAGE_SIZE = 9;
 const protectedPaths: AppPath[] = [
@@ -75,7 +76,8 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       newPath === '/change-email-password' ||
       newPath === '/inbox' ||
       newPath === '/about' ||
-      newPath === '/report'
+      newPath === '/report' ||
+      newPath === '/change-email-password'
     ) {
       const typedPath = newPath as AppPath;
 
