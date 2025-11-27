@@ -13,6 +13,7 @@ interface User {
   name: string;
   email: string;
   role: UserRole;
+  bio?: string;
   favourites?: string[];
   recentlyViewed?: string[];
   accessibilitySettings?: {

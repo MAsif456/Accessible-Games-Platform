@@ -25,6 +25,7 @@ export interface AuthResponse {
     name: string;
     email: string;
     role: 'guest' | 'user' | 'admin';
+    bio?: string;
     favourites?: string[];
     recentlyViewed?: string[];
     accessibilitySettings?: {
@@ -54,7 +55,7 @@ class AuthService {
       localStorage.setItem('user', JSON.stringify(result.user));
     }
 
-    return result;
+    return result as AuthResponse;
   }
 
   // Logs in a user and stores the token for session management.
@@ -74,7 +75,7 @@ class AuthService {
       localStorage.setItem('user', JSON.stringify(result.user));
     }
 
-    return result;
+    return result as AuthResponse;
   }
 
   // Logs out the user by removing session data from localStorage.
@@ -130,6 +131,42 @@ class AuthService {
   // Retrieves the stored authentication token from localStorage.
   getToken(): string | null {
     return localStorage.getItem('token');
+  }
+
+  // Updates the user's profile and keeps localStorage in sync.
+  async updateProfile(data: { name?: string; bio?: string }): Promise<AuthResponse> {
+    const token = this.getToken();
+    const response = await fetch(`${API_URL}/auth/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (result.success && result.user) {
+      localStorage.setItem('user', JSON.stringify(result.user));
+    }
+    return result as AuthResponse;
+  }
+
+  // Updates account details such as email and/or password.
+  async updateAccount(data: { newEmail?: string; currentPassword?: string; newPassword?: string }): Promise<AuthResponse> {
+    const token = this.getToken();
+    const response = await fetch(`${API_URL}/auth/account`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (result.success && result.user) {
+      localStorage.setItem('user', JSON.stringify(result.user));
+    }
+    return result as AuthResponse;
   }
 }
 

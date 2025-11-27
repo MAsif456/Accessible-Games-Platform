@@ -80,9 +80,6 @@ const GameCard = <TGame extends BasicGameLike>({
           aria-pressed={favourite}
           onClick={handleFavouriteClick}
         >
-          <span className="game-card__favourite-icon" aria-hidden="true">
-            ♥
-          </span>
           <span className="game-card__favourite-label">{favouriteLabel ?? 'Favourite'}</span>
         </button>
       </div>
