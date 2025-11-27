@@ -11,6 +11,7 @@ export interface NavbarProps {
   onClearSearch: () => void;
   currentPath?: string;
   onNavigate?: (path: string) => void;
+  onLogout?: () => void;
 }
 
 const navItems = [
@@ -29,16 +30,19 @@ const Navbar: React.FC<NavbarProps> = ({
   onClearSearch,
   currentPath = '/',
   onNavigate,
+  onLogout,
 }) => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
   // Refs for navigation elements
   const accountMenuRef = useRef<HTMLDivElement>(null);
   // Focus trap for account dropdown menu
   const { containerRef: accountDropdownRef } = useFocusTrap<HTMLDivElement>({
     isActive: isAccountOpen,
     initialFocus: 'first',
-    restoreFocus: true
+    restoreFocus: true,
   });
 
   const handleNavClick = (path: string) => {
@@ -89,14 +93,21 @@ const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="navbar" aria-label="Main navigation">
       <div className="navbar__inner">
-        <div className="navbar__brand" onClick={() => handleNavClick('/')}
-          role="button" tabIndex={0}
+        <div
+          className="navbar__brand"
+          onClick={() => handleNavClick('/')}
+          role="button"
+          tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') handleNavClick('/');
           }}
         >
           <div className="navbar__logo" aria-hidden="true">
-            <img src="/src/assets/branding/playable-app-logo-branding.png" alt="PlayAble Logo" style={{ width: '60px', height: '50px', borderRadius: '12px' }} />
+            <img
+              src="/src/assets/branding/playable-app-logo-branding.png"
+              alt="PlayAble Logo"
+              style={{ width: '60px', height: '50px', borderRadius: '12px' }}
+            />
           </div>
           <span className="navbar__title">PlayAble</span>
         </div>
@@ -126,10 +137,12 @@ const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
           </div>
-        </div>        <nav className="navbar__nav" aria-label="Primary">
+        </div>
+        <nav className="navbar__nav" aria-label="Primary">
           <ul className="navbar__nav-list" role="menubar">
             {navItems.map((item) => {
-              const isActive = currentPath === item.path || (item.key === 'browse' && currentPath === '/');
+              const isActive =
+                currentPath === item.path || (item.key === 'browse' && currentPath === '/');
               return (
                 <li key={item.key} role="none">
                   <button
@@ -140,7 +153,8 @@ const Navbar: React.FC<NavbarProps> = ({
                       'navbar__nav-button' +
                       (item.key === 'voice' ? ' navbar__nav-button--voice' : '') +
                       (isActive ? ' navbar__nav-button--primary' : '')
-                    }                    aria-current={isActive ? 'page' : undefined}
+                    }
+                    aria-current={isActive ? 'page' : undefined}
                   >
                     <span
                       className={`navbar__nav-icon navbar__nav-icon--${item.icon}`}
@@ -157,7 +171,8 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={() => handleNavClick('/admin')}                  className="navbar__nav-button"
+                  onClick={() => handleNavClick('/admin')}
+                  className="navbar__nav-button"
                 >
                   <span
                     className="navbar__nav-icon navbar__nav-icon--admin"
@@ -177,7 +192,8 @@ const Navbar: React.FC<NavbarProps> = ({
                     className="navbar__nav-button navbar__nav-button--profile"
                     aria-haspopup="menu"
                     aria-expanded={isAccountOpen}
-                    onClick={() => setIsAccountOpen((prev) => !prev)}                    onKeyDown={handleAccountKeyDown}
+                    onClick={() => setIsAccountOpen((prev) => !prev)}
+                    onKeyDown={handleAccountKeyDown}
                   >
                     <span
                       className="navbar__nav-icon navbar__nav-icon--user"
@@ -189,9 +205,9 @@ const Navbar: React.FC<NavbarProps> = ({
                     </span>
                   </button>
                   {isAccountOpen && (
-                    <div 
-                      className="navbar__profile-menu" 
-                      role="menu" 
+                    <div
+                      className="navbar__profile-menu"
+                      role="menu"
                       aria-label="My Account menu"
                       ref={accountDropdownRef}
                     >
@@ -242,6 +258,20 @@ const Navbar: React.FC<NavbarProps> = ({
                             <span className="navbar__profile-menu-dot" aria-hidden="true" />
                           </button>
                         </li>
+                        <li role="none">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="navbar__profile-menu-item"
+                            onClick={() => setShowLogoutConfirm(true)}
+                          >
+                            <span
+                              className="navbar__profile-menu-icon navbar__nav-icon--lock"
+                              aria-hidden="true"
+                            />
+                            <span>Log out</span>
+                          </button>
+                        </li>
                       </ul>
                     </div>
                   )}
@@ -252,7 +282,8 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={() => handleNavClick('/signin')}                  className="navbar__nav-button navbar__nav-button--signin"
+                  onClick={() => handleNavClick('/signin')}
+                  className="navbar__nav-button navbar__nav-button--signin"
                 >
                   <span
                     className="navbar__nav-icon navbar__nav-icon--lock"
@@ -264,9 +295,10 @@ const Navbar: React.FC<NavbarProps> = ({
             )}
           </ul>
         </nav>
-      </div>      {isVoiceOpen && (
-        <div 
-          className="voice-popup" 
+      </div>
+      {isVoiceOpen && (
+        <div
+          className="voice-popup"
           role="dialog"
           aria-label="Voice listening popup"
           aria-modal="false"
@@ -280,6 +312,83 @@ const Navbar: React.FC<NavbarProps> = ({
           >
             ×
           </button>
+        </div>
+      )}
+      {showLogoutConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-dialog-title"
+          aria-describedby="logout-dialog-desc"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.25)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+              padding: '2.5rem 2.5rem 2rem',
+              minWidth: 340,
+              maxWidth: '90vw',
+              textAlign: 'center',
+            }}
+          >
+            <h2 id="logout-dialog-title" style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: 8 }}>
+              Are you sure you want to log out?
+            </h2>
+            <p id="logout-dialog-desc" style={{ color: '#6b7280', marginBottom: 32 }}>
+              This will end your session and log you out of your account.
+            </p>
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  padding: '0.7rem 2.2rem',
+                  borderRadius: 12,
+                  border: '2px solid #d1d5db',
+                  background: '#fff',
+                  color: '#111827',
+                  fontWeight: 600,
+                  fontSize: '1.1rem',
+                  marginRight: 8,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowLogoutConfirm(false);
+                  if (onLogout) await onLogout();
+                }}
+                style={{
+                  padding: '0.7rem 2.2rem',
+                  borderRadius: 12,
+                  border: 'none',
+                  background: '#11111f',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '1.1rem',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </header>
