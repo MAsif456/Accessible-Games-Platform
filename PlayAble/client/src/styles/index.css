@@ -2279,7 +2279,7 @@ body.high-contrast .navbar__nav-button:hover,
 body.high-contrast .settings-page__nav-item:hover,
 body.high-contrast .pagination__number:hover {
   background-color: var(--hc-accent);
-  color: var(--hc-accent-text);
+  color: var (--hc-accent-text);
 }
 
 body.high-contrast .navbar__nav-button--primary,
@@ -2723,5 +2723,1103 @@ body.high-contrast .contrast-theme-picker__header p {
   .settings-page__nav-item {
     white-space: nowrap;
   }
+}
+
+/* GAME DETAILS PAGE */
+.game-details {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 2rem 3rem;
+  background-color: #f3f4f6;
+}
+
+.game-details__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.game-details__breadcrumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.game-details__breadcrumb-link:hover {
+  text-decoration: underline;
+}
+
+.game-details__breadcrumb-current {
+  color: #111827;
+}
+
+.game-details__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  border: none;
+  background: none;
+  color: #111827;
+  cursor: pointer;
+}
+
+.game-details__back::before {
+  content: '\2190';
+  font-size: 0.9rem;
+}
+
+/* Hero layout: large left card + right column */
+.game-details__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  gap: 2.75rem;
+  align-items: flex-start;
+}
+
+.game-details__hero-card {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-details__hero-image {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.game-details__hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem 0.75rem;
+}
+
+.game-details__primary-btn,
+.game-details__secondary-btn {
+  width: 100%;
+  border-radius: 999px;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.game-details__primary-btn {
+  background: #020617;
+  color: #ffffff;
+}
+
+.game-details__secondary-btn {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+}
+
+.game-details__hero-meta {
+  padding: 0.75rem 1.25rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.game-details__info-card,
+.game-details__download-card {
+  background: #ffffff;
+  border-radius: 0.85rem;
+  border: 1px solid #e5e7eb;
+  padding: 0.75rem 0.9rem;
+}
+
+.game-details__info-label {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 0.15rem;
+}
+
+.game-details__info-value {
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+}
+
+.game-details__info-sub {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.game-details__download-heading {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.game-details__download-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+/* Download buttons inside hero meta */
+.download-button {
+  width: 100%;
+  border-radius: 0.9rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: none;
+  cursor: pointer;
+  color: #ffffff;
+  background: #020617;
+}
+
+.download-button__inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.download-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+
+.download-button__icon--app-store::before {
+  content: '\f8ff'; /* Apple glyph where supported */
+}
+
+.download-button__icon--play-store::before {
+  content: '\25B6'; /* Play triangle */
+}
+
+.download-button__label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.download-button__label span:first-child {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.download-button__label span:last-child {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.download-button__external::before {
+  content: '\2197';
+  font-size: 0.85rem;
+}
+
+/* Right column */
+.game-details__hero-right {
+  padding-top: 0.35rem;
+}
+
+.game-details__title {
+  font-size: 2.6rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.game-details__studio {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-bottom: 0.9rem;
+}
+
+.game-details__tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.6rem;
+}
+
+/* Accessibility summary on right, with section divider like prototype */
+.game-details__accessibility-summary {
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.game-details__section-heading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.9rem;
+}
+
+.game-details__accessibility-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.game-details__accessibility-card {
+  background: #f9fafb;
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e5e7eb;
+}
+
+.game-details__accessibility-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.game-details__accessibility-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 0.5rem 0 0.8rem;
+}
+
+.game-details__feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.game-details__feature-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  font-size: 0.85rem;
+}
+
+.game-details__feature-tick {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background-color: #dcfce7;
+  border: 1px solid #22c55e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-details__feature-tick::before {
+  content: '\2713';
+  font-size: 0.7rem;
+  color: #16a34a;
+}
+
+.game-details__about {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.game-details__about h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.game-details__about-text {
+  line-height: 1.65;
+  color: #4b5563;
+}
+
+@media (max-width: 900px) {
+  .game-details {
+    padding: 1.5rem 1.25rem 2.5rem;
+  }
+
+  .game-details__hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
+  }
+}
+
+/* Accessibility Reviews heading spacing */
+.game-details__reviews {
+  margin-top: 2rem;
+}
+
+.game-details__reviews > h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.game-details__reviews-layout {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* LOGGED-OUT: match light blue rectangular prototype */
+.game-details__reviews-share--logged-out {
+  background-color: #eff6ff; /* light blue */
+  border-radius: 1rem;
+  border: 1px solid #bfdbfe; /* blue border */
+  padding: 1.75rem 1.5rem;
+}
+
+.game-details__reviews-login-card {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.game-details__reviews-login-copy {
+  margin-bottom: 0.9rem;
+}
+
+.game-details__reviews-login-copy h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: #111827;
+}
+
+.game-details__reviews-login-copy p {
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.game-details__primary-btn--login {
+  padding: 0.55rem 1.5rem; /* small but readable */
+  border-radius: 999px;
+  border: none;
+  background-color: #020617; /* dark navy */
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.game-details__primary-btn--login::before {
+  content: '';
+}
+
+/* LOGGED-IN: restore raised white card prototype, only move Post Review down slightly */
+.game-details__reviews-share--logged-in {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  padding: 1.25rem 1.5rem 1.9rem; /* tiny extra bottom padding */
+}
+
+.game-details__reviews-share-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.game-details__posting-as {
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.game-details__reviews-field {
+  padding-block: 0.5rem;
+}
+
+.game-details__reviews-field + .game-details__reviews-field {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 0.75rem;
+  padding-top: 0.9rem;
+}
+
+.game-details__reviews-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: #f3f4f6;
+  resize: vertical;
+  margin-top: 0.15rem; /* ensures a clear but compact gap below label */
+}
+
+.game-details__voice-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+
+.game-details__voice-button::before {
+  content: '\1F3A4';
+}
+
+/* Post Review: bottom-right in normal flow, NOT absolutely positioned */
+.game-details__reviews-actions {
+  margin-top: 1.5rem; /* moves button down a bit below voice button */
+  display: flex;
+  justify-content: flex-end;
+}
+
+.game-details__primary-btn--submit {
+  width: auto;
+  min-width: 170px;
+  border-radius: 999px;
+  padding: 0.6rem 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #020617;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.game-details__primary-btn--submit::before {
+  content: '\1F4E4';
+  margin-right: 0.4rem;
+}
+
+/* Logged-in white card container */
+.game-details__reviews-share--logged-in {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  padding: 1.25rem 1.5rem 3.1rem; /* extra bottom space for button bar */
+}
+
+/* Post Review: bottom-right in normal flow, below voice button */
+.game-details__reviews-actions {
+  margin-top: 1.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.game-details__primary-btn--submit {
+  width: auto;
+  min-width: 170px;
+  border-radius: 999px;
+  justify-content: center;
+  background-color: #020617;
+  color: #ffffff;
+}
+
+.game-details__primary-btn--submit::before {
+  content: '\1F4E4';
+  margin-right: 0.4rem;
+}
+
+/* Logged-out: single light blue box with centred heading, copy and compact button */
+.game-details__reviews-share--logged-out {
+  background-color: #eff6ff;
+  border-radius: 1rem;
+  border: 1px solid #bfdbfe;
+  padding: 1.75rem 1.5rem;
+}
+
+.game-details__reviews-login-card {
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.game-details__reviews-login-copy h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+  color: #111827;
+}
+
+.game-details__reviews-login-copy p {
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.game-details__primary-btn--login {
+  margin-top: 0.5rem;
+  padding: 0.55rem 1.5rem;
+  border-radius: 999px;
+  border: none;
+  background-color: #020617;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.game-details__primary-btn--login::before {
+  content: '';
+}
+
+@media (max-width: 900px) {
+  .game-details__reviews-actions {
+    right: 1.25rem;
+  }
+}
+
+/* See Reviews section */
+.game-details__reviews-see-header {
+  margin-top: 1.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.game-details__reviews-see-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.game-details__reviews-see-copy {
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+/* Main review card container */
+.game-details__review-card {
+  background-color: #ffffff;
+  border-radius: 1.25rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  padding: 1.25rem 1.5rem 1.4rem;
+  margin-top: 0.75rem;
+}
+
+.game-details__review-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 0.9rem;
+}
+
+.game-details__review-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.game-details__review-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.game-details__review-author {
+  font-weight: 600;
+  color: #111827;
+}
+
+.game-details__review-date {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.game-details__review-text {
+  font-size: 0.95rem;
+  color: #111827;
+  line-height: 1.65;
+}
+
+.game-details__review-like {
+  margin-top: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: default;
+}
+
+.game-details__review-like-icon::before {
+  content: '\1F44D';
+}
+
+.game-details__review-delete {
+  margin-left: auto;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+
+/* Load More Reviews bar */
+.game-details__load-more {
+  margin-top: 1rem;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  padding: 0.65rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.game-details__load-more-caret::before {
+  content: '\25BE';
+  font-size: 0.85rem;
+}
+
+.game-details__load-more {
+  font-weight: 600;
+}
+
+/* See Reviews section */
+.game-details__reviews-list-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.game-details__reviews-list-subtitle {
+  font-size: 0.9rem;
+  color: #4b5563;
+  margin-bottom: 0.9rem;
+}
+
+/* Main review card */
+.game-details__review-card {
+  background-color: #ffffff;
+  border-radius: 1.25rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  padding: 1.25rem 1.5rem 1.4rem;
+}
+
+.game-details__review-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 0.9rem;
+}
+
+.game-details__review-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.game-details__review-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.game-details__review-author {
+  font-weight: 600;
+  color: #111827;
+}
+
+.game-details__review-date {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.game-details__review-body {
+  font-size: 0.95rem;
+  color: #111827;
+  line-height: 1.65;
+}
+
+/* Footer actions: like + report */
+.game-details__review-footer {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.game-details__review-like,
+.game-details__review-report {
+    width: 140px;
+    height: 45px; 
+    display: flex;
+    align-items: center;     
+    justify-content: center; 
+    gap: 6px;                
+    border-radius: 12px;
+}
+
+.game-details__review-like--active {
+  border-color: #111827;
+}
+
+/* Simple thumbs-up icon (no extra box behind it) */
+.game-details__review-like-icon {
+  position: relative;
+  width: 1rem;
+  height: 1rem;
+}
+
+.game-details__review-like-icon::before {
+  content: '\1F44D'; /* 👍 */
+  position: absolute;
+  inset: 0;
+  font-size: 1rem;
+  line-height: 1rem;
+}
+
+/* Report stays red but same size as like */
+.game-details__review-report {
+  color: #b91c1c;
+}
+
+.game-details__review-report-icon {
+  position: relative;
+  width: 1rem;
+  height: 1rem;
+}
+
+.game-details__review-report-icon::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 0.8rem;
+  border-left: 2px solid #b91c1c;
+}
+
+.game-details__review-report-icon::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 0.7rem;
+  height: 0.6rem;
+  border: 2px solid #b91c1c;
+  border-left: none;
+  border-bottom-left-radius: 0.2rem;
+  border-top-right-radius: 0.3rem;
+}
+
+/* Load More bar */
+.game-details__reviews-load-more {
+  margin-top: 1rem;
+  background-color: #ffffff;
+  border-radius: 0.9rem;
+  border: 1px solid #e5e7eb;
+  padding: 0.6rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.game-details__reviews-load-more button {
+  border: none;
+  background: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.game-details__reviews-load-more-icon {
+  font-size: 1rem;
+}
+
+/* Logged-in reviews: fine-tune vertical spacing for clarity */
+.game-details__reviews-label {
+  display: inline-block;
+  margin-bottom: 0.35rem; /* slightly larger gap above textarea */
+}
+
+.game-details__reviews-subheading {
+  margin-bottom: 0.25rem; /* small space above helper text */
+}
+
+.game-details__reviews-helper {
+  margin-bottom: 0.4rem; /* slightly larger gap before Start Voice Recording */
+}
+
+/* Report Review page */
+.report-review {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+.report-review__breadcrumb {
+  margin-bottom: 1rem;
+}
+
+.report-review__breadcrumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.report-review__header {
+  margin-bottom: 1.5rem;
+}
+
+.report-review__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.report-review__flag-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background-color: #fee2e2;
+}
+
+.report-review__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.report-review__subtitle {
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.report-review__context {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.report-review__context-card {
+  background-color: #f9fafb;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.report-review__context-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.report-review__context-body {
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+.report-review__review-panel {
+  background-color: #eff6ff;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #bfdbfe;
+}
+
+.report-review__review-heading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.report-review__review-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+}
+
+.report-review__review-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background-color: #111827;
+  color: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.report-review__review-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.report-review__review-author {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.report-review__review-date {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.report-review__review-text {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.report-review__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.report-review__field {
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.report-review__label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.report-review__helper {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.report-review__textarea {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #d1d5db;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  resize: vertical;
+  min-height: 140px;
+}
+
+.report-review__meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.report-review__subheading {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.report-review__counter {
+  font-variant-numeric: tabular-nums;
+}
+
+.report-review__min-hint {
+  font-size: 0.8rem;
+}
+
+.report-review__voice-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.report-review__voice-icon {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background-color: #111827;
+}
+
+.report-review__status {
+  font-size: 0.9rem;
+}
+
+.report-review__status--error {
+  color: #b91c1c;
+}
+
+.report-review__status--success {
+  color: #15803d;
+}
+
+.report-review__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.report-review__primary-btn {
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  background-color: #111827;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.report-review__primary-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.report-review__secondary-btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  font-size: 0.9rem;
+  cursor: pointer;
 }
 

@@ -14,10 +14,12 @@ import InboxPage from './pages/InboxPage';
 import AboutPage from './pages/AboutPage';
 import ReportPage from './pages/ReportPage';
 import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
+import GameDetailsPage from './pages/GameDetailsPage';
 
 export type AppPath =
   | '/'
   | '/browse'
+  | '/game-details'
   | '/favourites'
   | '/recently-viewed'
   | '/settings'
@@ -27,8 +29,7 @@ export type AppPath =
   | '/change-email-password'
   | '/inbox'
   | '/about'
-  | '/report'
-  | '/change-email-password';
+  | '/report';
 
 const PAGE_SIZE = 9;
 const protectedPaths: AppPath[] = [
@@ -52,6 +53,8 @@ function App() {
 function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protectedPaths: AppPath[] }) {
   const { user, isAuthenticated, logout } = useAuth();
   const [path, setPath] = useState<AppPath>('/');
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -69,6 +72,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
     if (
       newPath === '/' ||
       newPath === '/browse' ||
+      newPath === '/game-details' ||
       newPath === '/favourites' ||
       newPath === '/recently-viewed' ||
       newPath === '/settings' ||
@@ -78,8 +82,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       newPath === '/change-email-password' ||
       newPath === '/inbox' ||
       newPath === '/about' ||
-      newPath === '/report' ||
-      newPath === '/change-email-password'
+      newPath === '/report'
     ) {
       const typedPath = newPath as AppPath;
 
@@ -123,7 +126,13 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
 
   const handleGameClick = (gameId: string) => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-    console.log('Open details for', gameId);
+    setSelectedGameId(gameId);
+    handleNavigate('/game-details');
+  };
+
+  const handleReportReview = (reviewId: string) => {
+    setSelectedReviewId(reviewId);
+    handleNavigate('/report');
   };
 
   const userRole = user?.role || 'guest';
@@ -190,6 +199,13 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
             onSearchChange={handleSearchChange}
           />
         )}
+        {path === '/game-details' && selectedGameId && (
+          <GameDetailsPage
+            gameId={selectedGameId}
+            onBack={() => handleNavigate('/browse')}
+            onReportReview={handleReportReview}
+          />
+        )}
         {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
         {path === '/recently-viewed' && <RecentlyViewedPage />}
         {path === '/settings' && <SettingsPage />}
@@ -215,7 +231,12 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
         )}
         {path === '/inbox' && <InboxPage />}
         {path === '/about' && <AboutPage />}
-        {path === '/report' && <ReportPage />}
+        {path === '/report' && selectedReviewId && (
+          <ReportPage
+            reviewId={selectedReviewId}
+            onBack={() => handleNavigate('/game-details')}
+          />
+        )}
       </div>
 
       <Footer onNavigate={handleNavigate} />

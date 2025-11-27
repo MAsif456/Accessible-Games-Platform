@@ -28,6 +28,17 @@ export interface PaginatedGamesResponse {
   totalPages: number;
 }
 
+export interface ReviewDto {
+  _id: string;
+  gameId: string;
+  userId: string;
+  authorName: string;
+  body: string;
+  likes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGamesResponse> {
   const query = new URLSearchParams();
 
@@ -51,4 +62,79 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
 
   const data: PaginatedGamesResponse = await res.json();
   return data;
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function getReviews(gameId: string): Promise<ReviewDto[]> {
+  const res = await fetch(`/api/games/${gameId}/reviews`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch reviews: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getReviewById(reviewId: string): Promise<ReviewDto> {
+  const res = await fetch(`/api/reviews/${reviewId}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch review: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function postReview(gameId: string, body: string): Promise<ReviewDto> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+  };
+
+  const res = await fetch(`/api/games/${gameId}/reviews`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ body }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to post review: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function toggleReviewLike(reviewId: string, liked: boolean): Promise<ReviewDto> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+  };
+
+  const res = await fetch(`/api/reviews/${reviewId}/like`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ liked }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to toggle like: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function reportReview(
+  reviewId: string,
+  reasonText: string,
+  voiceTranscript?: string
+): Promise<void> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+  };
+
+  const res = await fetch(`/api/reviews/${reviewId}/report`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ reasonText, voiceTranscript }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to submit report: ${res.status}`);
+  }
 }
