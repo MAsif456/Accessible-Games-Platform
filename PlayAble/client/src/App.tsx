@@ -58,6 +58,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   const [currentPage, setCurrentPage] = useState(1);
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const promptTimeout = useRef<number | null>(null);
+  // Track if last auth event was signup or login
   const lastAuthEvent = useRef<'signup' | 'login' | null>(null);
 
   // Enable global keyboard navigation for the entire app
