@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0"
+  },
+  "dependencies": {
+    "mongodb": "^7.0.0"
+  }
+}

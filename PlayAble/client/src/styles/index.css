@@ -79,6 +79,59 @@ body,
   border: 0;
 }
 
+/* Skip Link Pattern - appears when focused */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  z-index: 1000;
+  padding: 8px 16px;
+  background-color: #4f46e5;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: top 0.3s ease;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Enhanced Focus Indicators */
+*:focus {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+/* Custom focus styling for specific elements */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+a:focus,
+[role="button"]:focus,
+[role="menuitem"]:focus,
+[tabindex]:focus {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+/* High contrast focus indicators */
+@media (prefers-contrast: high) {
+  *:focus {
+    outline: 3px solid;
+    outline-color: highlight;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}
+
 /* NAVBAR */
 .navbar {
   position: sticky;
@@ -442,6 +495,14 @@ body,
   font-weight: bold;
 }
 
+/* Filters section */
+.browse-page__filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
 /* Filters button next to big search bar */
 .browse-page__filters-button {
   display: inline-flex;
@@ -453,6 +514,7 @@ body,
   background-color: #fff;
   cursor: pointer;
   font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .browse-page__filters-button--primary {
@@ -738,6 +800,17 @@ body,
   background-color: #f0f0f0;
 }
 
+.browse-page__filters-button:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.browse-page__filters-button[aria-pressed="true"] {
+  background-color: #4f46e5;
+  color: #ffffff;
+  border-color: #4f46e5;
+}
+
 /* Game grid */
 .browse-page__grid {
   display: grid;
@@ -752,14 +825,30 @@ body,
   box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  transition: all 0.2s ease;
   cursor: pointer;
   border: 2px solid transparent;
   position: relative;
 }
 
-.game-card:focus-visible {
+.game-card__button {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-card__button:focus-visible,
+.game-card:focus-within {
   outline: none;
-  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px #4f46e5;
+  transform: translateY(-2px);
+}
+
+.game-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.12);
 }
 
 .game-card__thumbnail {
