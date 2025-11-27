@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { FavouritesProvider } from './context/FavouritesContext';
 import Navbar from './components/ui/Navbar';
 import Footer from './components/ui/Footer';
 import BrowsePage from './pages/BrowsePage';
@@ -41,7 +42,9 @@ const protectedPaths: AppPath[] = [
 function App() {
   return (
     <AuthProvider>
-      <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
+      <FavouritesProvider>
+        <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
+      </FavouritesProvider>
     </AuthProvider>
   );
 }
@@ -51,7 +54,6 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   const [path, setPath] = useState<AppPath>('/');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [favourites, setFavourites] = useState<Set<string>>(new Set());
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const promptTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastAuthEvent = useRef<'signup' | 'login' | null>(null);
@@ -117,15 +119,6 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-  };
-
-  const handleToggleFavourite = (gameId: string) => {
-    setFavourites(prev => {
-      const next = new Set(prev);
-      if (next.has(gameId)) next.delete(gameId);
-      else next.add(gameId);
-      return next;
-    });
   };
 
   const handleGameClick = (gameId: string) => {
@@ -194,12 +187,10 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
             onPageChange={handlePageChange}
             searchTerm={searchTerm}
             onGameClick={handleGameClick}
-            onToggleFavourite={handleToggleFavourite}
-            favourites={favourites}
             onSearchChange={handleSearchChange}
           />
         )}
-        {path === '/favourites' && <FavouritesPage />}
+        {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
         {path === '/recently-viewed' && <RecentlyViewedPage />}
         {path === '/settings' && <SettingsPage />}
         {path === '/admin' && <AdminPage />}
