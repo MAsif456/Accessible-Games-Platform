@@ -13,7 +13,6 @@
       "Motor: Simple gesture controls",
       "Cognitive: Clear step-by-step guidance"
     ],
-    "releaseDate": "2015-03-15",
     "releaseYear": 2015,
     "isPublished": true
   },
@@ -29,7 +28,6 @@
       "Visual: High contrast UI",
       "Motor: One-touch controls"
     ],
-    "releaseDate": "2019-09-01",
     "releaseYear": 2019,
     "isPublished": true
   },
@@ -45,7 +43,6 @@
       "Motor: One-tap controls",
       "Cognitive: No time limits, relaxed pacing"
     ],
-    "releaseDate": "2018-02-22",
     "releaseYear": 2018,
     "isPublished": true
   },
@@ -61,7 +58,6 @@
       "Motor: Forgiving single-button controls",
       "Cognitive: Gentle difficulty curve"
     ],
-    "releaseDate": "2015-02-12",
     "releaseYear": 2015,
     "isPublished": true
   },
@@ -77,7 +73,6 @@
       "Motor: Simple tap controls",
       "Cognitive: No time limits"
     ],
-    "releaseDate": "2014-04-03",
     "releaseYear": 2014,
     "isPublished": true
   },
@@ -93,7 +88,6 @@
       "Motor: Larger touch targets",
       "Cognitive: Gentle linear progression"
     ],
-    "releaseDate": "2017-06-05",
     "releaseYear": 2017,
     "isPublished": true
   },
@@ -109,7 +103,6 @@
       "Motor: Simple touch controls",
       "Cognitive: Adjustable hint system"
     ],
-    "releaseDate": "2012-09-19",
     "releaseYear": 2012,
     "isPublished": true
   },
@@ -125,7 +118,6 @@
       "Motor: Consistent gesture controls",
       "Cognitive: Progressive puzzle difficulty"
     ],
-    "releaseDate": "2013-12-12",
     "releaseYear": 2013,
     "isPublished": true
   },
@@ -141,7 +133,6 @@
       "Motor: Comfortable control scheme",
       "Cognitive: Adjustable comfort settings"
     ],
-    "releaseDate": "2015-11-04",
     "releaseYear": 2015,
     "isPublished": true
   },
@@ -157,7 +148,6 @@
       "Motor: Forgiving swipe controls",
       "Cognitive: Calm, player-paced gameplay"
     ],
-    "releaseDate": "2015-07-23",
     "releaseYear": 2015,
     "isPublished": true
   },
@@ -173,7 +163,6 @@
       "Motor: Minimal input requirements",
       "Cognitive: Adjustable reading pace"
     ],
-    "releaseDate": "2013-02-08",
     "releaseYear": 2013,
     "isPublished": true
   },
@@ -190,7 +179,6 @@
       "Motor: Auto-navigation and auto-combat aids",
       "Cognitive: Customizable difficulty and guidance"
     ],
-    "releaseDate": "2020-09-28",
     "releaseYear": 2020,
     "isPublished": true
   },
@@ -206,7 +194,6 @@
       "Motor: Simple drag-and-drop controls",
       "Cognitive: Clear visual feedback"
     ],
-    "releaseDate": "2014-11-06",
     "releaseYear": 2014,
     "isPublished": true
   },
@@ -222,7 +209,6 @@
       "Motor: Tap-based interaction",
       "Cognitive: Player-paced decision making"
     ],
-    "releaseDate": "2012-05-26",
     "releaseYear": 2012,
     "isPublished": true
   }

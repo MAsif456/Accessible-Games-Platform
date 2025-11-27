@@ -35,7 +35,7 @@ interface FormState {
   shortDescription: string;
   fullDescription: string;
   thumbnailUrl: string;
-  releaseDate: string;
+  yearOfRelease: string; // 4-digit year string used to derive releaseYear
   genres: string[];
   accessibilityFeatures: AccessibilityFeatureTag[];
   storeLinks: StoreLink[];
@@ -72,7 +72,7 @@ const initialFormState: FormState = {
   shortDescription: '',
   fullDescription: '',
   thumbnailUrl: '',
-  releaseDate: '',
+  yearOfRelease: '',
   genres: [],
   accessibilityFeatures: [],
   storeLinks: [],
@@ -99,20 +99,28 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
   const [existingTitles, setExistingTitles] = useState<string[]>([]);
   const [originalTitle, setOriginalTitle] = useState<string | null>(null);
 
+  const [originalReleaseYear, setOriginalReleaseYear] = useState<number | null>(null);
+
+  // Helper: list of years for the dropdown (e.g., from 2000 to current year)
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const startYear = 2000;
+    const years: string[] = [];
+    for (let y = currentYear; y >= startYear; y -= 1) {
+      years.push(String(y));
+    }
+    return years;
+  }, []);
+
   // Load existing game in edit mode
   useEffect(() => {
     if (mode === 'edit' && gameId) {
       setLoading(true);
       getAdminGameById(gameId)
         .then(res => {
-          const game: GameDto & { releaseDate?: string } = res.game as any;
+          const game: GameDto = res.game;
 
-          // Prefer full releaseDate if available, otherwise fall back to releaseYear -> YYYY-01-01
-          const releaseDate = game.releaseDate
-            ? game.releaseDate
-            : game.releaseYear
-            ? `${game.releaseYear.toString().padStart(4, '0')}-01-01`
-            : '';
+          const releaseDate = game.releaseYear ? String(game.releaseYear) : '';
 
           setForm(prev => ({
             ...prev,
@@ -121,7 +129,7 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
             shortDescription: game.description,
             fullDescription: game.description,
             thumbnailUrl: game.thumbnailUrl,
-            releaseDate,
+            yearOfRelease: releaseDate,
             genres: game.genres || [],
             accessibilityFeatures: (game.accessibilityTags || []).map(tag => {
               const [maybeCategory, ...rest] = tag.split(':');
@@ -142,6 +150,7 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
             storeLinks: [],
           }));
           setOriginalTitle(game.title);
+          setOriginalReleaseYear(game.releaseYear ?? null);
         })
         .catch(err => {
           console.error('Failed to load game', err);
@@ -262,7 +271,7 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
     if (!form.shortDescription.trim()) nextErrors.shortDescription = 'Short description is required.';
     if (!form.fullDescription.trim()) nextErrors.fullDescription = 'Full description is required.';
     if (!form.thumbnailUrl.trim()) nextErrors.thumbnailUrl = 'Cover image URL is required.';
-    if (!form.releaseDate) nextErrors.releaseDate = 'Please select a release date.';
+    if (!form.yearOfRelease) nextErrors.yearOfRelease = 'Please select a year of release.';
     if (form.genres.length === 0) nextErrors.genres = 'Please select at least one genre.';
     if (form.accessibilityFeatures.length < 2)
       nextErrors.accessibilityFeatures = 'Please add at least two accessibility features.';
@@ -300,6 +309,12 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
 
     setSaving(true);
     try {
+      const isEdit = mode === 'edit' && !!gameId;
+
+      // For seeded games in edit mode, prevent changing the stored releaseYear by reusing originalReleaseYear
+      const derivedYear = form.yearOfRelease ? parseInt(form.yearOfRelease, 10) : undefined;
+      const releaseYear = isEdit && originalReleaseYear != null ? originalReleaseYear : derivedYear;
+
       const payload: AdminGameInput = {
         slug: form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
         title: form.title,
@@ -308,13 +323,13 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
         thumbnailUrl: form.thumbnailUrl,
         genres: form.genres,
         accessibilityTags: form.accessibilityFeatures.map(f => `${f.category}: ${f.name}`),
-        releaseYear: form.releaseDate ? new Date(form.releaseDate).getFullYear() : undefined,
+        releaseYear,
       };
 
       if (mode === 'create') {
         await createAdminGame(payload);
         showPrompt('Game added successfully.', 'success');
-      } else if (mode === 'edit' && gameId) {
+      } else if (isEdit && gameId) {
         await updateAdminGame(gameId, payload);
         showPrompt('Game updated successfully.', 'success');
       }
@@ -486,17 +501,24 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
                 </div>
 
                 <div className="admin-game-form__field">
-                  <label htmlFor="releaseDate">
-                    Release Date <span className="admin-game-form__required">*</span>
+                  <label htmlFor="yearOfRelease">
+                    Year of Release <span className="admin-game-form__required">*</span>
                   </label>
-                  <input
-                    id="releaseDate"
-                    data-error-key="releaseDate"
-                    type="date"
-                    value={form.releaseDate}
-                    onChange={e => updateField('releaseDate', e.target.value)}
-                  />
-                  {errors.releaseDate && <p className="admin-game-form__error">{errors.releaseDate}</p>}
+                  <select
+                    id="yearOfRelease"
+                    data-error-key="yearOfRelease"
+                    value={form.yearOfRelease}
+                    onChange={e => updateField('yearOfRelease', e.target.value)}
+                    disabled={mode === 'edit' && originalReleaseYear != null}
+                  >
+                    <option value="">Select year...</option>
+                    {yearOptions.map(year => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.yearOfRelease && <p className="admin-game-form__error">{errors.yearOfRelease}</p>}
                 </div>
               </div>
             </section>
@@ -734,13 +756,23 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
 
         {deleteConfirmOpen && isEdit && (
           <div className="admin-game-form__dialog-backdrop" role="presentation">
-            <div className="admin-game-form__dialog" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">
-              <h2 id="delete-dialog-title">Delete Game</h2>
-              <p>Are you sure you want to delete this game? This action cannot be undone.</p>
-              <div className="admin-game-form__dialog-actions">
+            <div
+              className="admin-game-form__dialog admin-game-form__dialog--danger"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-dialog-title"
+              aria-describedby="delete-dialog-description"
+            >
+              <h2 id="delete-dialog-title" className="admin-game-form__dialog-title">
+                Are you absolutely sure?
+              </h2>
+              <p id="delete-dialog-description" className="admin-game-form__dialog-body">
+                This action cannot be undone. This will permanently delete the game from the platform.
+              </p>
+              <div className="admin-game-form__dialog-actions admin-game-form__dialog-actions--right">
                 <button
                   type="button"
-                  className="admin-game-form__secondary-button"
+                  className="admin-game-form__secondary-button admin-game-form__secondary-button--ghost"
                   onClick={() => setDeleteConfirmOpen(false)}
                   disabled={deleting}
                 >
@@ -748,11 +780,11 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
                 </button>
                 <button
                   type="button"
-                  className="admin-game-form__delete-button"
+                  className="admin-game-form__primary-button admin-game-form__primary-button--danger"
                   onClick={handleDeleteConfirmed}
                   disabled={deleting}
                 >
-                  Delete Game
+                  Delete
                 </button>
               </div>
             </div>

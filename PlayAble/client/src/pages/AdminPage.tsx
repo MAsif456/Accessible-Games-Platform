@@ -23,20 +23,48 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
   const [reviewsSubTab, setReviewsSubTab] = useState<ReviewsSubTab>('reviews');
   const [gamesSubTab, setGamesSubTab] = useState<GamesSubTab>('games');
 
-  // Games management state
-  const [games, setGames] = useState<GameDto[]>([]);
-  const [gamesLoading, setGamesLoading] = useState(false);
-  const [gamesError, setGamesError] = useState<string | null>(null);
-  const [gamesSearchTerm, setGamesSearchTerm] = useState('');
-  const [gamesPage, setGamesPage] = useState(1);
-  const GAMES_PAGE_SIZE = 10;
-
   const handlePrimaryKey = (e: React.KeyboardEvent<HTMLButtonElement>, tab: PrimaryTab) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       setPrimaryTab(tab);
     }
   };
+
+  // Games management state
+  const [games, setGames] = useState<GameDto[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [gamesError, setGamesError] = useState<string | null>(null);
+  const [gamesSearchTerm, setGamesSearchTerm] = useState('');
+  const [gamesPage, setGamesPage] = useState(1);
+  const [gamesStatsLoading, setGamesStatsLoading] = useState(true);
+  const GAMES_PAGE_SIZE = 10;
+
+  // Load games on initial mount so Total Games is populated immediately
+  useEffect(() => {
+    let isCancelled = false;
+    setGamesStatsLoading(true);
+    getAdminGames()
+      .then(res => {
+        if (!isCancelled) {
+          setGames(res.games || []);
+        }
+      })
+      .catch(err => {
+        if (!isCancelled) {
+          console.error('Failed to load admin games', err);
+          setGamesError('Unable to load games. Please try again later.');
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setGamesStatsLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (primaryTab === 'games') {
@@ -537,8 +565,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             <div className="admin-stat-card__header">
               <h2 className="admin-stat-card__title">Total Games</h2>
             </div>
-            <p className="admin-stat-card__value" aria-label="9 catalogued games">
-              9
+            <p
+              className={
+                'admin-stat-card__value' + (gamesStatsLoading ? ' admin-stat-card__value--skeleton' : '')
+              }
+              aria-label={
+                gamesStatsLoading
+                  ? 'Loading catalogued games count'
+                  : `${games.length} catalogued games`
+              }
+            >
+              {gamesStatsLoading ? '—' : games.length}
             </p>
             <p className="admin-stat-card__meta">Catalogued games</p>
           </article>

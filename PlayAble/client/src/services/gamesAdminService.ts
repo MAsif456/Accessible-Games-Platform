@@ -38,7 +38,7 @@ export async function getAdminGameById(id: string): Promise<{ game: GameDto }> {
 
 export type AdminGameInput = Omit<
   GameDto,
-  'id' | '_id' | 'thumbnailUrl' | 'releaseYear'
+  'id' | '_id' | 'thumbnailUrl'
 > & {
   thumbnailUrl?: string;
   releaseYear?: number | '';
