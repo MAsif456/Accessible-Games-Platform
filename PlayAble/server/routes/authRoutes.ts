@@ -3,7 +3,16 @@
 // All authentication-related endpoints are defined here.
 
 import express from 'express';
-import { signup, login, logout, getMe, requestPasswordReset, resetPassword } from '../controllers/authController';
+import {
+  signup,
+  login,
+  logout,
+  getMe,
+  requestPasswordReset,
+  resetPassword,
+  updateProfile,
+  updateEmailAndPassword,
+} from '../controllers/authController';
 import { protect } from '../middleware/auth';
 
 const router = express.Router();
@@ -17,5 +26,7 @@ router.post('/reset-password', resetPassword);
 // Protected routes
 router.get('/me', protect, getMe);
 router.post('/logout', protect, logout);
+router.put('/profile', protect, updateProfile);
+router.put('/account', protect, updateEmailAndPassword);
 
 export default router;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import SkipLink from './components/navigation/SkipLink';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { FavouritesProvider } from './context/FavouritesContext';
 import Navbar from './components/ui/Navbar';
 import Footer from './components/ui/Footer';
 import { useGlobalKeyboardNavigation } from './hooks/useGlobalKeyboardNavigation';
@@ -14,6 +15,7 @@ import MyProfilePage from './pages/MyProfilePage';
 import InboxPage from './pages/InboxPage';
 import AboutPage from './pages/AboutPage';
 import ReportPage from './pages/ReportPage';
+import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
 
 export type AppPath =
   | '/'
@@ -24,16 +26,36 @@ export type AppPath =
   | '/admin'
   | '/signin'
   | '/my-profile'
+  | '/change-email-password'
   | '/inbox'
   | '/about'
-  | '/report';
+  | '/report'
+  | '/change-email-password';
 
-const protectedPaths: AppPath[] = ['/favourites', '/recently-viewed', '/my-profile', '/inbox'];
+const PAGE_SIZE = 9;
+const protectedPaths: AppPath[] = [
+  '/favourites',
+  '/recently-viewed',
+  '/my-profile',
+  '/inbox',
+  '/change-email-password',
+];
 
-function AppContent() {
+function App() {
+  return (
+    <AuthProvider>
+      <FavouritesProvider>
+        <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
+      </FavouritesProvider>
+    </AuthProvider>
+  );
+}
+
+function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protectedPaths: AppPath[] }) {
   const { user, isAuthenticated, logout } = useAuth();
   const [path, setPath] = useState<AppPath>('/');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const promptTimeout = useRef<number | null>(null);
   const lastAuthEvent = useRef<'signup' | 'login' | null>(null);
@@ -43,7 +65,7 @@ function AppContent() {
 
   const showPrompt = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setPrompt({ message, type });
-    if (promptTimeout.current) window.clearTimeout(promptTimeout.current);
+    if (promptTimeout.current !== null) window.clearTimeout(promptTimeout.current);
     promptTimeout.current = window.setTimeout(() => setPrompt(null), 2500);
   }, []);
 
@@ -57,19 +79,25 @@ function AppContent() {
       newPath === '/admin' ||
       newPath === '/signin' ||
       newPath === '/my-profile' ||
+      newPath === '/change-email-password' ||
       newPath === '/inbox' ||
       newPath === '/about' ||
-      newPath === '/report'
+      newPath === '/report' ||
+      newPath === '/change-email-password'
     ) {
-      const typed = newPath as AppPath;
-      if (protectedPaths.includes(typed) && !isAuthenticated) {
+      const typedPath = newPath as AppPath;
+
+      // Check if trying to access protected route without authentication
+      if (protectedPaths.includes(typedPath) && !isAuthenticated) {
         setPath('/signin');
         return;
       }
-      if (typed === '/signin') {
-        lastAuthEvent.current = null;
+
+      if (typedPath === '/signin') {
+        lastAuthEvent.current = null; // reset on manual nav
       }
-      setPath(typed);
+
+      setPath(typedPath);
     }
   };
 
@@ -83,8 +111,23 @@ function AppContent() {
     setSearchTerm(value);
   };
 
+  const handleSearchSubmit = () => {
+    setPath('/browse');
+    setCurrentPage(1);
+  };
+
   const handleClearSearch = () => {
     setSearchTerm('');
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleGameClick = (gameId: string) => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    console.log('Open details for', gameId);
   };
 
   const userRole = user?.role || 'guest';
@@ -135,7 +178,7 @@ function AppContent() {
         role={userRole}
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
-        onSearchSubmit={() => {}}
+        onSearchSubmit={handleSearchSubmit}
         onClearSearch={handleClearSearch}
         currentPath={path}
         onNavigate={handleNavigate}
@@ -144,8 +187,18 @@ function AppContent() {
 
       <div className="App__content">
         <main id="main-content" tabIndex={-1}>
-          {(path === '/' || path === '/browse') && <BrowsePage />}
-          {path === '/favourites' && <FavouritesPage />}
+          {(path === '/' || path === '/browse') && (
+            <BrowsePage
+              currentPath={path}
+              currentPage={currentPage}
+              pageSize={PAGE_SIZE}
+              onPageChange={handlePageChange}
+              searchTerm={searchTerm}
+              onGameClick={handleGameClick}
+              onSearchChange={handleSearchChange}
+            />
+          )}
+          {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
           {path === '/recently-viewed' && <RecentlyViewedPage />}
           {path === '/settings' && <SettingsPage />}
           {path === '/admin' && <AdminPage />}
@@ -162,7 +215,8 @@ function AppContent() {
               }}
             />
           )}
-          {path === '/my-profile' && <MyProfilePage />}
+          {path === '/my-profile' && <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />}
+          {path === '/change-email-password' && <ChangeEmailPasswordPage onNavigate={handleNavigate} />}
           {path === '/inbox' && <InboxPage />}
           {path === '/about' && <AboutPage />}
           {path === '/report' && <ReportPage />}
@@ -171,14 +225,6 @@ function AppContent() {
 
       <Footer onNavigate={handleNavigate} />
     </div>
-  );
-}
-
-function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
   );
 }
 

@@ -14,6 +14,7 @@ export interface IUser extends Document {
     keyboardNavigation?: boolean;
     voiceControl?: boolean;
   };
+  bio?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -60,11 +61,16 @@ const UserSchema = new Schema<IUser>(
       keyboardNavigation: { type: Boolean, default: true },
       voiceControl: { type: Boolean, default: false },
     },
+    bio: {
+      type: String,
+      trim: true,
+      default: '',
+    },
   },
   {
     timestamps: true,
     collection: 'users',
-  }
+  },
 );
 
 // Hash password before saving
@@ -83,7 +89,6 @@ UserSchema.methods.comparePassword = async function (
   return bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
-const UserModel =
-  mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+const UserModel = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 
 export default UserModel;

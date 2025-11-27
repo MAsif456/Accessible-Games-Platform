@@ -1,0 +1,156 @@
+[
+  {
+    "slug": "a-blind-legend",
+    "title": "A Blind Legend",
+    "studio": "Dowino",
+    "description": "Audio-only action adventure built for blind players with fully voiced instructions.",
+    "thumbnailUrl": "/images/games/a-blind-legend.jpg",
+    "genres": ["Action", "Adventure"],
+    "accessibilityTags": ["Vision", "Hearing", "Audio", "Motor", "Cognitive"],
+    "releaseYear": 2015,
+    "isPublished": true
+  },
+  {
+    "slug": "audiowizards",
+    "title": "AudioWizards",
+    "studio": "Accessible Games",
+    "description": "Spell-casting game playable without sight, using spatial sound to locate enemies.",
+    "thumbnailUrl": "/images/games/audiowizards.jpg",
+    "genres": ["Arcade", "Rhythm"],
+    "accessibilityTags": ["Vision", "Hearing", "Audio", "Motor", "Cognitive"],
+    "releaseYear": 2019,
+    "isPublished": true
+  },
+  {
+    "slug": "altos-odyssey",
+    "title": "Alto's Odyssey",
+    "studio": "Snowman",
+    "description": "Relaxing endless sandboarding with one-tap controls and an optional Zen Mode.",
+    "thumbnailUrl": "/images/games/altos-odyssey.jpg",
+    "genres": ["Endless Runner"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2018,
+    "isPublished": true
+  },
+  {
+    "slug": "altos-adventure",
+    "title": "Alto's Adventure",
+    "studio": "Snowman",
+    "description": "Snowboarding adventure with forgiving single-button controls and calm pacing.",
+    "thumbnailUrl": "/images/games/altos-adventure.jpg",
+    "genres": ["Endless Runner"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2015,
+    "isPublished": true
+  },
+  {
+    "slug": "monument-valley",
+    "title": "Monument Valley",
+    "studio": "ustwo games",
+    "description": "Escher-inspired puzzle game with clear visuals and no time limits.",
+    "thumbnailUrl": "/images/games/monument-valley.jpg",
+    "genres": ["Puzzle"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2014,
+    "isPublished": true
+  },
+  {
+    "slug": "monument-valley-2",
+    "title": "Monument Valley 2",
+    "studio": "ustwo games",
+    "description": "Sequel with larger touch targets and gentle, linear puzzle progression.",
+    "thumbnailUrl": "/images/games/monument-valley-2.jpg",
+    "genres": ["Puzzle"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2017,
+    "isPublished": true
+  },
+  {
+    "slug": "the-room",
+    "title": "The Room",
+    "studio": "Fireproof Games",
+    "description": "Tactile puzzle box with highlighted interactables and a flexible hint system.",
+    "thumbnailUrl": "/images/games/the-room.jpg",
+    "genres": ["Puzzle", "Mystery"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2012,
+    "isPublished": true
+  },
+  {
+    "slug": "the-room-two",
+    "title": "The Room Two",
+    "studio": "Fireproof Games",
+    "description": "Sequel with similar accessible gestures, zoom support, and progressive puzzles.",
+    "thumbnailUrl": "/images/games/the-room-two.jpg",
+    "genres": ["Puzzle"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2013,
+    "isPublished": true
+  },
+  {
+    "slug": "the-room-three",
+    "title": "The Room Three",
+    "studio": "Fireproof Games",
+    "description": "Third entry with high-contrast interactables and comfort settings for motion.",
+    "thumbnailUrl": "/images/games/the-room-three.jpg",
+    "genres": ["Puzzle"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2015,
+    "isPublished": true
+  },
+  {
+    "slug": "prune",
+    "title": "Prune",
+    "studio": "Joel McDonald",
+    "description": "Minimalist tree-pruning game with forgiving swipe controls and calm pacing.",
+    "thumbnailUrl": "/images/games/prune.jpg",
+    "genres": ["Puzzle"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2015,
+    "isPublished": true
+  },
+  {
+    "slug": "a-dark-room",
+    "title": "A Dark Room",
+    "studio": "Doublespeak Games",
+    "description": "Text-driven narrative with screen-reader support and adjustable font size.",
+    "thumbnailUrl": "/images/games/a-dark-room.jpg",
+    "genres": ["Narrative", "Idle"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2013,
+    "isPublished": true
+  },
+  {
+    "slug": "genshin-impact",
+    "title": "Genshin Impact",
+    "studio": "HoYoverse",
+    "description": "Open-world action RPG with extensive accessibility toggles and auto-navigation.",
+    "thumbnailUrl": "/images/games/genshin-impact.jpg",
+    "genres": ["Action RPG", "Open World"],
+    "accessibilityTags": ["Vision", "Hearing", "Motor", "Cognitive"],
+    "releaseYear": 2020,
+    "isPublished": true
+  },
+  {
+    "slug": "mini-metro",
+    "title": "Mini Metro",
+    "studio": "Dinosaur Polo Club",
+    "description": "Minimalist subway planner with colorblind mode and fully visual feedback.",
+    "thumbnailUrl": "/images/games/mini-metro.jpg",
+    "genres": ["Strategy", "Simulation"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2014,
+    "isPublished": true
+  },
+  {
+    "slug": "plague-inc",
+    "title": "Plague Inc.",
+    "studio": "Ndemic Creations",
+    "description": "Strategy simulation with adjustable text size and player-paced decision making.",
+    "thumbnailUrl": "/images/games/plague-inc.jpg",
+    "genres": ["Strategy", "Simulation"],
+    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "releaseYear": 2012,
+    "isPublished": true
+  }
+]

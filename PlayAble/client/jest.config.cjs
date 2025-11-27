@@ -1,13 +1,21 @@
 /** @type {import('jest').Config} */
 module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'jsdom',
-  transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest',
-  },
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+
+  // Look for tests in both src and tests folders
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
+
+  // Pick up *.test.tsx / *.spec.tsx etc
+  testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
+
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+
   moduleNameMapper: {
-    '\\.(css|less|sass|scss)$': 'identity-obj-proxy',
+    // Use explicit style mock file
+    '^.+\\.(css|less|scss|sass)$': '<rootDir>/tests/styleMock.js',
+    '^src/(.*)$': '<rootDir>/src/$1',
   },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
-  testMatch: ['<rootDir>/src/**/*.test.(ts|tsx)'],
+
+  setupFilesAfterEnv: ['<rootDir>/tests/setupTests.ts'],
 };
