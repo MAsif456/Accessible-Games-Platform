@@ -79,8 +79,8 @@ Or manually create `server/.env` with:
 PORT=5001
 MONGODB_URI=mongodb+srv://<db_username>:<db_password>@cluster0.oyjk8lb.mongodb.net/playable_db?retryWrites=true&w=majority&appName=Cluster0
 NODE_ENV=development
-EMAIL_USER=playablehelp@gmail.com
-EMAIL_PASS=wervjuybyknubdnx
+EMAIL_USER=Your email username 
+EMAIL_PASS=Your email app password
 ```
 - Replace `<db_password>` with the password for the `<db_username>` database user.
 
