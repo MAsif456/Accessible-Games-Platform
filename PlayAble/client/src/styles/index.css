@@ -1347,3 +1347,411 @@ body,
   }
 }
 
+/* Admin game form page */
+.admin-game-form-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3rem;
+}
+
+.admin-game-form-page__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-game-form-page__back {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: #111827;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.admin-game-form-page__back:hover {
+  text-decoration: underline;
+}
+
+.admin-game-form-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-game-form-page__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.admin-game-form-page__subtitle {
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+
+.admin-game-form {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.75rem 1.75rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.admin-game-form__section {
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.5rem 1.5rem 1.25rem;
+  background: #ffffff;
+}
+
+.admin-game-form__section-header {
+  margin-bottom: 1rem;
+}
+
+.admin-game-form__section-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.admin-game-form__section-header p {
+  margin-top: 0.15rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.admin-game-form__field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.admin-game-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.admin-game-form__field--full {
+  grid-column: 1 / -1;
+}
+
+.admin-game-form__field--grow {
+  flex: 1;
+}
+
+.admin-game-form__field--button {
+  align-self: flex-end;
+}
+
+.admin-game-form__field label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.admin-game-form__required {
+  color: #dc2626;
+}
+
+.admin-game-form__help {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.admin-game-form__field input,
+.admin-game-form__field textarea,
+.admin-game-form__field select {
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  padding: 0.6rem 0.7rem;
+  font-size: 0.9rem;
+  background-color: #f9fafb;
+}
+
+.admin-game-form__field textarea {
+  resize: vertical;
+}
+
+.admin-game-form__field input:focus-visible,
+.admin-game-form__field textarea:focus-visible,
+.admin-game-form__field select:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+  border-color: transparent;
+  background-color: #ffffff;
+}
+
+.admin-game-form__image-preview-wrapper {
+  margin-top: 0.75rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.admin-game-form__image-preview {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+}
+
+.admin-game-form__genres-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem 1.5rem;
+}
+
+.admin-game-form__checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+}
+
+.admin-game-form__checkbox-label input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+}
+
+.admin-game-form__genre-tags {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.admin-game-form__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background-color: #f3f4f6;
+  font-size: 0.8rem;
+}
+
+.admin-game-form__accessibility-input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.admin-game-form__label-invisible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.admin-game-form__add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.5rem;
+  border: none;
+  padding: 0.55rem 1rem;
+  background-color: #4b5563;
+  color: #ffffff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.admin-game-form__add-button-icon {
+  font-weight: 600;
+}
+
+.admin-game-form__add-button:hover {
+  background-color: #374151;
+}
+
+.admin-game-form__empty {
+  margin-top: 0.9rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.admin-game-form__accessibility-groups {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-game-form__accessibility-group h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.admin-game-form__tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.admin-game-form__tag--removable {
+  border: none;
+  background-color: #e5e7eb;
+  cursor: pointer;
+}
+
+.admin-game-form__store-list {
+  margin-top: 1rem;
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-game-form__store-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.admin-game-form__store-list-platform {
+  font-weight: 500;
+}
+
+.admin-game-form__store-list-url {
+  color: #2563eb;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.admin-game-form__store-list-url:hover {
+  text-decoration: underline;
+}
+
+.admin-game-form__store-remove {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.admin-game-form__footer {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-game-form__footer-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.admin-game-form__secondary-button {
+  border-radius: 999px;
+  padding: 0.55rem 1.25rem;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+
+.admin-game-form__primary-button {
+  border-radius: 999px;
+  padding: 0.55rem 1.5rem;
+  border: none;
+  background-color: #020617;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.admin-game-form__primary-button:disabled,
+.admin-game-form__secondary-button:disabled,
+.admin-game-form__delete-button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.admin-game-form__delete-button {
+  border-radius: 0.5rem;
+  padding: 0.55rem 1.25rem;
+  border: none;
+  background-color: #b91c1c;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.admin-game-form__error {
+  font-size: 0.8rem;
+  color: #dc2626;
+}
+
+.admin-game-form__dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.admin-game-form__dialog {
+  background-color: #ffffff;
+  padding: 1.5rem 1.75rem;
+  border-radius: 0.75rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.2);
+}
+
+.admin-game-form__dialog h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-game-form__dialog p {
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.admin-game-form__dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .admin-game-form-page {
+    padding-inline: 1rem;
+  }
+
+  .admin-game-form__field-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-game-form__genres-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-game-form__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-game-form__footer-actions {
+    justify-content: flex-end;
+  }
+}
+

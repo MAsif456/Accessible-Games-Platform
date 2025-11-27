@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { GameDto } from '../services/api';
+import { getAdminGames } from '../services/gamesAdminService';
 
 const PRIMARY_TABS = ['general-reports', 'reviews', 'games'] as const;
 type PrimaryTab = (typeof PRIMARY_TABS)[number];
@@ -11,16 +13,83 @@ type GeneralSubTab = (typeof GENERAL_SUBTABS)[number];
 type ReviewsSubTab = (typeof REVIEWS_SUBTABS)[number];
 type GamesSubTab = (typeof GAMES_SUBTABS)[number];
 
-const AdminPage: React.FC = () => {
+interface AdminPageProps {
+  onNavigate?: (path: string) => void;
+}
+
+const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
   const [primaryTab, setPrimaryTab] = useState<PrimaryTab>('general-reports');
   const [generalSubTab, setGeneralSubTab] = useState<GeneralSubTab>('general');
   const [reviewsSubTab, setReviewsSubTab] = useState<ReviewsSubTab>('reviews');
   const [gamesSubTab, setGamesSubTab] = useState<GamesSubTab>('games');
 
+  // Games management state
+  const [games, setGames] = useState<GameDto[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [gamesError, setGamesError] = useState<string | null>(null);
+  const [gamesSearchTerm, setGamesSearchTerm] = useState('');
+  const [gamesPage, setGamesPage] = useState(1);
+  const GAMES_PAGE_SIZE = 10;
+
   const handlePrimaryKey = (e: React.KeyboardEvent<HTMLButtonElement>, tab: PrimaryTab) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       setPrimaryTab(tab);
+    }
+  };
+
+  useEffect(() => {
+    if (primaryTab === 'games') {
+      setGamesLoading(true);
+      setGamesError(null);
+      getAdminGames()
+        .then(res => {
+          setGames(res.games || []);
+        })
+        .catch(err => {
+          console.error('Failed to load admin games', err);
+          setGamesError('Unable to load games. Please try again later.');
+        })
+        .finally(() => setGamesLoading(false));
+    }
+  }, [primaryTab]);
+
+  const filteredGames = useMemo(() => {
+    const term = gamesSearchTerm.trim().toLowerCase();
+    if (!term) return games;
+    return games.filter(game => {
+      const id = game.id || game._id || '';
+      return (
+        game.title.toLowerCase().includes(term) ||
+        id.toLowerCase().includes(term) ||
+        game.slug.toLowerCase().includes(term)
+      );
+    });
+  }, [games, gamesSearchTerm]);
+
+  const totalGamesPages = Math.max(1, Math.ceil(filteredGames.length / GAMES_PAGE_SIZE));
+
+  const pageGames = useMemo(() => {
+    const start = (gamesPage - 1) * GAMES_PAGE_SIZE;
+    return filteredGames.slice(start, start + GAMES_PAGE_SIZE);
+  }, [filteredGames, gamesPage]);
+
+  useEffect(() => {
+    setGamesPage(1);
+  }, [gamesSearchTerm]);
+
+  const handleAddNewGame = () => {
+    if (onNavigate) {
+      onNavigate('/admin/games/new');
+    }
+  };
+
+  const handleManageGame = (game: GameDto) => {
+    if (onNavigate) {
+      const id = game.id || game._id;
+      if (id) {
+        onNavigate(`/admin/games/${id}`);
+      }
     }
   };
 
@@ -244,8 +313,7 @@ const AdminPage: React.FC = () => {
               <h2 id="games-management-title">Games Management</h2>
               <p className="admin-section-card__description">Manage games in the platform catalog.</p>
             </div>
-            <button type="button" className="admin-primary-button">
-              <span className="admin-icon admin-icon--plus" aria-hidden="true" />
+            <button type="button" className="admin-primary-button" onClick={handleAddNewGame}>
               <span>+ Add New Game</span>
             </button>
           </header>
@@ -259,8 +327,16 @@ const AdminPage: React.FC = () => {
               type="search"
               className="admin-section-card__search-input"
               placeholder="Search by game title or ID..."
+              value={gamesSearchTerm}
+              onChange={e => setGamesSearchTerm(e.target.value)}
             />
           </div>
+
+          {gamesError && (
+            <div role="alert" className="admin-error-message">
+              {gamesError}
+            </div>
+          )}
 
           <div className="admin-table-wrapper">
             <table className="admin-table" aria-label="Games management table">
@@ -274,17 +350,52 @@ const AdminPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                <tr className="admin-table__empty-row">
-                  <td colSpan={4}>
-                    <p className="admin-table__empty-message">No games in catalog</p>
-                  </td>
-                </tr>
+                {gamesLoading ? (
+                  <tr className="admin-table__empty-row">
+                    <td colSpan={4}>
+                      <p className="admin-table__empty-message">Loading games...</p>
+                    </td>
+                  </tr>
+                ) : pageGames.length === 0 ? (
+                  <tr className="admin-table__empty-row">
+                    <td colSpan={4}>
+                      <p className="admin-table__empty-message">No games in catalog</p>
+                    </td>
+                  </tr>
+                ) : (
+                  pageGames.map(game => {
+                    const id = game.id || game._id;
+                    return (
+                      <tr key={id}>
+                        <td>{id}</td>
+                        <td>{game.title}</td>
+                        <td>
+                          <span className="admin-badge admin-badge--status">Active</span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="admin-table__action-button"
+                            onClick={() => handleManageGame(game)}
+                          >
+                            Manage
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
 
           <nav className="admin-pagination" aria-label="Games pagination">
-            <button type="button" className="admin-pagination__button" disabled>
+            <button
+              type="button"
+              className="admin-pagination__button"
+              onClick={() => setGamesPage(p => Math.max(1, p - 1))}
+              disabled={gamesPage === 1}
+            >
               Previous
             </button>
             <ol className="admin-pagination__list">
@@ -294,11 +405,16 @@ const AdminPage: React.FC = () => {
                   className="admin-pagination__page admin-pagination__page--current"
                   aria-current="page"
                 >
-                  1
+                  {gamesPage}
                 </button>
               </li>
             </ol>
-            <button type="button" className="admin-pagination__button" disabled>
+            <button
+              type="button"
+              className="admin-pagination__button"
+              onClick={() => setGamesPage(p => Math.min(totalGamesPages, p + 1))}
+              disabled={gamesPage === totalGamesPages}
+            >
               Next
             </button>
           </nav>
