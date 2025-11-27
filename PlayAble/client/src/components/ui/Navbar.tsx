@@ -3,6 +3,8 @@
 // Accessibility is prioritised: keyboard navigation, ARIA roles, and high-contrast support are included to meet WCAG 2.1 AA standards.
 // The logout action uses a confirmation dialog to prevent accidental sign-outs, improving user experience for all users.
 import React, { useState } from 'react';
+import NavbarAccountMenu from './NavbarAccountMenu';
+import NavbarVoicePopup from './NavbarVoicePopup';
 
 export type UserRole = 'guest' | 'user' | 'admin';
 
@@ -149,73 +151,12 @@ const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {isLoggedIn ? (
-              <li className="navbar__profile">
-                <div className="navbar__profile-wrapper">
-                  <button
-                    type="button"
-                    className="navbar__nav-button navbar__nav-button--profile"
-                    aria-haspopup="menu"
-                    aria-expanded={isAccountOpen}
-                    onClick={() => setIsAccountOpen(prev => !prev)}
-                  >
-                    <span className="navbar__nav-icon navbar__nav-icon--user" aria-hidden="true" />
-                    <span>My Account</span>
-                    <span className="navbar__nav-caret" aria-hidden="true">
-                      ▾
-                    </span>
-                  </button>
-                  {isAccountOpen && (
-                    <div className="navbar__profile-menu" role="menu" aria-label="My Account menu">
-                      <div className="navbar__profile-menu-header">My Account</div>
-                      <ul className="navbar__profile-menu-list">
-                        <li role="none">
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="navbar__profile-menu-item"
-                            onClick={() => onNavigate && onNavigate('/my-profile')}
-                          >
-                            <span
-                              className="navbar__profile-menu-icon navbar__nav-icon--user"
-                              aria-hidden="true"
-                            />
-                            <span>Profile</span>
-                          </button>
-                        </li>
-                        <li role="none">
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="navbar__profile-menu-item"
-                            onClick={() => onNavigate && onNavigate('/inbox')}
-                          >
-                            <span
-                              className="navbar__profile-menu-icon navbar__nav-icon--inbox"
-                              aria-hidden="true"
-                            />
-                            <span>Inbox</span>
-                            <span className="navbar__profile-menu-dot" aria-hidden="true" />
-                          </button>
-                        </li>
-                        <li role="none">
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="navbar__profile-menu-item"
-                            onClick={() => setShowLogoutConfirm(true)}
-                          >
-                            <span
-                              className="navbar__profile-menu-icon navbar__nav-icon--lock"
-                              aria-hidden="true"
-                            />
-                            <span>Log out</span>
-                          </button>
-                        </li>
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </li>
+              <NavbarAccountMenu
+                isOpen={isAccountOpen}
+                onToggle={() => setIsAccountOpen(prev => !prev)}
+                onNavigate={onNavigate}
+                onRequestLogout={() => setShowLogoutConfirm(true)}
+              />
             ) : (
               <li>
                 <button
@@ -231,11 +172,9 @@ const Navbar: React.FC<NavbarProps> = ({
           </ul>
         </nav>
       </div>
-      {isVoiceOpen && (
-        <div className="voice-popup" aria-label="Voice listening popup">
-          {/* Empty placeholder popup for future implementation */}
-        </div>
-      )}
+
+      <NavbarVoicePopup isOpen={isVoiceOpen} />
+
       {showLogoutConfirm && (
         <div
           role="dialog"
