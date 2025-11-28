@@ -48,6 +48,35 @@ const SettingsPage = () => {
   const skipNextSaveRef = useRef(false);
   const lastUserSettingsRef = useRef<UserSettings | null>(null);
 
+  // Session storage key for non-logged-in users
+  const SESSION_STORAGE_KEY = 'playable_session_settings';
+
+  // Load settings from sessionStorage for non-logged-in users
+  const loadSessionSettings = (): UserSettings | null => {
+    try {
+      const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          ...parsed,
+          highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+        };
+      }
+    } catch (error) {
+      console.error('Failed to load session settings:', error);
+    }
+    return null;
+  };
+
+  // Save settings to sessionStorage for non-logged-in users
+  const saveSessionSettings = (settingsToSave: UserSettings) => {
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(settingsToSave));
+    } catch (error) {
+      console.error('Failed to save session settings:', error);
+    }
+  };
+
   useEffect(() => {
     if (user?.id && userSettings) {
       // Check if userSettings actually changed (to avoid unnecessary updates)
@@ -68,8 +97,9 @@ const SettingsPage = () => {
       }
       setIsLoading(false);
     } else if (!user?.id) {
-      // For non-logged-in users, use default settings
-      const defaultSettings = {
+      // For non-logged-in users, try to load from sessionStorage first
+      const sessionSettings = loadSessionSettings();
+      const settingsToUse = sessionSettings || {
         voiceInput: true,
         captions: true,
         microphoneActive: true,
@@ -78,8 +108,8 @@ const SettingsPage = () => {
         reducedMotion: false,
         darkMode: false,
       };
-      setSettings(defaultSettings);
-      previousSettingsRef.current = defaultSettings;
+      setSettings(settingsToUse);
+      previousSettingsRef.current = settingsToUse;
       isInitialLoadRef.current = true;
       setIsLoading(false);
     }
@@ -111,21 +141,32 @@ const SettingsPage = () => {
     }
 
     // Only save if settings actually changed
-    if (!isLoading && user?.id && settingsChanged(previousSettingsRef.current, settings)) {
-      const saveTimeout = setTimeout(async () => {
-        setAutoSaveIndicator(true);
-        try {
-          const updated = await settingsApi.updateSettings(user.id, settings);
-          updateUserSettingsState(updated);
-          previousSettingsRef.current = updated; // Update ref with saved settings
-        } catch (error) {
-          console.error('Failed to save settings:', error);
-        } finally {
-          setTimeout(() => setAutoSaveIndicator(false), 2000);
-        }
-      }, 500); // Debounce: save 500ms after last change
+    if (!isLoading && settingsChanged(previousSettingsRef.current, settings)) {
+      if (user?.id) {
+        // For logged-in users, save to backend
+        const saveTimeout = setTimeout(async () => {
+          setAutoSaveIndicator(true);
+          try {
+            const updated = await settingsApi.updateSettings(user.id, settings);
+            updateUserSettingsState(updated);
+            previousSettingsRef.current = updated; // Update ref with saved settings
+          } catch (error) {
+            console.error('Failed to save settings:', error);
+          } finally {
+            setTimeout(() => setAutoSaveIndicator(false), 2000);
+          }
+        }, 500); // Debounce: save 500ms after last change
 
-      return () => clearTimeout(saveTimeout);
+        return () => clearTimeout(saveTimeout);
+      } else {
+        // For non-logged-in users, save to sessionStorage
+        const saveTimeout = setTimeout(() => {
+          saveSessionSettings(settings);
+          previousSettingsRef.current = settings; // Update ref with saved settings
+        }, 500); // Debounce: save 500ms after last change
+
+        return () => clearTimeout(saveTimeout);
+      }
     } else {
       // Settings didn't change, update ref anyway
       previousSettingsRef.current = settings;
@@ -184,10 +225,11 @@ const SettingsPage = () => {
         previousSettingsRef.current = result.settings;
         updateUserSettingsState(result.settings);
       } else {
-        // For non-logged-in users, just reset local state
-        skipNextSaveRef.current = true; // Skip auto-save for non-logged-in users
+        // For non-logged-in users, reset local state and sessionStorage
+        skipNextSaveRef.current = true; // Skip auto-save since we're manually saving
         setSettings(defaultSettings);
         previousSettingsRef.current = defaultSettings;
+        saveSessionSettings(defaultSettings); // Save to sessionStorage
         applyAccessibilityPreferences(defaultSettings);
       }
 
