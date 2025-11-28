@@ -1,5 +1,4 @@
 # Step-by-Step Guide: Creating PlayAble
-# Step-by-Step Guide: Creating PlayAble
 
 ## Prerequisites
 - Node.js (v18 or higher) installed
