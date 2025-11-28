@@ -61,41 +61,183 @@ const navigationCommands: {
   path: string;
   announcement: string;
 }[] = [
+  // Settings
   {
-    matchers: ['open accessibility settings', 'accessibility settings', 'open settings', 'voice settings'],
+    matchers: [
+      'open accessibility settings',
+      'accessibility settings',
+      'open settings',
+      'voice settings',
+      'settings',
+      'go to settings',
+      'show settings',
+    ],
     path: '/settings',
     announcement: 'Opening accessibility settings',
   },
+  // Recently Viewed
   {
-    matchers: ['show recently viewed', 'recently viewed', 'view history'],
+    matchers: [
+      'show recently viewed',
+      'recently viewed',
+      'view history',
+      'show recently viewed games',
+      'recently viewed games',
+      'view my history',
+      'show my history',
+    ],
     path: '/recently-viewed',
     announcement: 'Showing recently viewed games',
   },
+  // Profile
   {
-    matchers: ['take me to my profile', 'open my profile', 'profile page', 'my profile'],
+    matchers: [
+      'take me to my profile',
+      'open my profile',
+      'profile page',
+      'my profile',
+      'go to my profile',
+      'show my profile',
+      'open profile',
+    ],
     path: '/my-profile',
     announcement: 'Opening your profile',
   },
+  // Favourites
   {
-    matchers: ['show favorites', 'show favourites', 'open favorites', 'open favourites'],
+    matchers: [
+      'show favorites',
+      'show favourites',
+      'open favorites',
+      'open favourites',
+      'my favorites',
+      'my favourites',
+      'show me all my favorite games',
+      'show me all my favourite games',
+      'favorite games',
+      'favourite games',
+      'go to favorites',
+      'go to favourites',
+    ],
     path: '/favourites',
     announcement: 'Opening favourites',
   },
+  // Browse/Home
   {
-    matchers: ['go home', 'go to browse', 'open browse', 'browse games'],
+    matchers: [
+      'go home',
+      'go to browse',
+      'open browse',
+      'browse games',
+      'show browse',
+      'browse page',
+      'home page',
+      'go to home',
+    ],
     path: '/browse',
     announcement: 'Opening browse page',
   },
+  // Inbox
   {
-    matchers: ['open inbox', 'show my inbox'],
+    matchers: ['open inbox', 'show my inbox', 'go to inbox', 'inbox'],
     path: '/inbox',
     announcement: 'Opening inbox',
   },
+  // Report
+  {
+    matchers: [
+      'i want to report this game',
+      'report this game',
+      'report a game',
+      'open report',
+      'go to report',
+      'report page',
+      'file a report',
+    ],
+    path: '/report',
+    announcement: 'Opening report page',
+  },
+  // About
+  {
+    matchers: ['about', 'about page', 'go to about', 'show about'],
+    path: '/about',
+    announcement: 'Opening about page',
+  },
 ];
 
-const extractSearchTerm = (command: string): string | null => {
-  const normalized = command.trim();
+// Map accessibility-related voice commands to search terms
+const accessibilitySearchMap: { [key: string]: string } = {
+  'subtitle support': 'subtitle',
+  'subtitles': 'subtitle',
+  'subtitle': 'subtitle',
+  'colorblind mode': 'colorblind',
+  'colorblind': 'colorblind',
+  'color blind': 'colorblind',
+  'one-handed controls': 'one hand',
+  'one handed': 'one hand',
+  'one hand controls': 'one hand',
+  'screen reader friendly': 'screen reader',
+  'screen reader': 'screen reader',
+  'screen reader support': 'screen reader',
+  'audio description': 'audio',
+  'audio support': 'audio',
+  'hearing support': 'hearing',
+  'vision support': 'vision',
+  'motor support': 'motor',
+  'cognitive support': 'cognitive',
+};
 
+// Map genre voice commands to search terms
+const genreSearchMap: { [key: string]: string } = {
+  'puzzle games': 'puzzle',
+  'puzzle': 'puzzle',
+  'adventure games': 'adventure',
+  'adventure': 'adventure',
+  'action games': 'action',
+  'action': 'action',
+  'strategy games': 'strategy',
+  'strategy': 'strategy',
+  'simulation games': 'simulation',
+  'simulation': 'simulation',
+  'rhythm games': 'rhythm',
+  'rhythm': 'rhythm',
+  'arcade games': 'arcade',
+  'arcade': 'arcade',
+  'narrative games': 'narrative',
+  'narrative': 'narrative',
+  'mystery games': 'mystery',
+  'mystery': 'mystery',
+  'endless runner': 'endless runner',
+  'endless runner games': 'endless runner',
+  'open world': 'open world',
+  'open world games': 'open world',
+  'idle games': 'idle',
+  'idle': 'idle',
+};
+
+const extractSearchTerm = (command: string): string | null => {
+  const normalized = command.trim().toLowerCase();
+
+  // Check for accessibility-related searches first
+  for (const [key, value] of Object.entries(accessibilitySearchMap)) {
+    if (normalized.includes(key)) {
+      return value;
+    }
+  }
+
+  // Check for genre searches
+  for (const [key, value] of Object.entries(genreSearchMap)) {
+    if (normalized.includes(key)) {
+      return value;
+    }
+  }
+
+  // Handle "clear all my search filters" or similar
+  if (normalized.includes('clear') && (normalized.includes('filter') || normalized.includes('search'))) {
+    return ''; // Empty string to clear search
+  }
+
+  // Standard search prefix extraction
   const searchPrefixes = [
     'search for',
     'show me',
@@ -113,13 +255,43 @@ const extractSearchTerm = (command: string): string | null => {
       }
       term = term.replace(/^all\s+/, '');
       term = term.replace(/(games|game)$/, '').trim();
+      
+      // Check if it's a genre or accessibility term
+      if (genreSearchMap[term]) {
+        return genreSearchMap[term];
+      }
+      if (accessibilitySearchMap[term]) {
+        return accessibilitySearchMap[term];
+      }
+      
       return term || null;
     }
   }
 
+  // Handle "games with X" pattern
   if (normalized.includes('games with')) {
     const start = normalized.indexOf('games with') + 'games with'.length;
-    const term = normalized.slice(start).trim();
+    let term = normalized.slice(start).trim();
+    
+    // Check accessibility map
+    if (accessibilitySearchMap[term]) {
+      return accessibilitySearchMap[term];
+    }
+    
+    return term || null;
+  }
+
+  // Handle "all X games" pattern
+  if (normalized.match(/^(all|show|find|search)\s+.+\s+games?$/)) {
+    let term = normalized.replace(/^(all|show|find|search)\s+/, '').replace(/\s+games?$/, '').trim();
+    
+    if (genreSearchMap[term]) {
+      return genreSearchMap[term];
+    }
+    if (accessibilitySearchMap[term]) {
+      return accessibilitySearchMap[term];
+    }
+    
     return term || null;
   }
 
@@ -162,18 +334,25 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
   }, []);
 
   const resetToIdle = useCallback(
-    (delay = VOICE_RESET_DELAY) => {
+    (delay = VOICE_RESET_DELAY, keepListening = false) => {
       clearHideTimer();
       hideIndicatorRef.current = window.setTimeout(() => {
-        setIsIndicatorVisible(false);
-        setListeningState(canListen ? 'awaiting' : 'idle');
-        setStatusMessage(
-          canListen
-            ? safariActivationRef.current || !isSafari
-              ? 'Say "Hey Assistant" or press Ctrl + Shift + V'
-              : SAFARI_LISTENING_HINT
-            : 'Voice assistant disabled'
-        );
+        if (keepListening && canListen) {
+          // Keep listening if activated from button
+          setListeningState('listening');
+          setStatusMessage('Listening... Speak now or say "cancel"');
+          setIsIndicatorVisible(true);
+        } else {
+          setIsIndicatorVisible(false);
+          setListeningState(canListen ? 'awaiting' : 'idle');
+          setStatusMessage(
+            canListen
+              ? safariActivationRef.current || !isSafari
+                ? 'Say "Hey Assistant" or press Ctrl + Shift + V'
+                : SAFARI_LISTENING_HINT
+              : 'Voice assistant disabled'
+          );
+        }
       }, delay);
     },
     [canListen, clearHideTimer, isSafari]
@@ -214,7 +393,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
   }, [canListen]);
 
   const processCommand = useCallback(
-    (commandRaw: string) => {
+    (commandRaw: string, wasActivatedFromButton = false) => {
       const command = commandRaw.trim();
       if (!command) {
         setStatusMessage('Waiting for your command');
@@ -224,6 +403,17 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       setLastHeardPhrase(command);
       const normalized = command.toLowerCase();
 
+      // Handle cancel command
+      if (normalized.includes('cancel') || normalized.includes('stop listening')) {
+        setStatusMessage('Listening cancelled');
+        setListeningState('idle');
+        setIsIndicatorVisible(false);
+        safariActivationRef.current = false;
+        resetToIdle(500);
+        return;
+      }
+
+      // Check for navigation commands first
       const navMatch = navigationCommands.find((item) =>
         item.matchers.some((matcher) => normalized.includes(matcher))
       );
@@ -233,32 +423,51 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setListeningState('processing');
         setIsIndicatorVisible(true);
         onNavigate(navMatch.path);
-        resetToIdle();
+        resetToIdle(VOICE_RESET_DELAY, wasActivatedFromButton);
         return;
       }
 
-      const searchTerm = extractSearchTerm(normalized);
-      if (searchTerm) {
-        setStatusMessage(`Searching for "${searchTerm}"`);
+      // Handle clear filters/search
+      if (
+        normalized.includes('clear') &&
+        (normalized.includes('filter') || normalized.includes('search') || normalized.includes('all'))
+      ) {
+        setStatusMessage('Clearing all filters and search');
         setListeningState('processing');
         setIsIndicatorVisible(true);
         onNavigate('/browse');
-        setSearchTerm(searchTerm);
-        resetToIdle();
+        setSearchTerm('');
+        resetToIdle(VOICE_RESET_DELAY, wasActivatedFromButton);
         return;
       }
 
-      if (normalized.includes('cancel')) {
-        setStatusMessage('Listening cancelled');
-        setListeningState('idle');
-        setIsIndicatorVisible(false);
+      // Extract and process search terms
+      const searchTerm = extractSearchTerm(normalized);
+      if (searchTerm !== null) {
+        if (searchTerm === '') {
+          // Clear search
+          setStatusMessage('Clearing search');
+          setListeningState('processing');
+          setIsIndicatorVisible(true);
+          onNavigate('/browse');
+          setSearchTerm('');
+        } else {
+          // Perform search
+          setStatusMessage(`Searching for "${searchTerm}"`);
+          setListeningState('processing');
+          setIsIndicatorVisible(true);
+          onNavigate('/browse');
+          setSearchTerm(searchTerm);
+        }
+        resetToIdle(VOICE_RESET_DELAY, wasActivatedFromButton);
         return;
       }
 
-      setStatusMessage("Sorry, I didn't catch that");
+      // If no match found
+      setStatusMessage("Sorry, I didn't catch that. Try saying a navigation command or search term.");
       setListeningState('error');
       setIsIndicatorVisible(true);
-      resetToIdle();
+      resetToIdle(VOICE_RESET_DELAY, wasActivatedFromButton);
     },
     [onNavigate, resetToIdle, setSearchTerm]
   );
@@ -269,20 +478,30 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
 
       const normalized = transcript.trim().toLowerCase();
 
-      if (listeningState !== 'listening') {
+      // Check if we're in listening mode by checking if recognition is active
+      // This avoids race conditions with state updates
+      const isCurrentlyListening = listeningState === 'listening';
+      const wasActivatedFromButton = safariActivationRef.current;
+
+      if (!isCurrentlyListening) {
+        // Look for wake word
         if (normalized.includes('hey assistant')) {
           setStatusMessage('Listening... Speak now');
           setIsIndicatorVisible(true);
           setListeningState('listening');
-          const withoutWakeWord = normalized.replace('hey assistant', '').trim();
+          const withoutWakeWord = normalized.replace(/hey\s+assistant\s*/i, '').trim();
           if (withoutWakeWord) {
-            processCommand(withoutWakeWord);
+            // Process command immediately if there's text after wake word
+            setTimeout(() => {
+              processCommand(withoutWakeWord, false);
+            }, 100);
           }
         }
         return;
       }
 
-      processCommand(normalized);
+      // We're in listening mode, process the command
+      processCommand(normalized, wasActivatedFromButton);
     },
     [canListen, listeningState, processCommand]
   );
