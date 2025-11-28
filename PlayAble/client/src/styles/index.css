@@ -1243,6 +1243,10 @@ body,
   color: #6b7280;
 }
 
+.admin-table__actions-cell {
+  text-align: right;
+}
+
 /* Badges */
 .admin-badge {
   display: inline-flex;

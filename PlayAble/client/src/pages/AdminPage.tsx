@@ -393,16 +393,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                     </td>
                   </tr>
                 ) : (
-                  pageGames.map(game => {
+                  pageGames.map((game, index) => {
                     const id = game.id || game._id;
+                    const displayIndex = (gamesPage - 1) * GAMES_PAGE_SIZE + index + 1;
                     return (
-                      <tr key={id}>
-                        <td>{id}</td>
+                      <tr key={id || displayIndex}>
+                        <td>{displayIndex}</td>
                         <td>{game.title}</td>
                         <td>
                           <span className="admin-badge admin-badge--status">Active</span>
                         </td>
-                        <td>
+                        <td className="admin-table__actions-cell">
                           <button
                             type="button"
                             className="admin-table__action-button"

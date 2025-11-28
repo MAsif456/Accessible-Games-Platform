@@ -364,7 +364,13 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
     <div className="admin-game-form-page">
       <div className="admin-game-form-page__inner">
         <button type="button" className="admin-game-form-page__back" onClick={handleBack}>
-          2 Back to Admin Dashboard
+          <span
+            aria-hidden="true"
+            style={{ marginRight: '0.35rem', fontSize: '1.1rem', fontWeight: 700 }}
+          >
+            ⇠
+          </span>
+          <span>Back to Admin Dashboard</span>
         </button>
 
         <header className="admin-game-form-page__header">
