@@ -28,12 +28,36 @@ export interface PaginatedGamesResponse {
   totalPages: number;
 }
 
+// Single canonical ReviewDto used by reviews feature
+export interface ReviewDto {
+  _id: string;
+  gameId: string;
+  userId: string;
+  authorName: string;
+  body: string;
+  likes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Lightweight shape used by the reporting context hook
+export interface ReportReviewDto {
+  id: string;
+  author: string;
+  createdAt: string;
+  content: string;
+}
+
+export interface ReviewWithGameResponse {
+  game: GameDto;
+  review: ReportReviewDto;
+}
+
 export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGamesResponse> {
   const query = new URLSearchParams();
 
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('pageSize', String(params.pageSize));
-
 
   if (params.search && params.search.trim()) {
     query.set('search', params.search.trim());
@@ -53,20 +77,7 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
   return data;
 }
 
-// New types for review details used on the report pages
-export interface ReviewDto {
-  id: string;
-  author: string;
-  createdAt: string;
-  content: string;
-}
-
-export interface ReviewWithGameResponse {
-  game: GameDto;
-  review: ReviewDto;
-}
-
-// Fetch a single game by ID
+// Fetch a single game by ID for report context
 export async function getGameById(gameId: string): Promise<GameDto> {
   const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
   if (!res.ok) {
@@ -76,12 +87,131 @@ export async function getGameById(gameId: string): Promise<GameDto> {
   return data;
 }
 
-// Fetch a single review by ID, along with its game context
+// Fetch a single review by ID, along with its game context, for the reporting page
 export async function getReviewById(reviewId: string): Promise<ReviewWithGameResponse> {
   const res = await fetch(`/api/reviews/${encodeURIComponent(reviewId)}`);
   if (!res.ok) {
     throw new Error(`Failed to fetch review: ${res.status}`);
   }
-  const data: ReviewWithGameResponse = await res.json();
-  return data;
+
+  // Expect backend to return { game, review } where review has fields matching ReportReviewDto
+  const data = await res.json();
+  return data as ReviewWithGameResponse;
+}
+
+// ----- Reviews API used by GameDetailsPage -----
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function getReviews(gameId: string): Promise<ReviewDto[]> {
+  const res = await fetch(`/api/games/${gameId}/reviews`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch reviews: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function postReview(
+  gameId: string,
+  body: string,
+  authorName?: string
+): Promise<ReviewDto> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+  };
+
+  const res = await fetch(`/api/games/${gameId}/reviews`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      body,
+      ...(authorName ? { authorName } : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to post review: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function toggleReviewLike(reviewId: string, liked: boolean): Promise<ReviewDto> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+  };
+
+  const res = await fetch(`/api/reviews/${reviewId}/like`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ liked }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to toggle like: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function reportReview(
+  reviewId: string,
+  reasonText: string,
+  voiceTranscript?: string
+): Promise<void> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+  };
+
+  const res = await fetch(`/api/reviews/${reviewId}/report`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ reasonText, voiceTranscript }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to submit report: ${res.status}`);
+  }
+}
+
+export async function deleteReview(reviewId: string): Promise<void> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+  };
+
+  const response = await fetch(`/api/reviews/${reviewId}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.message || 'Failed to delete review');
+  }
+}
+
+export async function getUserDisplayName(userId: string): Promise<string | null> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+
+  const res = await fetch(`/api/users/${userId}`, { headers });
+  if (!res.ok) {
+    return null;
+  }
+
+  const data = await res.json().catch(() => null);
+  if (!data) return null;
+
+  const topLevelName = (data.name || data.fullName || data.username) as string | undefined;
+  const nestedName =
+    (data.user?.name || data.user?.fullName || data.user?.username) as string | undefined;
+
+  return topLevelName?.trim() || nestedName?.trim() || null;
 }
