@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import SkipLink from './components/navigation/SkipLink';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FavouritesProvider } from './context/FavouritesContext';
+import { VoiceAssistantProvider } from './context/VoiceAssistantContext';
 import Navbar from './components/ui/Navbar';
 import Footer from './components/ui/Footer';
 import { useGlobalKeyboardNavigation } from './hooks/useGlobalKeyboardNavigation';
@@ -144,88 +145,90 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   }, [user, showPrompt]);
 
   return (
-    <div className="App">
-      <SkipLink href="#main-content">Skip to main content</SkipLink>
+    <VoiceAssistantProvider onNavigate={handleNavigate} setSearchTerm={setSearchTerm}>
+      <div className="App">
+        <SkipLink href="#main-content">Skip to main content</SkipLink>
 
-      {prompt && (
-        <div
-          style={{
-            position: 'fixed',
-            left: 24,
-            bottom: 24,
-            zIndex: 1000,
-            background: '#fff',
-            color: '#111827',
-            borderRadius: 8,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-            padding: '1rem 1.5rem',
-            fontWeight: 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            minWidth: 220,
-            borderLeft: prompt.type === 'success' ? '4px solid #22c55e' : '4px solid #ef4444',
-            animation: 'fadeIn 0.2s',
-          }}
-          role="status"
-          aria-live="polite"
-        >
-          <span aria-hidden="true">{prompt.type === 'success' ? '●' : '⚠️'}</span>
-          <span>{prompt.message}</span>
+        {prompt && (
+          <div
+            style={{
+              position: 'fixed',
+              left: 24,
+              bottom: 24,
+              zIndex: 1000,
+              background: '#fff',
+              color: '#111827',
+              borderRadius: 8,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              padding: '1rem 1.5rem',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minWidth: 220,
+              borderLeft: prompt.type === 'success' ? '4px solid #22c55e' : '4px solid #ef4444',
+              animation: 'fadeIn 0.2s',
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <span aria-hidden="true">{prompt.type === 'success' ? '●' : '⚠️'}</span>
+            <span>{prompt.message}</span>
+          </div>
+        )}
+
+        <Navbar
+          role={userRole}
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
+          onSearchSubmit={handleSearchSubmit}
+          onClearSearch={handleClearSearch}
+          currentPath={path}
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+        />
+
+        <div className="App__content">
+          <main id="main-content" tabIndex={-1}>
+            {(path === '/' || path === '/browse') && (
+              <BrowsePage
+                currentPath={path}
+                currentPage={currentPage}
+                pageSize={PAGE_SIZE}
+                onPageChange={handlePageChange}
+                searchTerm={searchTerm}
+                onGameClick={handleGameClick}
+                onSearchChange={handleSearchChange}
+              />
+            )}
+            {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
+            {path === '/recently-viewed' && <RecentlyViewedPage />}
+            {path === '/settings' && <SettingsPage />}
+            {path === '/admin' && <AdminPage />}
+            {path === '/signin' && (
+              <SignInPage
+                onNavigate={handleNavigate}
+                showPrompt={(msg, type) => {
+                  if (msg && msg.startsWith('Welcome to Accessible Games Platform')) {
+                    lastAuthEvent.current = 'signup';
+                  } else if (msg && msg === 'Login successful!') {
+                    lastAuthEvent.current = 'login';
+                  }
+                  showPrompt(msg, type);
+                }}
+              />
+            )}
+            {path === '/my-profile' && <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />}
+            {path === '/change-email-password' && <ChangeEmailPasswordPage onNavigate={handleNavigate} />}
+            {path === '/inbox' && <InboxPage />}
+            {path === '/about' && <AboutPage />}
+            {path === '/report' && <ReportPage />}
+          </main>
         </div>
-      )}
 
-      <Navbar
-        role={userRole}
-        searchTerm={searchTerm}
-        onSearchChange={handleSearchChange}
-        onSearchSubmit={handleSearchSubmit}
-        onClearSearch={handleClearSearch}
-        currentPath={path}
-        onNavigate={handleNavigate}
-        onLogout={handleLogout}
-      />
-
-      <div className="App__content">
-        <main id="main-content" tabIndex={-1}>
-          {(path === '/' || path === '/browse') && (
-            <BrowsePage
-              currentPath={path}
-              currentPage={currentPage}
-              pageSize={PAGE_SIZE}
-              onPageChange={handlePageChange}
-              searchTerm={searchTerm}
-              onGameClick={handleGameClick}
-              onSearchChange={handleSearchChange}
-            />
-          )}
-          {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
-          {path === '/recently-viewed' && <RecentlyViewedPage />}
-          {path === '/settings' && <SettingsPage />}
-          {path === '/admin' && <AdminPage />}
-          {path === '/signin' && (
-            <SignInPage
-              onNavigate={handleNavigate}
-              showPrompt={(msg, type) => {
-                if (msg && msg.startsWith('Welcome to Accessible Games Platform')) {
-                  lastAuthEvent.current = 'signup';
-                } else if (msg && msg === 'Login successful!') {
-                  lastAuthEvent.current = 'login';
-                }
-                showPrompt(msg, type);
-              }}
-            />
-          )}
-          {path === '/my-profile' && <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />}
-          {path === '/change-email-password' && <ChangeEmailPasswordPage onNavigate={handleNavigate} />}
-          {path === '/inbox' && <InboxPage />}
-          {path === '/about' && <AboutPage />}
-          {path === '/report' && <ReportPage />}
-        </main>
+        <Footer onNavigate={handleNavigate} />
       </div>
-
-      <Footer onNavigate={handleNavigate} />
-    </div>
+    </VoiceAssistantProvider>
   );
 }
 

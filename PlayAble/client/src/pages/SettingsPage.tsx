@@ -8,6 +8,7 @@ import {
   applyAccessibilityPreferences,
   HighContrastThemeId,
 } from '../utils/accessibility';
+import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 
 type SettingsSection = 'voice' | 'keyboard' | 'visual';
 type ToggleableSetting =
@@ -34,6 +35,12 @@ const SettingsPage = () => {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showResetSuccess, setShowResetSuccess] = useState(false);
   const [autoSaveIndicator, setAutoSaveIndicator] = useState(false);
+  const {
+    applyVoiceInputPreference,
+    applyMicrophonePreference,
+    voiceInputEnabled: assistantVoiceEnabled,
+    microphoneActive: assistantMicrophoneActive,
+  } = useVoiceAssistant();
 
   useEffect(() => {
     if (user?.id && userSettings) {
@@ -88,10 +95,18 @@ const SettingsPage = () => {
   ]);
 
   const handleToggle = (key: ToggleableSetting) => {
-    setSettings((prev) => ({
+    setSettings((prev) => {
+      const nextValue = !prev[key];
+      if (key === 'voiceInput') {
+        applyVoiceInputPreference(nextValue);
+      } else if (key === 'microphoneActive') {
+        applyMicrophonePreference(nextValue);
+      }
+      return {
       ...prev,
-      [key]: !prev[key],
-    }));
+        [key]: nextValue,
+      };
+    });
   };
 
   const handleHighContrastThemeChange = (themeId: HighContrastThemeId) => {
@@ -233,7 +248,9 @@ const SettingsPage = () => {
                 <div className="settings-section__item-header">
                   <label className="settings-section__label">
                     Voice Input
-                    <span className="settings-section__default">Default: On</span>
+                      <span className="settings-section__default">
+                        Status: {assistantVoiceEnabled ? 'On' : 'Off'}
+                      </span>
                   </label>
                   <button
                     className={`toggle-switch ${settings.voiceInput ? 'toggle-switch--on' : ''}`}
@@ -257,7 +274,16 @@ const SettingsPage = () => {
                           <span className="settings-section__icon" aria-hidden="true">
                             🎤
                           </span>
-                          Microphone: Active
+                          Microphone:{' '}
+                          <span
+                            className={
+                              assistantMicrophoneActive
+                                ? 'settings-section__badge settings-section__badge--success'
+                                : 'settings-section__badge settings-section__badge--muted'
+                            }
+                          >
+                            {assistantMicrophoneActive ? 'Active' : 'Muted'}
+                          </span>
                         </label>
                         <button
                           className={`toggle-switch ${settings.microphoneActive ? 'toggle-switch--on' : ''}`}
@@ -271,6 +297,13 @@ const SettingsPage = () => {
                       </div>
                       <p className="settings-section__description">
                         Listening for wake word "Hey Assistant".
+                        {assistantVoiceEnabled && assistantMicrophoneActive ? (
+                          <span className="settings-section__inline-hint"> Microphone is ready.</span>
+                        ) : (
+                          <span className="settings-section__inline-hint">
+                            Enable both Voice Input and the Microphone to activate the assistant.
+                          </span>
+                        )}
                       </p>
                     </div>
 
