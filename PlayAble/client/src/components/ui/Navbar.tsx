@@ -3,7 +3,6 @@
 // Accessibility is prioritised: keyboard navigation, ARIA roles, and high-contrast support are included to meet WCAG 2.1 AA standards.
 // The logout action uses a confirmation dialog to prevent accidental sign-outs, improving user experience for all users.
 import React, { useState, useRef, useEffect } from 'react';
-import useFocusTrap from '../../hooks/navigation/useFocusTrap';
 import NavbarAccountMenu from './NavbarAccountMenu';
 import { useVoiceAssistant } from '../../context/VoiceAssistantContext';
 
@@ -53,12 +52,6 @@ const Navbar: React.FC<NavbarProps> = ({
 
   // Refs for navigation elements
   const accountMenuRef = useRef<HTMLDivElement>(null);
-  // Focus trap for account dropdown menu
-  const { containerRef: accountDropdownRef } = useFocusTrap<HTMLDivElement>({
-    isActive: isAccountOpen,
-    initialFocus: 'first',
-    restoreFocus: true,
-  });
 
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
@@ -78,16 +71,6 @@ const Navbar: React.FC<NavbarProps> = ({
     if (event.key === 'Enter') {
       event.preventDefault();
       onSearchSubmit();
-    }
-  };
-
-  // Handle account dropdown keyboard events
-  const handleAccountKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      setIsAccountOpen(false);
-    } else if (event.key === 'ArrowDown' && !isAccountOpen) {
-      event.preventDefault();
-      setIsAccountOpen(true);
     }
   };
 
