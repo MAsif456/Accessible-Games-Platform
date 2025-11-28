@@ -38,7 +38,6 @@ const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const {
     voiceInputEnabled,
@@ -47,24 +46,79 @@ const Navbar: React.FC<NavbarProps> = ({
     statusMessage,
     isIndicatorVisible,
     activateFromVoiceButton,
-    recognitionSupported,
+    cancelListening,
+    applyMicrophonePreference,
   } = useVoiceAssistant();
 
   // Refs for navigation elements
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const holdTimeoutRef = useRef<number | null>(null);
+  const wasMutedBeforeHoldRef = useRef<boolean>(false);
+  const isHoldingRef = useRef<boolean>(false);
 
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
-      setIsVoiceOpen((prev) => {
-        const next = !prev;
-        if (!prev) {
+      // Toggle listening on/off
+      if (listeningState === 'listening' || listeningState === 'processing') {
+        // If listening, deactivate it
+        cancelListening();
+      } else {
+        // If not listening, activate it
+        if (voiceInputEnabled && microphoneActive) {
           activateFromVoiceButton();
         }
-        return next;
-      });
+      }
       return;
     }
     if (onNavigate) onNavigate(path);
+  };
+
+  const handleVoiceButtonMouseDown = () => {
+    isHoldingRef.current = true;
+    
+    // Start hold timer - mute after 300ms of holding
+    holdTimeoutRef.current = window.setTimeout(() => {
+      if (isHoldingRef.current && microphoneActive) {
+        // Store original mute state
+        wasMutedBeforeHoldRef.current = false;
+        
+        // Temporarily mute the microphone (we'll restore it on mouse up)
+        applyMicrophonePreference(false);
+      }
+    }, 300);
+  };
+
+  const handleVoiceButtonMouseUp = () => {
+    // Clear hold timer if it hasn't fired yet
+    if (holdTimeoutRef.current) {
+      window.clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    
+    const wasHolding = isHoldingRef.current;
+    isHoldingRef.current = false;
+    
+    // If we were holding and muted, restore microphone
+    if (wasHolding && !wasMutedBeforeHoldRef.current && !microphoneActive) {
+      // Restore microphone
+      applyMicrophonePreference(true);
+    }
+  };
+
+  const handleVoiceButtonMouseLeave = () => {
+    // If mouse leaves while holding, treat as mouse up
+    if (holdTimeoutRef.current) {
+      window.clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    
+    // If we muted during hold, restore previous state
+    if (isHoldingRef.current && !wasMutedBeforeHoldRef.current && !microphoneActive) {
+      // Restore microphone
+      applyMicrophonePreference(true);
+    }
+    
+    isHoldingRef.current = false;
   };
 
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -155,19 +209,22 @@ const Navbar: React.FC<NavbarProps> = ({
                       <button
                         type="button"
                         role="menuitem"
-                        onClick={() => handleNavClick(item.path)}
+                        onClick={() => handleNavClick('/voice')}
+                        onMouseDown={handleVoiceButtonMouseDown}
+                        onMouseUp={handleVoiceButtonMouseUp}
+                        onMouseLeave={handleVoiceButtonMouseLeave}
                         className={
                           'navbar__nav-button navbar__nav-button--voice' +
-                          (isActive || isVoiceOpen ? ' navbar__nav-button--primary' : '')
+                          ((listeningState === 'listening' || listeningState === 'processing') ? ' navbar__nav-button--primary' : '')
                         }
-                        aria-pressed={isVoiceOpen}
+                        aria-pressed={listeningState === 'listening' || listeningState === 'processing'}
                         aria-current={isActive ? 'page' : undefined}
                       >
                         <span
                           className={`navbar__nav-icon navbar__nav-icon--${item.icon}`}
                           aria-hidden="true"
                         />
-                        <span>{voiceInputEnabled && microphoneActive ? 'Listening' : 'Voice'}</span>
+                        <span>{(listeningState === 'listening' || listeningState === 'processing') ? 'Listening' : 'Voice'}</span>
                         <span
                           className={`navbar__voice-status ${
                             microphoneActive ? 'navbar__voice-status--active' : 'navbar__voice-status--muted'
@@ -256,74 +313,6 @@ const Navbar: React.FC<NavbarProps> = ({
           </ul>
         </nav>
       </div>
-      {isVoiceOpen && (
-        <div className="voice-popup" role="dialog" aria-modal="false" aria-live="polite">
-          <div className="voice-popup__header">
-            <div className={`voice-popup__chip voice-popup__chip--${listeningState}`}>
-              <span className="voice-popup__pulse" aria-hidden="true" />
-              {listeningState === 'listening'
-                ? 'Listening'
-                : listeningState === 'processing'
-                ? 'Working'
-                : listeningState === 'error'
-                ? 'Help needed'
-                : 'Ready'}
-            </div>
-            <button
-              type="button"
-              className="voice-popup__close"
-              onClick={() => setIsVoiceOpen(false)}
-              aria-label="Close voice panel"
-            >
-              ×
-            </button>
-          </div>
-          <p className="voice-popup__message">{statusMessage}</p>
-          <div className="voice-popup__status-grid">
-            <div className="voice-popup__status-card">
-              <span className="voice-popup__status-label">Voice Input</span>
-              <span className="voice-popup__status-value">{voiceInputEnabled ? 'On' : 'Off'}</span>
-            </div>
-            <div className="voice-popup__status-card">
-              <span className="voice-popup__status-label">Microphone</span>
-              <span className="voice-popup__status-value">
-                {microphoneActive ? 'Active' : 'Muted'}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="voice-popup__action"
-            onClick={activateFromVoiceButton}
-            disabled={!voiceInputEnabled || !microphoneActive || !recognitionSupported}
-          >
-            {listeningState === 'listening' ? 'Listening...' : 'Tap to start listening'}
-          </button>
-          {!recognitionSupported && (
-            <p className="voice-popup__notice">
-              Voice control is not supported in this browser. Try latest Chrome or Edge.
-            </p>
-          )}
-          <div className="voice-popup__examples">
-            <span>Try saying:</span>
-            <ul>
-              <li>"Hey" or "Assistant" to start</li>
-              <li>"Show me all my favorite games"</li>
-              <li>"Take me to my profile"</li>
-              <li>"Open settings"</li>
-              <li>"Search for adventure games"</li>
-              <li>"Find games with subtitle support"</li>
-              <li>"Show games with colorblind mode"</li>
-              <li>"Clear all filters"</li>
-              <li>"Go home" or "Browse games"</li>
-              <li>"Turn on dark mode"</li>
-              <li>"Turn on high contrast mode"</li>
-              <li>"Turn off microphone"</li>
-              <li>"Turn off voice input"</li>
-            </ul>
-          </div>
-        </div>
-      )}
       {showLogoutConfirm && (
         <div
           role="dialog"
