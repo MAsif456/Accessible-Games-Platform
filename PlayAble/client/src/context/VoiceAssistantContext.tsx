@@ -35,6 +35,7 @@ interface VoiceAssistantContextValue {
   lastHeardPhrase: string;
   recognitionSupported: boolean;
   activateFromVoiceButton: () => void;
+  cancelListening: () => void;
   applyVoiceInputPreference: (value: boolean) => void;
   applyMicrophonePreference: (value: boolean) => void;
 }
@@ -422,7 +423,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     userSettings?.microphoneActive ?? true
   );
   const [listeningState, setListeningState] = useState<ListeningState>('idle');
-  const [statusMessage, setStatusMessage] = useState('Voice assistant idle');
+  const [statusMessage, setStatusMessage] = useState('Say "Hey", "Assistant", or "Hey Assistant" to start');
   const [isIndicatorVisible, setIsIndicatorVisible] = useState(false);
   const [lastHeardPhrase, setLastHeardPhrase] = useState('');
   const [recognitionSupported, setRecognitionSupported] = useState(true);
@@ -939,8 +940,16 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       }
     };
 
-    // Always start recognition if not Safari, or if Safari and already activated
-    if (!isSafari || safariActivationRef.current) {
+    // Start recognition in background to listen for wake words
+    // But don't set state to 'listening' until wake words are detected or button is pressed
+    // For non-Safari browsers, start recognition to detect wake words
+    // For Safari, only start if explicitly activated
+    if (!isSafari) {
+      // Start recognition in background for wake word detection
+      // State will remain 'idle' until wake word is detected
+      ensureRecognitionUnlocked();
+    } else if (safariActivationRef.current) {
+      // For Safari, only start if explicitly activated
       ensureRecognitionUnlocked();
     }
 
@@ -974,15 +983,18 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     if (canListen) {
       // Only set to awaiting if not already listening or processing
       if (listeningState !== 'listening' && listeningState !== 'processing') {
-        setListeningState('awaiting');
-        setStatusMessage(
-          safariActivationRef.current || !isSafari
-            ? 'Say "Hey", "Assistant", or "Hey Assistant" to start'
-            : SAFARI_LISTENING_HINT
-        );
+        // Keep state as 'idle' initially - don't show as 'awaiting' until wake word detected
+        setListeningState('idle');
+        setStatusMessage('Say "Hey", "Assistant", or "Hey Assistant" to start');
       }
-      // Always ensure recognition is running when canListen is true
-      if (!isSafari || safariActivationRef.current) {
+      // Start recognition in background for wake word detection (non-Safari)
+      // For Safari, only start if explicitly activated
+      if (!isSafari) {
+        // Start recognition in background to listen for wake words
+        // State remains 'idle' until wake word is detected
+        ensureRecognitionUnlocked();
+      } else if (safariActivationRef.current) {
+        // For Safari, only start if explicitly activated
         ensureRecognitionUnlocked();
       }
     } else {
@@ -1066,13 +1078,13 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setStatusMessage('Voice input is switched off');
         recognitionRef.current?.stop();
       } else if (microphoneActive && recognitionSupported) {
-        setListeningState('awaiting');
-        setStatusMessage(
-          safariActivationRef.current || !isSafari
-            ? 'Say "Hey", "Assistant", or "Hey Assistant" to start'
-            : SAFARI_LISTENING_HINT
-        );
-        if (!isSafari || safariActivationRef.current) {
+        // Keep state as 'idle' - don't show as 'awaiting' until wake word detected
+        setListeningState('idle');
+        setStatusMessage('Say "Hey", "Assistant", or "Hey Assistant" to start');
+        // Start recognition in background for wake word detection (non-Safari)
+        if (!isSafari) {
+          ensureRecognitionUnlocked();
+        } else if (safariActivationRef.current) {
           ensureRecognitionUnlocked();
         }
       }
@@ -1089,13 +1101,13 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setStatusMessage('Microphone is muted');
         recognitionRef.current?.stop();
       } else if (voiceInputEnabled && recognitionSupported) {
-        setListeningState('awaiting');
-        setStatusMessage(
-          safariActivationRef.current || !isSafari
-            ? 'Say "Hey", "Assistant", or "Hey Assistant" to start'
-            : SAFARI_LISTENING_HINT
-        );
-        if (!isSafari || safariActivationRef.current) {
+        // Keep state as 'idle' - don't show as 'awaiting' until wake word detected
+        setListeningState('idle');
+        setStatusMessage('Say "Hey", "Assistant", or "Hey Assistant" to start');
+        // Start recognition in background for wake word detection (non-Safari)
+        if (!isSafari) {
+          ensureRecognitionUnlocked();
+        } else if (safariActivationRef.current) {
           ensureRecognitionUnlocked();
         }
       }
@@ -1131,6 +1143,15 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     [clearHideTimer]
   );
 
+  const cancelListening = useCallback(() => {
+    setStatusMessage('Listening cancelled');
+    setListeningState('idle');
+    setIsIndicatorVisible(false);
+    safariActivationRef.current = false;
+    recognitionRef.current?.stop();
+    resetToIdle(500, false);
+  }, [resetToIdle]);
+
   const value = useMemo(
     () => ({
       voiceInputEnabled,
@@ -1141,6 +1162,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       lastHeardPhrase,
       recognitionSupported,
       activateFromVoiceButton,
+      cancelListening,
       applyVoiceInputPreference,
       applyMicrophonePreference,
     }),
@@ -1148,6 +1170,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       activateFromVoiceButton,
       applyMicrophonePreference,
       applyVoiceInputPreference,
+      cancelListening,
       isIndicatorVisible,
       lastHeardPhrase,
       listeningState,
