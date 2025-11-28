@@ -15,6 +15,7 @@ import authRoutes from '../routes/authRoutes';
 import './models/settings';
 import UserSettings from './models/settings';
 import favouritesRoutes from './routes/favourites.routes';
+import reportsRoutes from './routes/reports.routes';
 
 dotenv.config();
 
@@ -53,6 +54,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 app.use('/api', gamesRouter);
 app.use('/api/auth', authRoutes);
 app.use('/api/favourites', favouritesRoutes);
+app.use(reportsRoutes);
 
 // Fix syntax error in `pickFirstString` function
 const pickFirstString = (value: unknown): string | undefined => {

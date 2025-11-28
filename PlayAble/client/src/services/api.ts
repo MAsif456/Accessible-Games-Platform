@@ -52,3 +52,36 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
   const data: PaginatedGamesResponse = await res.json();
   return data;
 }
+
+// New types for review details used on the report pages
+export interface ReviewDto {
+  id: string;
+  author: string;
+  createdAt: string;
+  content: string;
+}
+
+export interface ReviewWithGameResponse {
+  game: GameDto;
+  review: ReviewDto;
+}
+
+// Fetch a single game by ID
+export async function getGameById(gameId: string): Promise<GameDto> {
+  const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch game: ${res.status}`);
+  }
+  const data: GameDto = await res.json();
+  return data;
+}
+
+// Fetch a single review by ID, along with its game context
+export async function getReviewById(reviewId: string): Promise<ReviewWithGameResponse> {
+  const res = await fetch(`/api/reviews/${encodeURIComponent(reviewId)}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch review: ${res.status}`);
+  }
+  const data: ReviewWithGameResponse = await res.json();
+  return data;
+}

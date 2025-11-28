@@ -60,11 +60,11 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 type="button"
                 role="menuitem"
                 className="site-footer__link"
-                onClick={() => onNavigate && onNavigate('/report')}
+                onClick={() => onNavigate && onNavigate('/report/general')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    onNavigate && onNavigate('/report');
+                    onNavigate && onNavigate('/report/general');
                   }
                 }}
               >

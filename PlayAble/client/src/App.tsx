@@ -29,7 +29,9 @@ export type AppPath =
   | '/change-email-password'
   | '/inbox'
   | '/about'
-  | '/report'
+  | '/report/general'
+  | '/report/game'
+  | '/report/review'
   | '/change-email-password';
 
 const PAGE_SIZE = 9;
@@ -82,7 +84,9 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       newPath === '/change-email-password' ||
       newPath === '/inbox' ||
       newPath === '/about' ||
-      newPath === '/report' ||
+      newPath === '/report/general' ||
+      newPath === '/report/game' ||
+      newPath === '/report/review' ||
       newPath === '/change-email-password'
     ) {
       const typedPath = newPath as AppPath;
@@ -98,6 +102,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       }
 
       setPath(typedPath);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -142,6 +147,57 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
     }
   }, [user, showPrompt]);
 
+  let content: React.ReactNode = null;
+
+  switch (path) {
+    case '/report/general':
+      content = <ReportPage />;
+      break;
+    case '/report/game':
+      content = <ReportPage />; // test route; in real usage would include gameId param
+      break;
+    case '/report/review':
+      content = <ReportPage />; // test route; in real usage would include reviewId param
+      break;
+    default:
+      content = (
+        <main id="main-content" tabIndex={-1}>
+          {(path === '/' || path === '/browse') && (
+            <BrowsePage
+              currentPath={path}
+              currentPage={currentPage}
+              pageSize={PAGE_SIZE}
+              onPageChange={handlePageChange}
+              searchTerm={searchTerm}
+              onGameClick={handleGameClick}
+              onSearchChange={handleSearchChange}
+            />
+          )}
+          {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
+          {path === '/recently-viewed' && <RecentlyViewedPage />}
+          {path === '/settings' && <SettingsPage />}
+          {path === '/admin' && <AdminPage />}
+          {path === '/signin' && (
+            <SignInPage
+              onNavigate={handleNavigate}
+              showPrompt={(msg, type) => {
+                if (msg && msg.startsWith('Welcome to Accessible Games Platform')) {
+                  lastAuthEvent.current = 'signup';
+                } else if (msg && msg === 'Login successful!') {
+                  lastAuthEvent.current = 'login';
+                }
+                showPrompt(msg, type);
+              }}
+            />
+          )}
+          {path === '/my-profile' && <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />}
+          {path === '/change-email-password' && <ChangeEmailPasswordPage onNavigate={handleNavigate} />}
+          {path === '/inbox' && <InboxPage />}
+          {path === '/about' && <AboutPage />}
+        </main>
+      );
+  }
+
   return (
     <div className="App">
       <SkipLink href="#main-content">Skip to main content</SkipLink>
@@ -185,43 +241,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
         onLogout={handleLogout}
       />
 
-      <div className="App__content">
-        <main id="main-content" tabIndex={-1}>
-          {(path === '/' || path === '/browse') && (
-            <BrowsePage
-              currentPath={path}
-              currentPage={currentPage}
-              pageSize={PAGE_SIZE}
-              onPageChange={handlePageChange}
-              searchTerm={searchTerm}
-              onGameClick={handleGameClick}
-              onSearchChange={handleSearchChange}
-            />
-          )}
-          {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
-          {path === '/recently-viewed' && <RecentlyViewedPage />}
-          {path === '/settings' && <SettingsPage />}
-          {path === '/admin' && <AdminPage />}
-          {path === '/signin' && (
-            <SignInPage
-              onNavigate={handleNavigate}
-              showPrompt={(msg, type) => {
-                if (msg && msg.startsWith('Welcome to Accessible Games Platform')) {
-                  lastAuthEvent.current = 'signup';
-                } else if (msg && msg === 'Login successful!') {
-                  lastAuthEvent.current = 'login';
-                }
-                showPrompt(msg, type);
-              }}
-            />
-          )}
-          {path === '/my-profile' && <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />}
-          {path === '/change-email-password' && <ChangeEmailPasswordPage onNavigate={handleNavigate} />}
-          {path === '/inbox' && <InboxPage />}
-          {path === '/about' && <AboutPage />}
-          {path === '/report' && <ReportPage />}
-        </main>
-      </div>
+      <div className="App__content">{content}</div>
 
       <Footer onNavigate={handleNavigate} />
     </div>
