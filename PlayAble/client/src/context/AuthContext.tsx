@@ -2,7 +2,7 @@
 // Provides authentication state and actions to the entire React application using Context API.
 // Centralises user session management and ensures consistent authentication logic across all components.
 // Uses localStorage for persistence and verifies tokens with the backend for security.
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import authService, { SignupData, LoginData, AuthResponse } from '../services/authService';
 import settingsApi, { UserSettings } from '../services/settingsApi';
 import { applyAccessibilityPreferences } from '../utils/accessibility';
@@ -79,22 +79,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUserSettings(settings);
     applyAccessibilityPreferences(settings);
   };
-
-  // Initialises authentication by checking for stored user and verifying token validity.
-  const initAuth = useCallback(async () => {
-    const storedUser = window.localStorage.getItem('user');
-    const storedToken = window.localStorage.getItem('token');
-    if (storedUser && storedToken) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        setUser(parsed);
-        setIsAuthenticated(true);
-        await loadUserSettings(parsed.id || parsed._id || '');
-      } catch (error) {
-        console.error('Failed to initialise auth state', error);
-      }
-    }
-  }, []);
 
   useEffect(() => {
     const initialiseAuth = async () => {
@@ -195,3 +179,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+export default AuthContext;
