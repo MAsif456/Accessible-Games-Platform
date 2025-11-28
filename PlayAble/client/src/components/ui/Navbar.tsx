@@ -2,7 +2,8 @@
 // Main navigation bar for the PlayAble platform, providing access to all key pages and user account actions.
 // Accessibility is prioritised: keyboard navigation, ARIA roles, and high-contrast support are included to meet WCAG 2.1 AA standards.
 // The logout action uses a confirmation dialog to prevent accidental sign-outs, improving user experience for all users.
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import useFocusTrap from '../../hooks/navigation/useFocusTrap';
 import NavbarAccountMenu from './NavbarAccountMenu';
 import NavbarVoicePopup from './NavbarVoicePopup';
 
@@ -41,6 +42,15 @@ const Navbar: React.FC<NavbarProps> = ({
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  // Refs for navigation elements
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  // Focus trap for account dropdown menu
+  const { containerRef: accountDropdownRef } = useFocusTrap<HTMLDivElement>({
+    isActive: isAccountOpen,
+    initialFocus: 'first',
+    restoreFocus: true,
+  });
+
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
       setIsVoiceOpen(prev => !prev);
@@ -55,6 +65,33 @@ const Navbar: React.FC<NavbarProps> = ({
       onSearchSubmit();
     }
   };
+
+  // Handle account dropdown keyboard events
+  const handleAccountKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      setIsAccountOpen(false);
+    } else if (event.key === 'ArrowDown' && !isAccountOpen) {
+      event.preventDefault();
+      setIsAccountOpen(true);
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setIsAccountOpen(false);
+      }
+    };
+
+    if (isAccountOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAccountOpen]);
 
   const isLoggedIn = role === 'user' || role === 'admin';
 
@@ -109,16 +146,16 @@ const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div className="navbar__search-error" aria-live="polite"></div>
         </div>
-
         <nav className="navbar__nav" aria-label="Primary">
-          <ul className="navbar__nav-list">
+          <ul className="navbar__nav-list" role="menubar">
             {navItems.map(item => {
               const isActive =
                 currentPath === item.path || (item.key === 'browse' && currentPath === '/');
               return (
-                <li key={item.key}>
+                <li key={item.key} role="none">
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={() => handleNavClick(item.path)}
                     className={
                       'navbar__nav-button' +
@@ -138,9 +175,10 @@ const Navbar: React.FC<NavbarProps> = ({
             })}
 
             {role === 'admin' && (
-              <li>
+              <li role="none">
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => handleNavClick('/admin')}
                   className="navbar__nav-button"
                 >
@@ -158,9 +196,10 @@ const Navbar: React.FC<NavbarProps> = ({
                 onRequestLogout={() => setShowLogoutConfirm(true)}
               />
             ) : (
-              <li>
+              <li role="none">
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => handleNavClick('/signin')}
                   className="navbar__nav-button navbar__nav-button--signin"
                 >

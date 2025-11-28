@@ -122,6 +122,14 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
 
           const releaseDate = game.releaseYear ? String(game.releaseYear) : '';
 
+          // Normalise genres from seeded data so they match the ALL_GENRES labels
+          const normalizedGenres = (game.genres || [])
+            .map(g => g.trim())
+            .map(g => {
+              const match = ALL_GENRES.find(canonical => canonical.toLowerCase() === g.toLowerCase());
+              return match || g;
+            });
+
           setForm(prev => ({
             ...prev,
             title: game.title,
@@ -130,7 +138,7 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
             fullDescription: game.description,
             thumbnailUrl: game.thumbnailUrl,
             yearOfRelease: releaseDate,
-            genres: game.genres || [],
+            genres: normalizedGenres,
             accessibilityFeatures: (game.accessibilityTags || []).map(tag => {
               const [maybeCategory, ...rest] = tag.split(':');
               const trimmedCategory = (maybeCategory || '').trim();

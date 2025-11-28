@@ -34,7 +34,10 @@ function setupAdminApp() {
     user: mockAdminUser,
   } as any);
 
-  (api.getGames as jest.Mock).mockResolvedValue({ games: [], totalPages: 1, totalResults: 0 });
+  jest.spyOn(api, 'getGames').mockResolvedValue({
+    games: [],
+    total: 0,
+  } as any);
 
   return render(<App />);
 }
@@ -49,6 +52,16 @@ const mockGame = {
   genres: ['Action'],
   accessibilityTags: ['Visual: Subtitles'],
   releaseYear: 2024,
+};
+
+const clickAdminButton = async () => {
+  // Find the visual Admin label then click its enclosing button, which is how the navbar renders it.
+  const adminLabel = await screen.findByText(/admin/i);
+  const adminButton = adminLabel.closest('button');
+  if (!adminButton) {
+    throw new Error('Admin button not found');
+  }
+  fireEvent.click(adminButton);
 };
 
 describe('Admin Games Management acceptance criteria', () => {
@@ -68,8 +81,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Games Management tab shows sub-tabs and games table with correct columns', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTabPrimary = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTabPrimary);
@@ -79,7 +91,6 @@ describe('Admin Games Management acceptance criteria', () => {
 
     await inGamesPanel.findByRole('tab', { name: /^games$/i });
 
-    // Just assert the other tabs exist via getAllByRole to avoid ambiguity about names
     const subTabs = inGamesPanel.getAllByRole('tab');
     expect(subTabs.some(t => t.textContent?.includes('Reported Games'))).toBe(true);
     expect(subTabs.some(t => t.textContent?.includes('Resolved Reported Games'))).toBe(true);
@@ -98,8 +109,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Clicking Add New Game navigates to Add New Game form with expected sections', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTab = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTab);
@@ -117,8 +127,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Basic Information section shows required fields including Year of Release', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTab = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTab);
@@ -139,8 +148,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Genres section shows all available genres as checkboxes', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTab = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTab);
@@ -173,8 +181,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Accessibility Features section shows controls and validation requires at least one feature', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTab = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTab);
@@ -201,8 +208,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Submitting valid Add New Game form saves game and shows in list as Active', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTab = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTab);
@@ -262,8 +268,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Submitting Add New Game with missing fields shows validation errors', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTab = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTab);
@@ -294,8 +299,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Edit Game form shows existing accessibility features as removable tags and validates on save', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTab = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTab);
@@ -305,7 +309,6 @@ describe('Admin Games Management acceptance criteria', () => {
 
     await screen.findByRole('heading', { name: /accessibility features/i });
 
-    // Remove any existing accessibility features if present
     const removeButtons = screen.queryAllByRole('button', { name: /remove accessibility feature/i });
     removeButtons.forEach(button => fireEvent.click(button));
 
@@ -323,8 +326,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Successful save on Edit Game form shows success notification', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTab = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTab);
@@ -334,7 +336,6 @@ describe('Admin Games Management acceptance criteria', () => {
 
     await screen.findByRole('heading', { name: /edit game: mock game/i });
 
-    // Make sure there are at least two accessibility features before saving so validation passes
     const removeButtonsBefore = screen.queryAllByRole('button', {
       name: /remove accessibility feature/i,
     });
@@ -363,8 +364,7 @@ describe('Admin Games Management acceptance criteria', () => {
   test('Delete Game removes game and redirects back to Games Management', async () => {
     setupAdminApp();
 
-    const adminButton = await screen.findByRole('button', { name: /admin/i });
-    fireEvent.click(adminButton);
+    await clickAdminButton();
 
     const gamesTab = await screen.findByRole('tab', { name: /games management/i });
     fireEvent.click(gamesTab);
