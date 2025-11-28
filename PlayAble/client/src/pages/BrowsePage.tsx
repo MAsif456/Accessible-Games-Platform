@@ -1,6 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AppPath } from '../App';
-import { getGames, GameDto } from '../services/api.ts';
+import GameCard from '../components/GameCard';
+import Pagination from '../components/ui/Pagination';
+import { useBrowseGames } from '../hooks/useBrowseGames.ts';
+import { useFavouritesNav } from '../context/FavouritesContext';
 
 export interface Game {
   id: string;
@@ -19,128 +22,8 @@ export interface BrowsePageProps {
   onPageChange: (page: number) => void;
   searchTerm: string;
   onGameClick: (gameId: string) => void;
-  onToggleFavourite: (gameId: string) => void;
-  favourites: Set<string>;
   onSearchChange: (value: string) => void;
 }
-
-// Subcomponents (composite pieces)
-const GameThumbnail: React.FC<{ url: string; title: string }> = ({ url, title }) => (
-  <img className="game-card__thumbnail" src={url} alt={title} />
-);
-
-const GameHeader: React.FC<{ title: string; studio: string }> = ({ title, studio }) => (
-  <header className="game-card__header">
-    <h2 className="game-card__title">{title}</h2>
-    <p className="game-card__studio">{studio}</p>
-  </header>
-);
-
-const GameDescription: React.FC<{ description: string }> = ({ description }) => (
-  <p className="game-card__description">{description}</p>
-);
-
-const GameTags: React.FC<{ genres: string[]; tags: string[] }> = ({ genres, tags }) => (
-  <div className="game-card__meta">
-    <div className="game-card__tags">
-      {genres.map(g => (
-        <span key={g} className="pill pill--genre">
-          {g}
-        </span>
-      ))}
-    </div>
-    <div className="game-card__accessibility">
-      {tags.map(t => (
-        <span key={t} className="pill pill--accessibility">
-          {t}
-        </span>
-      ))}
-    </div>
-  </div>
-);
-
-interface GameCardProps {
-  game: GameDto;
-  isFavourite: boolean;
-  onClick: () => void;
-  onToggleFavourite: () => void;
-}
-
-const GameCard: React.FC<GameCardProps> = ({ game, isFavourite, onClick, onToggleFavourite }) => {
-  return (
-    <article
-      className="game-card"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-    >
-      <div className="game-card__favourite-wrapper">
-        <button
-          type="button"
-          className={
-            'game-card__favourite-button' +
-            (isFavourite ? ' game-card__favourite-button--active' : '')
-          }
-          onClick={e => {
-            e.stopPropagation();
-            onToggleFavourite();
-          }}
-          aria-pressed={isFavourite}
-          style={{
-            backgroundColor: 'white',
-            border: '1px solid black',
-          }}
-        >
-          <span
-            className={
-              'game-card__favourite-icon' +
-              (isFavourite ? ' game-card__favourite-icon--active' : '')
-            }
-            aria-hidden="true"
-            style={{
-              display: 'inline-block',
-              fontSize: '24px',
-              lineHeight: 1,
-              color: isFavourite ? 'red' : 'white',
-              WebkitTextStroke: '2px black',
-              verticalAlign: 'middle',
-              position: 'relative',
-            }}
-          >
-            {/* Heart shape */}♥
-            {isFavourite && (
-              <span
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: '50%',
-                  width: '100%',
-                  height: '2px',
-                  backgroundColor: 'white',
-                  transform: 'translateY(-50%) rotate(-45deg)',
-                  transformOrigin: 'center',
-                }}
-              />
-            )}
-          </span>
-
-          <span style={{ marginLeft: '8px' }}>{isFavourite ? 'Unfavourite' : 'Favourite'}</span>
-        </button>
-      </div>
-      <GameThumbnail url={game.thumbnailUrl} title={game.title} />
-      <div className="game-card__body">
-        <GameHeader title={game.title} studio={game.studio} />
-        <GameDescription description={game.description} />
-        <GameTags genres={game.genres} tags={game.accessibilityTags} />
-      </div>
-    </article>
-  );
-};
 
 const BrowsePage: React.FC<BrowsePageProps> = ({
   currentPage,
@@ -148,157 +31,45 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
   onPageChange,
   searchTerm,
   onGameClick,
-  onToggleFavourite,
-  favourites,
   onSearchChange,
 }) => {
   const [browseSearchInput, setBrowseSearchInput] = useState(searchTerm);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [selectedAccessibility, setSelectedAccessibility] = useState<string[]>([]);
-  const [releaseYear, setReleaseYear] = useState<string>('Any Year');
-  const [sortBy, setSortBy] = useState<string>('A-Z');
 
-  const [tempSelectedGenres, setTempSelectedGenres] = useState<string[]>([]);
-  const [tempSelectedAccessibility, setTempSelectedAccessibility] = useState<string[]>([]);
-  const [tempReleaseYear, setTempReleaseYear] = useState<string>('Any Year');
-  const [tempSortBy, setTempSortBy] = useState<string>('A-Z');
-  const [showAllGenres, setShowAllGenres] = useState(false);
+  const { favouriteIds, toggleFavourite, isFavourite } = useFavouritesNav();
 
-  const [games, setGames] = useState<GameDto[]>([]);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalResults, setTotalResults] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [allGamesForFilters, setAllGamesForFilters] = useState<GameDto[]>([]);
-
-  const safeAllGamesForFilters = allGamesForFilters ?? [];
-
-  const effectiveSearchTerm = searchTerm;
-
-  const apiSort = useMemo(() => {
-    switch (sortBy) {
-      case 'Newest':
-        return 'newest';
-      case 'Oldest':
-        return 'oldest';
-      case 'A-Z':
-      default:
-        return 'title_asc';
-    }
-  }, [sortBy]);
-
-  const allGenres = useMemo(
-    () => Array.from(new Set(safeAllGamesForFilters.flatMap(g => g.genres || []))).sort(),
-    [safeAllGamesForFilters],
-  );
-
-  const allAccessibility = useMemo(
-    () => Array.from(new Set(safeAllGamesForFilters.flatMap(g => g.accessibilityTags || []))).sort(),
-    [safeAllGamesForFilters],
-  );
-
-  const toggleSelection = (value: string, current: string[], setter: (val: string[]) => void) => {
-    setter(current.includes(value) ? current.filter(v => v !== value) : [...current, value]);
-  };
-
-  useEffect(() => {
-    let isCancelled = false;
-    async function loadGames() {
-      try {
-        setLoading(true);
-        setError(null);
-        const { games, totalPages, totalResults } = await getGames({
-          page: currentPage,
-          pageSize,
-          search: effectiveSearchTerm || undefined,
-          genres: selectedGenres.length ? selectedGenres : undefined,
-          tags: selectedAccessibility.length ? selectedAccessibility : undefined,
-          sort: apiSort,
-        });
-        if (!isCancelled) {
-          setGames(games);
-          setTotalPages(totalPages);
-          setTotalResults(totalResults);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          setError('Failed to load games');
-        }
-      } finally {
-        if (!isCancelled) setLoading(false);
-      }
-    }
-
-    loadGames();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [currentPage, pageSize, effectiveSearchTerm, selectedGenres, selectedAccessibility, apiSort]);
-
-  useEffect(() => {
-    let isCancelled = false;
-    async function loadAllGamesForFilters() {
-      try {
-        const { games } = await getGames({ page: 1, pageSize: 1000, sort: 'title_asc' });
-        if (!isCancelled) {
-          setAllGamesForFilters(games);
-        }
-      } catch {
-    
-      }
-    }
-    loadAllGamesForFilters();
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
-  const appliedFilterCount =
-    selectedGenres.length +
-    selectedAccessibility.length +
-    (releaseYear === 'Any Year' ? 0 : 1) +
-    (sortBy === 'A-Z' ? 0 : 1);
-
-  const pageGames = games;
-  const isFirstPage = currentPage === 1;
-  const isLastPage = currentPage === totalPages;
-  const hasNoResults = !loading && totalResults === 0;
-
-  const handleApplyFilters = () => {
-    setSelectedGenres(tempSelectedGenres);
-    setSelectedAccessibility(tempSelectedAccessibility);
-    setReleaseYear(tempReleaseYear);
-    setSortBy(tempSortBy);
-    setIsFiltersOpen(false);
-    if (currentPage !== 1) {
-      onPageChange(1);
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleClearAll = () => {
-    setTempSelectedGenres([]);
-    setTempSelectedAccessibility([]);
-    setTempReleaseYear('Any Year');
-    setTempSortBy('A-Z');
-    setSelectedGenres([]);
-    setSelectedAccessibility([]);
-    setReleaseYear('Any Year');
-    setSortBy('A-Z');
-    if (currentPage !== 1) {
-      onPageChange(1);
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const removeAccessibility = (tag: string) => {
-    setSelectedAccessibility(prev => prev.filter(t => t !== tag));
-  };
-
-  const hasActiveFilters = appliedFilterCount > 0;
+  const {
+    games,
+    totalPages,
+    error,
+    isFiltersOpen,
+    setIsFiltersOpen,
+    selectedGenres,
+    setSelectedGenres,
+    selectedAccessibility,
+    releaseYear,
+    setReleaseYear,
+    sortBy,
+    setSortBy,
+    tempSelectedGenres,
+    setTempSelectedGenres,
+    tempSelectedAccessibility,
+    setTempSelectedAccessibility,
+    tempReleaseYear,
+    setTempReleaseYear,
+    tempSortBy,
+    setTempSortBy,
+    showAllGenres,
+    setShowAllGenres,
+    allGenres,
+    allAccessibility,
+    appliedFilterCount,
+    hasActiveFilters,
+    hasNoResults,
+    handleApplyFilters,
+    handleClearAll,
+    removeAccessibility,
+    toggleSelection,
+  } = useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange });
 
   const handleSearchSubmit = () => {
     const term = browseSearchInput.trim();
@@ -321,7 +92,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 value={browseSearchInput}
                 onChange={e => {
                   let value = e.target.value;
-                
+
                   if (value.length > 50) {
                     value = value.slice(0, 50);
                   }
@@ -355,9 +126,8 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                   <span className="browse-page__search-clear-label">Clear</span>
                 </button>
               )}
-            
             </div>
-          
+
             <button
               type="button"
               className="browse-page__filters-button browse-page__filters-button--primary"
@@ -386,12 +156,12 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
               </button>
             </div>
             <div className="browse-page__active-filters-chips">
-              {selectedGenres.map(genre => (
+              {selectedGenres.map((genre: string) => (
                 <button
                   key={`genre-${genre}`}
                   type="button"
                   className="browse-page__active-chip"
-                  onClick={() => setSelectedGenres(prev => prev.filter(g => g !== genre))}
+                  onClick={() => setSelectedGenres((prev: string[]) => prev.filter((g: string) => g !== genre))}
                 >
                   <span className="browse-page__active-chip-label">Genre: {genre}</span>
                   <span className="browse-page__active-chip-close" aria-hidden="true">
@@ -400,7 +170,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                   <span className="sr-only">Remove genre filter {genre}</span>
                 </button>
               ))}
-              {selectedAccessibility.map(tag => (
+              {selectedAccessibility.map((tag: string) => (
                 <button
                   key={`access-${tag}`}
                   type="button"
@@ -447,12 +217,8 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
         </section>
       )}
 
-   
       {totalPages > 1 && (
-        <p
-          className="browse-page__page-indicator"
-          aria-live="polite"
-        >
+        <p className="browse-page__page-indicator" aria-live="polite">
           Page {currentPage} of {totalPages}
         </p>
       )}
@@ -465,79 +231,29 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
       ) : (
         <>
           <section className="browse-page__grid" aria-label="Game catalogue">
-            {(() => {
-              const safePageGames = pageGames ?? [];
-              return safePageGames.map(game => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  isFavourite={favourites.has(game.id)}
-                  onClick={() => {
-                    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-                    onGameClick(game.id);
-                  }}
-                  onToggleFavourite={() => onToggleFavourite(game.id)}
-                />
-              ));
-            })()}
+            {(games || []).map((game: Game) => (
+              <GameCard
+                key={game.id}
+                game={game}
+                onClick={() => onGameClick(game.id)}
+                favouriteLabel={isFavourite(game.id) ? 'Unfavourite' : 'Favourite'}
+                onFavouriteClick={toggleFavourite}
+                isFavourite={favouriteIds.has(game.id)}
+              />
+            ))}
           </section>
 
           {totalPages > 1 && (
-            <nav className="pagination" aria-label="Catalogue pagination">
-              <button
-                type="button"
-                className="pagination__button"
-                onClick={() => {
-                  if (!isFirstPage) {
-                    onPageChange(currentPage - 1);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }
-                }}
-                disabled={isFirstPage}
-              >
-                Previous
-              </button>
-              <ul className="pagination__list">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
-                  const isCurrent = page === currentPage;
-                  return (
-                    <li key={page}>
-                      <button
-                        type="button"
-                        className={
-                          'pagination__number' + (isCurrent ? ' pagination__number--current' : '')
-                        }
-                        onClick={() => {
-                          onPageChange(page);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        aria-current={isCurrent ? 'page' : undefined}
-                      >
-                        {page}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              <button
-                type="button"
-                className="pagination__button"
-                onClick={() => {
-                  if (!isLastPage) {
-                    onPageChange(currentPage + 1);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }
-                }}
-                disabled={isLastPage}
-              >
-                Next
-              </button>
-            </nav>
+            <Pagination
+              page={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+              ariaLabel="Catalogue pagination"
+            />
           )}
         </>
       )}
 
-      {/* Filters sidebar */}
       <aside
         id="browse-filters-panel"
         className={`browse-filters ${isFiltersOpen ? 'browse-filters--open' : ''}`}
@@ -582,7 +298,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 <h3>Genre</h3>
               </header>
               <div className="browse-filters__chips">
-                {(showAllGenres ? allGenres : allGenres.slice(0, 20)).map(genre => {
+                {(showAllGenres ? allGenres : allGenres.slice(0, 20)).map((genre: string) => {
                   const isSelected = tempSelectedGenres.includes(genre);
                   return (
                     <button
@@ -605,7 +321,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 <button
                   type="button"
                   className="browse-filters__show-more"
-                  onClick={() => setShowAllGenres(prev => !prev)}
+                  onClick={() => setShowAllGenres((prev: boolean) => !prev)}
                 >
                   {showAllGenres ? 'Show less' : 'Show more'}
                 </button>
@@ -620,7 +336,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 </p>
               </header>
               <div className="browse-filters__chips">
-                {allAccessibility.map(tag => {
+                {allAccessibility.map((tag: string) => {
                   const isSelected = tempSelectedAccessibility.includes(tag);
                   return (
                     <button

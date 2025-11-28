@@ -43,10 +43,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
   useEffect(() => {
     let isCancelled = false;
     setGamesStatsLoading(true);
-    getAdminGames()
+    Promise.resolve(getAdminGames())
       .then(res => {
         if (!isCancelled) {
-          setGames(res.games || []);
+          const safeGames = (res && (res as any).games) || [];
+          setGames(safeGames);
         }
       })
       .catch(err => {
@@ -70,9 +71,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     if (primaryTab === 'games') {
       setGamesLoading(true);
       setGamesError(null);
-      getAdminGames()
+      Promise.resolve(getAdminGames())
         .then(res => {
-          setGames(res.games || []);
+          const safeGames = (res && (res as any).games) || [];
+          setGames(safeGames);
         })
         .catch(err => {
           console.error('Failed to load admin games', err);

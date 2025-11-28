@@ -2,7 +2,7 @@
 // Provides authentication state and actions to the entire React application using Context API.
 // Centralises user session management and ensures consistent authentication logic across all components.
 // Uses localStorage for persistence and verifies tokens with the backend for security.
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import authService, { SignupData, LoginData, AuthResponse } from '../services/authService';
 import settingsApi, { UserSettings } from '../services/settingsApi';
 import { applyAccessibilityPreferences } from '../utils/accessibility';
@@ -61,8 +61,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loadUserSettings = async (userId: string) => {
     try {
       const loaded = await settingsApi.getSettings(userId);
-      setUserSettings(loaded);
-      applyAccessibilityPreferences(loaded);
+      if (loaded) {
+        applyAccessibilityPreferences(loaded);
+      }
     } catch (error) {
       console.error('Failed to load accessibility settings:', error);
     }
@@ -80,8 +81,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // Initialises authentication by checking for stored user and verifying token validity.
+  const initAuth = useCallback(async () => {
+    const storedUser = window.localStorage.getItem('user');
+    const storedToken = window.localStorage.getItem('token');
+    if (storedUser && storedToken) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        setUser(parsed);
+        setIsAuthenticated(true);
+        await loadUserSettings(parsed.id || parsed._id || '');
+      } catch (error) {
+        console.error('Failed to initialise auth state', error);
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    const initAuth = async () => {
+    const initialiseAuth = async () => {
       try {
         const storedUser = authService.getStoredUser();
         const token = authService.getToken();
@@ -112,7 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
 
-    initAuth();
+    initialiseAuth();
   }, []);
 
   const signup = async (data: SignupData): Promise<AuthResponse> => {

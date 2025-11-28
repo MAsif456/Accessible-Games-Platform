@@ -2,6 +2,9 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
+import * as api from '../../src/services/api';
+
+jest.mock('../../src/services/api');
 
 // This test verifies that an admin user sees the Admin button in the navbar
 // and that clicking it navigates to the Admin Management page.
@@ -22,6 +25,8 @@ test('admin user sees Admin button and can navigate to Admin Management page', a
     message: 'ok',
     user: adminUser,
   } as any);
+
+  (api.getGames as jest.Mock).mockResolvedValue({ games: [], totalPages: 1, totalResults: 0 });
 
   render(<App />);
 

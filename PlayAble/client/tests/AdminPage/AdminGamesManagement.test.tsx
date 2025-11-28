@@ -4,8 +4,18 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import App from '../../src/App';
 import authService from '../../src/services/authService';
 import * as gamesAdminService from '../../src/services/gamesAdminService';
+import * as api from '../../src/services/api';
 
-jest.mock('../../src/services/gamesAdminService');
+jest.mock('../../src/services/gamesAdminService', () => ({
+  __esModule: true,
+  getAdminGames: jest.fn().mockResolvedValue({ games: [] }),
+  getAdminGameById: jest.fn(),
+  createAdminGame: jest.fn(),
+  updateAdminGame: jest.fn(),
+  deleteAdminGame: jest.fn(),
+}));
+
+jest.mock('../../src/services/api');
 
 const mockAdminUser = {
   id: 'admin-1',
@@ -23,6 +33,8 @@ function setupAdminApp() {
     message: 'ok',
     user: mockAdminUser,
   } as any);
+
+  (api.getGames as jest.Mock).mockResolvedValue({ games: [], totalPages: 1, totalResults: 0 });
 
   return render(<App />);
 }
