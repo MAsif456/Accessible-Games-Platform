@@ -231,7 +231,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
       ) : (
         <>
           <section className="browse-page__grid" aria-label="Game catalogue">
-            {games.map((game: Game) => (
+            {(games || []).map((game: Game) => (
               <GameCard
                 key={game.id}
                 game={game}

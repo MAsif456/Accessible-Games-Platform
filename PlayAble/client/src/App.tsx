@@ -15,6 +15,7 @@ import MyProfilePage from './pages/MyProfilePage';
 import InboxPage from './pages/InboxPage';
 import AboutPage from './pages/AboutPage';
 import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
+import AdminGameFormPage from './pages/AdminGameFormPage';
 import GameDetailsPage from './pages/GameDetailsPage';
 
 export type AppPath =
@@ -25,6 +26,8 @@ export type AppPath =
   | '/recently-viewed'
   | '/settings'
   | '/admin'
+  | '/admin/games/new'
+  | `/admin/games/${string}`
   | '/signin'
   | '/my-profile'
   | '/change-email-password'
@@ -70,6 +73,14 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   }, []);
 
   const handleNavigate = (newPath: string) => {
+    // Handle admin games dynamic routes
+    if (newPath.startsWith('/admin/games/')) {
+      const typedPath = newPath as AppPath;
+      setPath(typedPath);
+      return;
+    }
+
+    // Type guard to ensure newPath is a valid AppPath
     if (
       newPath === '/' ||
       newPath === '/browse' ||
@@ -78,6 +89,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       newPath === '/recently-viewed' ||
       newPath === '/settings' ||
       newPath === '/admin' ||
+      newPath === '/admin/games/new' ||
       newPath === '/signin' ||
       newPath === '/my-profile' ||
       newPath === '/change-email-password' ||
@@ -210,7 +222,18 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
           {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
           {path === '/recently-viewed' && <RecentlyViewedPage />}
           {path === '/settings' && <SettingsPage />}
-          {path === '/admin' && <AdminPage />}
+          {path === '/admin' && <AdminPage onNavigate={handleNavigate} />}
+          {path === '/admin/games/new' && (
+            <AdminGameFormPage mode="create" onNavigate={handleNavigate} showPrompt={showPrompt} />
+          )}
+          {path.startsWith('/admin/games/') && path !== '/admin/games/new' && (
+            <AdminGameFormPage
+              mode="edit"
+              gameId={path.split('/').pop() || ''}
+              onNavigate={handleNavigate}
+              showPrompt={showPrompt}
+            />
+          )}
 
           {path === '/signin' && (
             <SignInPage
@@ -236,7 +259,6 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
 
           {path === '/inbox' && <InboxPage />}
           {path === '/about' && <AboutPage />}
-
         </main>
       </div>
 

@@ -24,7 +24,7 @@ function TestPage() {
 }
 
 // Mock the global keyboard navigation hook so it does not register real listeners on document
-jest.mock('../../hooks/useGlobalKeyboardNavigation', () => ({
+jest.mock('../../src/hooks/useGlobalKeyboardNavigation', () => ({
   useGlobalKeyboardNavigation: jest.fn(),
 }));
 

@@ -29,6 +29,8 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
 
   const [allGamesForFilters, setAllGamesForFilters] = useState<GameDto[]>([]);
 
+  const safeAllGamesForFilters = Array.isArray(allGamesForFilters) ? allGamesForFilters : [];
+
   const effectiveSearchTerm = searchTerm;
 
   const apiSort = useMemo(() => {
@@ -44,13 +46,13 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
   }, [sortBy]);
 
   const allGenres = useMemo(
-    () => Array.from(new Set(allGamesForFilters.flatMap(g => g.genres))).sort(),
-    [allGamesForFilters],
+    () => Array.from(new Set(safeAllGamesForFilters.flatMap(g => g.genres))).sort(),
+    [safeAllGamesForFilters],
   );
 
   const allAccessibility = useMemo(
-    () => Array.from(new Set(allGamesForFilters.flatMap(g => g.accessibilityTags))).sort(),
-    [allGamesForFilters],
+    () => Array.from(new Set(safeAllGamesForFilters.flatMap(g => g.accessibilityTags))).sort(),
+    [safeAllGamesForFilters],
   );
 
   const toggleSelection = (value: string, current: string[], setter: (val: string[]) => void) => {
