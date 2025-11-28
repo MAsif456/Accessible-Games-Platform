@@ -271,7 +271,7 @@ const SettingsPage = () => {
             color: '#92400e',
             fontSize: '0.875rem'
           }}>
-            ⓘ You're not signed in. Your settings will apply during this session but won't be saved. Sign in to save your preferences permanently.
+            ⓘ You're not signed in. Your settings will be saved for this session and will persist as you navigate the site. Sign in to save your preferences permanently across all devices.
           </p>
         )}
       </div>
