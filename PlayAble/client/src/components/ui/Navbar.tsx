@@ -307,13 +307,19 @@ const Navbar: React.FC<NavbarProps> = ({
           <div className="voice-popup__examples">
             <span>Try saying:</span>
             <ul>
-              <li>"Hey Assistant, show me all my favorite games"</li>
-              <li>"Take me to my profile page"</li>
-              <li>"Open accessibility settings"</li>
+              <li>"Hey" or "Assistant" to start</li>
+              <li>"Show me all my favorite games"</li>
+              <li>"Take me to my profile"</li>
+              <li>"Open settings"</li>
               <li>"Search for adventure games"</li>
               <li>"Find games with subtitle support"</li>
               <li>"Show games with colorblind mode"</li>
-              <li>"Clear all my search filters"</li>
+              <li>"Clear all filters"</li>
+              <li>"Go home" or "Browse games"</li>
+              <li>"Turn on dark mode"</li>
+              <li>"Turn on high contrast mode"</li>
+              <li>"Turn off microphone"</li>
+              <li>"Turn off voice input"</li>
             </ul>
           </div>
         </div>

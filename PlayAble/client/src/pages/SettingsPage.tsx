@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { settingsApi, UserSettings } from '../services/settingsApi';
 import { useAuth } from '../context/AuthContext';
 import '../styles/index.css';
@@ -42,17 +42,34 @@ const SettingsPage = () => {
     microphoneActive: assistantMicrophoneActive,
   } = useVoiceAssistant();
 
+  // Refs to track previous state and prevent unnecessary saves
+  const previousSettingsRef = useRef<UserSettings | null>(null);
+  const isInitialLoadRef = useRef(true);
+  const skipNextSaveRef = useRef(false);
+  const lastUserSettingsRef = useRef<UserSettings | null>(null);
+
   useEffect(() => {
     if (user?.id && userSettings) {
-      // Load saved settings when user is logged in
-      setSettings({
-        ...userSettings,
-        highContrastTheme: userSettings.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
-      });
+      // Check if userSettings actually changed (to avoid unnecessary updates)
+      const settingsChanged = !lastUserSettingsRef.current || 
+        JSON.stringify(lastUserSettingsRef.current) !== JSON.stringify(userSettings);
+      
+      if (settingsChanged) {
+        // Load saved settings when user is logged in
+        const loadedSettings = {
+          ...userSettings,
+          highContrastTheme: userSettings.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+        };
+        setSettings(loadedSettings);
+        previousSettingsRef.current = loadedSettings;
+        lastUserSettingsRef.current = userSettings;
+        skipNextSaveRef.current = true; // Skip auto-save when loading from userSettings
+        isInitialLoadRef.current = true;
+      }
       setIsLoading(false);
     } else if (!user?.id) {
       // For non-logged-in users, use default settings
-      setSettings({
+      const defaultSettings = {
         voiceInput: true,
         captions: true,
         microphoneActive: true,
@@ -60,19 +77,47 @@ const SettingsPage = () => {
         highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
         reducedMotion: false,
         darkMode: false,
-      });
+      };
+      setSettings(defaultSettings);
+      previousSettingsRef.current = defaultSettings;
+      isInitialLoadRef.current = true;
       setIsLoading(false);
     }
   }, [user?.id, userSettings]);
 
-  // Auto-save when settings change
+  // Helper function to check if settings actually changed
+  const settingsChanged = (prev: UserSettings | null, current: UserSettings): boolean => {
+    if (!prev) return true;
+    
+    return (
+      prev.voiceInput !== current.voiceInput ||
+      prev.captions !== current.captions ||
+      prev.microphoneActive !== current.microphoneActive ||
+      prev.highContrastMode !== current.highContrastMode ||
+      prev.highContrastTheme !== current.highContrastTheme ||
+      prev.reducedMotion !== current.reducedMotion ||
+      prev.darkMode !== current.darkMode
+    );
+  };
+
+  // Auto-save when settings change (only if values actually changed)
   useEffect(() => {
-    if (!isLoading && user?.id) {
+    // Skip save on initial load or if explicitly skipped
+    if (isInitialLoadRef.current || skipNextSaveRef.current) {
+      isInitialLoadRef.current = false;
+      skipNextSaveRef.current = false;
+      previousSettingsRef.current = settings;
+      return;
+    }
+
+    // Only save if settings actually changed
+    if (!isLoading && user?.id && settingsChanged(previousSettingsRef.current, settings)) {
       const saveTimeout = setTimeout(async () => {
         setAutoSaveIndicator(true);
         try {
           const updated = await settingsApi.updateSettings(user.id, settings);
           updateUserSettingsState(updated);
+          previousSettingsRef.current = updated; // Update ref with saved settings
         } catch (error) {
           console.error('Failed to save settings:', error);
         } finally {
@@ -81,6 +126,9 @@ const SettingsPage = () => {
       }, 500); // Debounce: save 500ms after last change
 
       return () => clearTimeout(saveTimeout);
+    } else {
+      // Settings didn't change, update ref anyway
+      previousSettingsRef.current = settings;
     }
   }, [settings, isLoading, user?.id, updateUserSettingsState]);
 
@@ -131,11 +179,15 @@ const SettingsPage = () => {
       if (user?.id) {
         // For logged-in users, reset in backend and update state
         const result = await settingsApi.resetSettings(user.id);
+        skipNextSaveRef.current = true; // Skip auto-save since we just saved via reset
         setSettings(result.settings);
+        previousSettingsRef.current = result.settings;
         updateUserSettingsState(result.settings);
       } else {
         // For non-logged-in users, just reset local state
+        skipNextSaveRef.current = true; // Skip auto-save for non-logged-in users
         setSettings(defaultSettings);
+        previousSettingsRef.current = defaultSettings;
         applyAccessibilityPreferences(defaultSettings);
       }
 

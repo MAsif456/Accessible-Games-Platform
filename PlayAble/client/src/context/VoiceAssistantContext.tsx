@@ -8,6 +8,8 @@ import React, {
   useState,
 } from 'react';
 import { useAuth } from './AuthContext';
+import { settingsApi, UserSettings } from '../services/settingsApi';
+import { applyAccessibilityPreferences } from '../utils/accessibility';
 
 type BrowserSpeechRecognition = {
   start: () => void;
@@ -52,9 +54,12 @@ declare global {
 
 const VoiceAssistantContext = createContext<VoiceAssistantContextValue | undefined>(undefined);
 
-const VOICE_RESET_DELAY = 1800;
+const VOICE_RESET_DELAY = 1000; // Reduced from 1800ms for faster responses
 const SAFARI_LISTENING_HINT =
   'Tap the Voice button or press Ctrl + Shift + V to activate listening in Safari.';
+
+// Wake words that activate listening
+const WAKE_WORDS = ['hey assistant', 'hey', 'assistant'];
 
 const navigationCommands: {
   matchers: string[];
@@ -71,6 +76,15 @@ const navigationCommands: {
       'settings',
       'go to settings',
       'show settings',
+      'settings page',
+      'access settings',
+      'open the settings',
+      'take me to settings',
+      'navigate to settings',
+      'go settings',
+      'show me settings',
+      'i want to see settings',
+      'settings menu',
     ],
     path: '/settings',
     announcement: 'Opening accessibility settings',
@@ -85,6 +99,17 @@ const navigationCommands: {
       'recently viewed games',
       'view my history',
       'show my history',
+      'recent history',
+      'my recent games',
+      'games i viewed',
+      'recent games',
+      'history',
+      'show history',
+      'view recent',
+      'recently played',
+      'my recent',
+      'what did i view',
+      'show me recent',
     ],
     path: '/recently-viewed',
     announcement: 'Showing recently viewed games',
@@ -99,6 +124,18 @@ const navigationCommands: {
       'go to my profile',
       'show my profile',
       'open profile',
+      'profile',
+      'my account',
+      'account page',
+      'user profile',
+      'view profile',
+      'show profile',
+      'go profile',
+      'open the profile',
+      'take me to profile',
+      'i want to see my profile',
+      'show me my profile',
+      'navigate to profile',
     ],
     path: '/my-profile',
     announcement: 'Opening your profile',
@@ -118,6 +155,26 @@ const navigationCommands: {
       'favourite games',
       'go to favorites',
       'go to favourites',
+      'favorites',
+      'favourites',
+      'favorites page',
+      'favourites page',
+      'my saved games',
+      'saved games',
+      'bookmarked games',
+      'my bookmarks',
+      'liked games',
+      'games i like',
+      'show favorites list',
+      'show favourites list',
+      'open my favorites',
+      'open my favourites',
+      'i want to see my favorites',
+      'i want to see my favourites',
+      'take me to favorites',
+      'take me to favourites',
+      'go favorites',
+      'go favourites',
     ],
     path: '/favourites',
     announcement: 'Opening favourites',
@@ -133,13 +190,48 @@ const navigationCommands: {
       'browse page',
       'home page',
       'go to home',
+      'home',
+      'browse',
+      'games',
+      'show games',
+      'all games',
+      'game list',
+      'catalog',
+      'game catalog',
+      'show catalog',
+      'game library',
+      'library',
+      'main page',
+      'main',
+      'back to home',
+      'back home',
+      'take me home',
+      'go back home',
+      'i want to browse',
+      'show me games',
+      'list games',
+      'view games',
     ],
     path: '/browse',
     announcement: 'Opening browse page',
   },
   // Inbox
   {
-    matchers: ['open inbox', 'show my inbox', 'go to inbox', 'inbox'],
+    matchers: [
+      'open inbox',
+      'show my inbox',
+      'go to inbox',
+      'inbox',
+      'messages',
+      'my messages',
+      'notifications',
+      'my notifications',
+      'show messages',
+      'open messages',
+      'view inbox',
+      'check inbox',
+      'i want to see my inbox',
+    ],
     path: '/inbox',
     announcement: 'Opening inbox',
   },
@@ -153,13 +245,32 @@ const navigationCommands: {
       'go to report',
       'report page',
       'file a report',
+      'report',
+      'make a report',
+      'submit a report',
+      'report something',
+      'i need to report',
+      'report issue',
+      'report problem',
+      'report bug',
     ],
     path: '/report',
     announcement: 'Opening report page',
   },
   // About
   {
-    matchers: ['about', 'about page', 'go to about', 'show about'],
+    matchers: [
+      'about',
+      'about page',
+      'go to about',
+      'show about',
+      'about us',
+      'information',
+      'more info',
+      'learn more',
+      'what is this',
+      'tell me about',
+    ],
     path: '/about',
     announcement: 'Opening about page',
   },
@@ -303,7 +414,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
   onNavigate,
   setSearchTerm,
 }) => {
-  const { userSettings } = useAuth();
+  const { userSettings, user, updateUserSettingsState } = useAuth();
   const [voiceInputEnabled, setVoiceInputEnabled] = useState<boolean>(
     userSettings?.voiceInput ?? true
   );
@@ -336,26 +447,41 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
   const resetToIdle = useCallback(
     (delay = VOICE_RESET_DELAY, keepListening = false) => {
       clearHideTimer();
+      // Don't reset if we're actively listening from button activation
+      if (keepListening && safariActivationRef.current && listeningState === 'listening') {
+        return; // Keep listening, don't reset
+      }
       hideIndicatorRef.current = window.setTimeout(() => {
-        if (keepListening && canListen) {
+        // Check again if we should keep listening (state might have changed)
+        if (keepListening && safariActivationRef.current && canListen) {
           // Keep listening if activated from button
           setListeningState('listening');
           setStatusMessage('Listening... Speak now or say "cancel"');
           setIsIndicatorVisible(true);
+          // Ensure recognition is still running - will be defined later
+          if (recognitionRef.current && canListen) {
+            try {
+              recognitionRef.current.start();
+            } catch (error: any) {
+              if (error?.name !== 'InvalidStateError') {
+                console.error('Speech recognition start error:', error);
+              }
+            }
+          }
         } else {
           setIsIndicatorVisible(false);
           setListeningState(canListen ? 'awaiting' : 'idle');
           setStatusMessage(
             canListen
               ? safariActivationRef.current || !isSafari
-                ? 'Say "Hey Assistant" or press Ctrl + Shift + V'
+                ? 'Say "Hey", "Assistant", or "Hey Assistant" to start'
                 : SAFARI_LISTENING_HINT
               : 'Voice assistant disabled'
           );
         }
       }, delay);
     },
-    [canListen, clearHideTimer, isSafari]
+    [canListen, clearHideTimer, isSafari, listeningState]
   );
 
   const ensureRecognition = useCallback(
@@ -369,8 +495,10 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       }
 
       try {
+        // Check if already started to avoid InvalidStateError
         recognitionRef.current.start();
       } catch (error: any) {
+        // InvalidStateError means it's already running, which is fine
         if (error?.name !== 'InvalidStateError') {
           console.error('Speech recognition start error:', error);
         }
@@ -384,13 +512,71 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       return;
     }
     try {
-      recognitionRef.current.start();
+      // Try to start immediately first
+      try {
+        recognitionRef.current.start();
+      } catch (error: any) {
+        // If already running, that's fine
+        if (error?.name === 'InvalidStateError') {
+          return; // Already running, no need to retry
+        }
+        // For other errors, try again after a delay
+        setTimeout(() => {
+          if (recognitionRef.current && canListen) {
+            try {
+              recognitionRef.current.start();
+            } catch (retryError: any) {
+              // InvalidStateError means it's already running, which is fine
+              if (retryError?.name !== 'InvalidStateError') {
+                console.error('Speech recognition start error:', retryError);
+              }
+            }
+          }
+        }, 100);
+      }
     } catch (error: any) {
       if (error?.name !== 'InvalidStateError') {
         console.error('Speech recognition start error:', error);
       }
     }
   }, [canListen]);
+
+  // Helper function to update settings
+  const updateSetting = useCallback(
+    async (settingKey: keyof UserSettings, value: boolean | string) => {
+      // Update local state immediately for voice input and microphone
+      if (settingKey === 'voiceInput') {
+        setVoiceInputEnabled(value as boolean);
+      } else if (settingKey === 'microphoneActive') {
+        setMicrophoneActive(value as boolean);
+      }
+
+      if (!user?.id) {
+        // For non-logged-in users, just apply locally
+        const newSettings = {
+          ...userSettings,
+          [settingKey]: value,
+        } as UserSettings;
+        applyAccessibilityPreferences(newSettings);
+        updateUserSettingsState(newSettings);
+        return;
+      }
+
+      try {
+        const updated = await settingsApi.updateSettings(user.id, {
+          [settingKey]: value,
+        } as Partial<UserSettings>);
+        updateUserSettingsState(updated);
+        applyAccessibilityPreferences(updated);
+      } catch (error) {
+        console.error('Failed to update setting:', error);
+        setStatusMessage('Failed to update setting. Please try again.');
+        setListeningState('error');
+        setIsIndicatorVisible(true);
+      }
+    },
+    [user?.id, userSettings, updateUserSettingsState]
+  );
 
   const processCommand = useCallback(
     (commandRaw: string, wasActivatedFromButton = false) => {
@@ -404,16 +590,122 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       const normalized = command.toLowerCase();
 
       // Handle cancel command
-      if (normalized.includes('cancel') || normalized.includes('stop listening')) {
+      if (normalized.includes('cancel') || normalized.includes('stop listening') || normalized.includes('stop')) {
         setStatusMessage('Listening cancelled');
         setListeningState('idle');
         setIsIndicatorVisible(false);
         safariActivationRef.current = false;
-        resetToIdle(500);
+        recognitionRef.current?.stop();
+        resetToIdle(500, false);
         return;
       }
 
-      // Check for navigation commands first
+      // Handle settings commands (high contrast, dark mode, mic, voice input)
+      // High contrast mode
+      if (
+        (normalized.includes('high contrast') || normalized.includes('high-contrast')) &&
+        (normalized.includes('on') || normalized.includes('enable') || normalized.includes('turn on') || normalized.includes('activate'))
+      ) {
+        setStatusMessage('Turning on high contrast mode');
+        setListeningState('processing');
+        setIsIndicatorVisible(true);
+        updateSetting('highContrastMode', true);
+        resetToIdle(800, wasActivatedFromButton);
+        return;
+      }
+
+      if (
+        (normalized.includes('high contrast') || normalized.includes('high-contrast')) &&
+        (normalized.includes('off') || normalized.includes('disable') || normalized.includes('turn off') || normalized.includes('deactivate'))
+      ) {
+        setStatusMessage('Turning off high contrast mode');
+        setListeningState('processing');
+        setIsIndicatorVisible(true);
+        updateSetting('highContrastMode', false);
+        resetToIdle(800, wasActivatedFromButton);
+        return;
+      }
+
+      // Dark mode
+      if (
+        (normalized.includes('dark mode') || normalized.includes('dark-mode') || normalized.includes('dark')) &&
+        (normalized.includes('on') || normalized.includes('enable') || normalized.includes('turn on') || normalized.includes('activate'))
+      ) {
+        setStatusMessage('Turning on dark mode');
+        setListeningState('processing');
+        setIsIndicatorVisible(true);
+        updateSetting('darkMode', true);
+        resetToIdle(800, wasActivatedFromButton);
+        return;
+      }
+
+      if (
+        (normalized.includes('dark mode') || normalized.includes('dark-mode') || normalized.includes('dark')) &&
+        (normalized.includes('off') || normalized.includes('disable') || normalized.includes('turn off') || normalized.includes('deactivate'))
+      ) {
+        setStatusMessage('Turning off dark mode');
+        setListeningState('processing');
+        setIsIndicatorVisible(true);
+        updateSetting('darkMode', false);
+        resetToIdle(800, wasActivatedFromButton);
+        return;
+      }
+
+      // Microphone
+      if (
+        (normalized.includes('mic') || normalized.includes('microphone')) &&
+        (normalized.includes('off') || normalized.includes('disable') || normalized.includes('turn off') || normalized.includes('mute'))
+      ) {
+        setStatusMessage('Turning off microphone');
+        setListeningState('processing');
+        setIsIndicatorVisible(true);
+        updateSetting('microphoneActive', false);
+        // applyMicrophonePreference will be called via useEffect when userSettings updates
+        resetToIdle(800, wasActivatedFromButton);
+        return;
+      }
+
+      if (
+        (normalized.includes('mic') || normalized.includes('microphone')) &&
+        (normalized.includes('on') || normalized.includes('enable') || normalized.includes('turn on') || normalized.includes('unmute'))
+      ) {
+        setStatusMessage('Turning on microphone');
+        setListeningState('processing');
+        setIsIndicatorVisible(true);
+        updateSetting('microphoneActive', true);
+        // applyMicrophonePreference will be called via useEffect when userSettings updates
+        resetToIdle(800, wasActivatedFromButton);
+        return;
+      }
+
+      // Voice input
+      if (
+        (normalized.includes('voice input') || normalized.includes('voice-input') || normalized.includes('voice')) &&
+        (normalized.includes('off') || normalized.includes('disable') || normalized.includes('turn off') || normalized.includes('deactivate'))
+      ) {
+        setStatusMessage('Turning off voice input');
+        setListeningState('processing');
+        setIsIndicatorVisible(true);
+        updateSetting('voiceInput', false);
+        // applyVoiceInputPreference will be called via useEffect when userSettings updates
+        resetToIdle(800, wasActivatedFromButton);
+        return;
+      }
+
+      if (
+        (normalized.includes('voice input') || normalized.includes('voice-input') || normalized.includes('voice')) &&
+        (normalized.includes('on') || normalized.includes('enable') || normalized.includes('turn on') || normalized.includes('activate'))
+      ) {
+        setStatusMessage('Turning on voice input');
+        setListeningState('processing');
+        setIsIndicatorVisible(true);
+        updateSetting('voiceInput', true);
+        // applyVoiceInputPreference will be called via useEffect when userSettings updates
+        resetToIdle(800, wasActivatedFromButton);
+        return;
+      }
+
+      // Check for navigation commands
       const navMatch = navigationCommands.find((item) =>
         item.matchers.some((matcher) => normalized.includes(matcher))
       );
@@ -422,22 +714,26 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setStatusMessage(navMatch.announcement);
         setListeningState('processing');
         setIsIndicatorVisible(true);
+        // Navigate immediately for faster response
         onNavigate(navMatch.path);
-        resetToIdle(VOICE_RESET_DELAY, wasActivatedFromButton);
+        resetToIdle(800, wasActivatedFromButton); // Reduced delay
         return;
       }
 
-      // Handle clear filters/search
+      // Handle clear filters/search - more variations
       if (
-        normalized.includes('clear') &&
-        (normalized.includes('filter') || normalized.includes('search') || normalized.includes('all'))
+        (normalized.includes('clear') || normalized.includes('remove') || normalized.includes('reset')) &&
+        (normalized.includes('filter') ||
+          normalized.includes('search') ||
+          normalized.includes('all') ||
+          normalized.includes('everything'))
       ) {
         setStatusMessage('Clearing all filters and search');
         setListeningState('processing');
         setIsIndicatorVisible(true);
         onNavigate('/browse');
         setSearchTerm('');
-        resetToIdle(VOICE_RESET_DELAY, wasActivatedFromButton);
+        resetToIdle(800, wasActivatedFromButton); // Reduced delay
         return;
       }
 
@@ -459,17 +755,17 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
           onNavigate('/browse');
           setSearchTerm(searchTerm);
         }
-        resetToIdle(VOICE_RESET_DELAY, wasActivatedFromButton);
+        resetToIdle(800, wasActivatedFromButton); // Reduced delay
         return;
       }
 
-      // If no match found
-      setStatusMessage("Sorry, I didn't catch that. Try saying a navigation command or search term.");
+      // If no match found - try to be more helpful
+      setStatusMessage("I didn't understand. Try: 'go to favorites', 'search for games', 'open settings', 'turn on dark mode', or 'turn off microphone'.");
       setListeningState('error');
       setIsIndicatorVisible(true);
-      resetToIdle(VOICE_RESET_DELAY, wasActivatedFromButton);
+      resetToIdle(1200, wasActivatedFromButton); // Slightly longer for error messages
     },
-    [onNavigate, resetToIdle, setSearchTerm]
+    [onNavigate, resetToIdle, setSearchTerm, updateSetting]
   );
 
   const handleSpeech = useCallback(
@@ -478,50 +774,118 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
 
       const normalized = transcript.trim().toLowerCase();
 
-      // Check if we're in listening mode by checking if recognition is active
-      // This avoids race conditions with state updates
-      const isCurrentlyListening = listeningState === 'listening';
+      // Check if we're in listening mode
+      const isCurrentlyListening = listeningState === 'listening' || listeningState === 'processing';
       const wasActivatedFromButton = safariActivationRef.current;
 
+      // Always check for wake words first, even when in awaiting mode
       if (!isCurrentlyListening) {
-        // Look for wake word
+        // Look for any wake word (hey assistant, hey, or assistant)
+        // Check in order: longest first to avoid partial matches
+        let wakeWordFound = false;
+        let withoutWakeWord = normalized;
+        let matchedWakeWord = '';
+
+        // Check for "hey assistant" first (longest)
         if (normalized.includes('hey assistant')) {
+          wakeWordFound = true;
+          matchedWakeWord = 'hey assistant';
+        } else if (normalized.includes('hey')) {
+          wakeWordFound = true;
+          matchedWakeWord = 'hey';
+        } else if (normalized.includes('assistant')) {
+          wakeWordFound = true;
+          matchedWakeWord = 'assistant';
+        }
+
+        if (wakeWordFound) {
+          // Remove the wake word and any following whitespace
+          const regex = new RegExp(matchedWakeWord.replace(/\s+/g, '\\s+'), 'i');
+          withoutWakeWord = normalized.replace(regex, '').trim();
+          
           setStatusMessage('Listening... Speak now');
           setIsIndicatorVisible(true);
           setListeningState('listening');
-          const withoutWakeWord = normalized.replace(/hey\s+assistant\s*/i, '').trim();
+          safariActivationRef.current = true; // Mark as activated
+          
+          // Ensure recognition keeps running
+          if (recognitionRef.current && canListen) {
+            try {
+              recognitionRef.current.start();
+            } catch (error: any) {
+              if (error?.name !== 'InvalidStateError') {
+                console.error('Recognition start error after wake word:', error);
+              }
+            }
+          }
+          
           if (withoutWakeWord) {
             // Process command immediately if there's text after wake word
             setTimeout(() => {
               processCommand(withoutWakeWord, false);
-            }, 100);
+            }, 50);
           }
+          return;
         }
+        
+        // No wake word found and not listening - ignore
         return;
       }
 
-      // We're in listening mode, process the command
-      processCommand(normalized, wasActivatedFromButton);
+      // We're in listening mode, process the command directly
+      // Also check if wake word is in the command and remove it
+      let commandToProcess = normalized;
+      for (const wakeWord of WAKE_WORDS) {
+        if (normalized.includes(wakeWord)) {
+          const regex = new RegExp(wakeWord.replace(/\s+/g, '\\s+'), 'i');
+          commandToProcess = normalized.replace(regex, '').trim();
+          break;
+        }
+      }
+      
+      if (commandToProcess) {
+        processCommand(commandToProcess, wasActivatedFromButton);
+      }
     },
     [canListen, listeningState, processCommand]
   );
 
   const handleRecognitionError = useCallback(
     (event: { error: string }) => {
+      // Don't reset if we're actively listening from button
+      const isActivelyListening = safariActivationRef.current && listeningState === 'listening';
+      
       if (event.error === 'no-speech') {
-        setStatusMessage("Sorry, I didn't catch that");
-        setListeningState('error');
-        setIsIndicatorVisible(true);
-        resetToIdle();
-      } else if (event.error !== 'aborted') {
+        if (isActivelyListening) {
+          // Keep listening, just show message
+          setStatusMessage("I didn't hear anything. Try speaking again.");
+          setListeningState('listening');
+          setIsIndicatorVisible(true);
+        } else {
+          setStatusMessage("Sorry, I didn't catch that");
+          setListeningState('error');
+          setIsIndicatorVisible(true);
+          resetToIdle(1000, false);
+        }
+      } else if (event.error === 'aborted') {
+        // Aborted is fine, recognition will restart
+        return;
+      } else {
         console.error('Speech recognition error:', event.error);
-        setStatusMessage('Voice assistant encountered an error');
-        setListeningState('error');
-        setIsIndicatorVisible(true);
-        resetToIdle(2500);
+        if (isActivelyListening) {
+          // Keep listening even on error
+          setStatusMessage('Encountered an error, but still listening. Try again.');
+          setListeningState('listening');
+          setIsIndicatorVisible(true);
+        } else {
+          setStatusMessage('Voice assistant encountered an error');
+          setListeningState('error');
+          setIsIndicatorVisible(true);
+          resetToIdle(2500, false);
+        }
       }
     },
-    [resetToIdle]
+    [resetToIdle, listeningState]
   );
 
   useEffect(() => {
@@ -550,12 +914,33 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
 
     recognition.onerror = handleRecognitionError;
     recognition.onend = () => {
-      if (canListen) {
-        ensureRecognition(true);
+      // Only restart if we should be listening
+      if (canListen && recognitionRef.current) {
+        // If we're in listening mode (especially from button), restart immediately
+        const shouldKeepListening = safariActivationRef.current || listeningState === 'listening' || listeningState === 'processing';
+        if (shouldKeepListening) {
+          // Restart immediately when actively listening - critical for button activation
+          setTimeout(() => {
+            if (recognitionRef.current && canListen && (safariActivationRef.current || listeningState === 'listening')) {
+              try {
+                recognitionRef.current.start();
+              } catch (error: any) {
+                // InvalidStateError means it's already running or starting
+                if (error?.name !== 'InvalidStateError') {
+                  console.error('Speech recognition restart error:', error);
+                }
+              }
+            }
+          }, 100); // Small delay to ensure clean restart
+        } else {
+          // Otherwise, restart with activation requirement (for wake word mode)
+          ensureRecognition(true);
+        }
       }
     };
 
-    if (!isSafari) {
+    // Always start recognition if not Safari, or if Safari and already activated
+    if (!isSafari || safariActivationRef.current) {
       ensureRecognitionUnlocked();
     }
 
@@ -570,50 +955,107 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
   useEffect(() => {
     if (!recognitionSupported) return;
 
+    // Don't reset state if we're actively listening from button - this is critical!
+    if (safariActivationRef.current && (listeningState === 'listening' || listeningState === 'processing')) {
+      // Keep recognition running
+      if (canListen && recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+        } catch (error: any) {
+          // Already running is fine
+          if (error?.name !== 'InvalidStateError') {
+            console.error('Recognition start error in useEffect:', error);
+          }
+        }
+      }
+      return; // Keep current state - don't reset!
+    }
+
     if (canListen) {
-      setListeningState('awaiting');
-      setStatusMessage(
-        safariActivationRef.current || !isSafari
-          ? 'Say "Hey Assistant" or press Ctrl + Shift + V'
-          : SAFARI_LISTENING_HINT
-      );
+      // Only set to awaiting if not already listening or processing
+      if (listeningState !== 'listening' && listeningState !== 'processing') {
+        setListeningState('awaiting');
+        setStatusMessage(
+          safariActivationRef.current || !isSafari
+            ? 'Say "Hey", "Assistant", or "Hey Assistant" to start'
+            : SAFARI_LISTENING_HINT
+        );
+      }
+      // Always ensure recognition is running when canListen is true
       if (!isSafari || safariActivationRef.current) {
         ensureRecognitionUnlocked();
       }
     } else {
-      setListeningState('idle');
-      setIsIndicatorVisible(false);
-      setStatusMessage(
-        !voiceInputEnabled
-          ? 'Voice input is switched off'
-          : 'Microphone is muted'
-      );
-      recognitionRef.current?.stop();
+      // Only reset if not actively listening from button
+      if (!safariActivationRef.current || listeningState !== 'listening') {
+        setListeningState('idle');
+        setIsIndicatorVisible(false);
+        setStatusMessage(
+          !voiceInputEnabled
+            ? 'Voice input is switched off'
+            : 'Microphone is muted'
+        );
+        recognitionRef.current?.stop();
+      }
     }
-  }, [canListen, ensureRecognitionUnlocked, isSafari, recognitionSupported, voiceInputEnabled]);
+  }, [canListen, ensureRecognitionUnlocked, isSafari, recognitionSupported, voiceInputEnabled, listeningState]);
 
   const activateFromVoiceButton = useCallback(() => {
     if (!voiceInputEnabled) {
       setStatusMessage('Turn Voice Input on in Accessibility Settings');
       setListeningState('error');
       setIsIndicatorVisible(true);
-      resetToIdle();
+      resetToIdle(1500, false);
       return;
     }
     if (!microphoneActive) {
       setStatusMessage('Microphone muted — enable it to use voice commands');
       setListeningState('error');
       setIsIndicatorVisible(true);
-      resetToIdle();
+      resetToIdle(1500, false);
       return;
     }
 
+    // Clear any pending resets - this is critical!
+    clearHideTimer();
+    
+    // Set activation flag BEFORE setting state
     safariActivationRef.current = true;
     setIsIndicatorVisible(true);
     setListeningState('listening');
-    setStatusMessage('Listening... Speak now or say "cancel"');
-    ensureRecognitionUnlocked();
-  }, [ensureRecognitionUnlocked, microphoneActive, resetToIdle, voiceInputEnabled]);
+    setStatusMessage('Listening... Say "Hey", "Assistant", or your command');
+    
+    // Start recognition immediately and keep it running
+    // Use a small delay to ensure state is set
+    setTimeout(() => {
+      if (recognitionRef.current && canListen) {
+        try {
+          // Stop first if running to restart fresh
+          try {
+            recognitionRef.current.stop();
+          } catch (e) {
+            // Ignore stop errors
+          }
+          // Then start
+          setTimeout(() => {
+            if (recognitionRef.current && canListen && safariActivationRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch (error: any) {
+                if (error?.name !== 'InvalidStateError') {
+                  console.error('Recognition start error in activateFromVoiceButton:', error);
+                }
+              }
+            }
+          }, 50);
+        } catch (error: any) {
+          console.error('Recognition error in activateFromVoiceButton:', error);
+        }
+      }
+    }, 10);
+    
+    // Don't auto-reset when activated from button - user must say "cancel" or close the popup
+  }, [canListen, microphoneActive, resetToIdle, voiceInputEnabled, clearHideTimer]);
 
   const applyVoiceInputPreference = useCallback(
     (value: boolean) => {
@@ -627,7 +1069,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setListeningState('awaiting');
         setStatusMessage(
           safariActivationRef.current || !isSafari
-            ? 'Say "Hey Assistant" or press Ctrl + Shift + V'
+            ? 'Say "Hey", "Assistant", or "Hey Assistant" to start'
             : SAFARI_LISTENING_HINT
         );
         if (!isSafari || safariActivationRef.current) {
@@ -650,7 +1092,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setListeningState('awaiting');
         setStatusMessage(
           safariActivationRef.current || !isSafari
-            ? 'Say "Hey Assistant" or press Ctrl + Shift + V'
+            ? 'Say "Hey", "Assistant", or "Hey Assistant" to start'
             : SAFARI_LISTENING_HINT
         );
         if (!isSafari || safariActivationRef.current) {
