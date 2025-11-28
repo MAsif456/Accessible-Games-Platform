@@ -85,7 +85,11 @@ export async function getReviewById(reviewId: string): Promise<ReviewDto> {
   return res.json();
 }
 
-export async function postReview(gameId: string, body: string): Promise<ReviewDto> {
+export async function postReview(
+  gameId: string,
+  body: string,
+  authorName?: string
+): Promise<ReviewDto> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...getAuthHeaders(),
@@ -94,7 +98,11 @@ export async function postReview(gameId: string, body: string): Promise<ReviewDt
   const res = await fetch(`/api/games/${gameId}/reviews`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({
+      body,
+      // Include authorName so the backend can persist the reviewer display name for all viewers
+      ...(authorName ? { authorName } : {}),
+    }),
   });
   if (!res.ok) {
     throw new Error(`Failed to post review: ${res.status}`);
@@ -137,4 +145,46 @@ export async function reportReview(
   if (!res.ok) {
     throw new Error(`Failed to submit report: ${res.status}`);
   }
+}
+
+export async function deleteReview(reviewId: string): Promise<void> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...getAuthHeaders(),
+  };
+
+  const response = await fetch(`/api/reviews/${reviewId}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.message || 'Failed to delete review');
+  }
+}
+
+/**
+ * Fetch the display name for a given user. Returns null if unavailable.
+ * This helps fill in missing author names on reviews for all viewers.
+ */
+export async function getUserDisplayName(userId: string): Promise<string | null> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+
+  const res = await fetch(`/api/users/${userId}`, { headers });
+  if (!res.ok) {
+    return null;
+  }
+
+  const data = await res.json().catch(() => null);
+  if (!data) return null;
+
+  // Support common response shapes { name } or { fullName } or nested { user: { name } }
+  const topLevelName = (data.name || data.fullName || data.username) as string | undefined;
+  const nestedName =
+    (data.user?.name || data.user?.fullName || data.user?.username) as string | undefined;
+
+  return topLevelName?.trim() || nestedName?.trim() || null;
 }

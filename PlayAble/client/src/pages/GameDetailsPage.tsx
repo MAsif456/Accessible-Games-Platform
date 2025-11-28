@@ -1,12 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { GameDto, getGames, getReviews, postReview, ReviewDto, toggleReviewLike } from '../services/api';
+import {
+  GameDto,
+  getGames,
+  getReviews,
+  getUserDisplayName,
+  postReview,
+  ReviewDto,
+  toggleReviewLike,
+  deleteReview,
+} from '../services/api';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
+import type { AppPath } from '../App';
 
 interface GameDetailsPageProps {
   gameId: string;
   onBack: () => void;
-  onReportReview?: (reviewId: string) => void;
+  onNavigate?: (path: AppPath) => void;
 }
 
 // Simple model fetch using existing getGames API (no new backend needed)
@@ -21,7 +31,11 @@ interface ExternalTarget {
   url: string;
 }
 
-const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onReportReview }) => {
+const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
+  gameId,
+  onBack,
+  onNavigate,
+}) => {
   const { user, isAuthenticated } = useAuth();
 
   const [game, setGame] = useState<GameDto | null>(null);
@@ -34,6 +48,9 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onRep
   const [reviews, setReviews] = useState<ReviewDto[]>([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
+  const [reviewerNames, setReviewerNames] = useState<Record<string, string>>({});
+
+  const minReviewLength = 10;
 
   useEffect(() => {
     let isMounted = true;
@@ -85,6 +102,45 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onRep
     };
   }, [game?.id]);
 
+  // Fetch missing reviewer display names for reviews that don't include authorName
+  useEffect(() => {
+    const missingUserIds = Array.from(
+      new Set(
+        reviews
+          .filter(r => !r.authorName?.trim() && r.userId && !reviewerNames[r.userId])
+          .map(r => r.userId)
+      )
+    );
+
+    if (!missingUserIds.length) return;
+
+    let isCurrent = true;
+    (async () => {
+      const results = await Promise.all(
+        missingUserIds.map(async id => {
+          const name = await getUserDisplayName(id);
+          return { id, name };
+        })
+      );
+
+      if (!isCurrent) return;
+
+      setReviewerNames(prev => {
+        const next = { ...prev };
+        results.forEach(({ id, name }) => {
+          if (name) {
+            next[id] = name;
+          }
+        });
+        return next;
+      });
+    })();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [reviews, reviewerNames]);
+
   const downloadButtons: ExternalTarget[] = useMemo(() => {
     if (!game) return [];
 
@@ -95,16 +151,28 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onRep
   }, [game]);
 
   const handlePostReview = async () => {
-    if (!game || !writtenReview.trim()) return;
+    const trimmed = writtenReview.trim();
+    if (!game || trimmed.length < minReviewLength) {
+      if (trimmed.length < minReviewLength) {
+        setReviewError(`Review must be at least ${minReviewLength} characters long.`);
+      }
+      return;
+    }
     setIsPostingReview(true);
     setReviewError(null);
     try {
-      const created = await postReview(game.id, writtenReview.trim());
+      const created = await postReview(game.id, trimmed, postingName);
+      // Ensure the newly created review reflects the same postingName used in the UI, even if backend omits it
+      const createdWithDisplayName: ReviewDto = {
+        ...created,
+        authorName: created.authorName || postingName,
+      };
       setWrittenReview('');
-      setReviews(prev => [created, ...prev]);
-    } catch (err) {
+      setReviews(prev => [createdWithDisplayName, ...prev]);
+    } catch (err: any) {
       console.error(err);
-      setReviewError('Failed to post review. Please try again.');
+      const serverMessage = err?.response?.data?.message;
+      setReviewError(serverMessage || 'Failed to post review. Please try again.');
     } finally {
       setIsPostingReview(false);
     }
@@ -170,7 +238,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onRep
   const motorTags = game.accessibilityTags.slice(Math.ceil(game.accessibilityTags.length / 2));
 
   const isMaxEvans = isAuthenticated && user?.name === 'Max Evans';
-  const postingName = isMaxEvans ? user?.name : user?.name ?? 'Guest';
+  const postingName = isMaxEvans ? user?.name : user?.name ?? user?.email ?? 'Guest';
 
   return (
     <main className="game-details" aria-label={`Game details for ${game.title}`}>
@@ -333,6 +401,9 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onRep
                   <p className="game-details__reviews-note">
                     A written review is required, or you can use voice recording below instead.
                   </p>
+                  <p className="game-details__reviews-note">
+                    Minimum {minReviewLength} characters.
+                  </p>
                   {reviewError && (
                     <p className="game-details__reviews-error" role="alert">
                       {reviewError}
@@ -357,7 +428,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onRep
                     type="button"
                     className="game-details__primary-btn game-details__primary-btn--submit"
                     onClick={handlePostReview}
-                    disabled={!writtenReview.trim() || isPostingReview}
+                    disabled={writtenReview.trim().length < minReviewLength || isPostingReview}
                   >
                     {isPostingReview ? 'Posting...' : 'Post Review'}
                   </button>
@@ -371,9 +442,17 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onRep
                   <h3>Share Your Experience</h3>
                   <p>Please login to write a review about the accessibility of this game.</p>
                 </div>
-                <button type="button" className="game-details__primary-btn game-details__primary-btn--login" onClick={() => {
-                    window.location.href = '/signin';
-                  }}>
+                <button
+                  type="button"
+                  className="game-details__primary-btn game-details__primary-btn--login"
+                  onClick={() => {
+                    if (onNavigate) {
+                      onNavigate('/signin');
+                    } else {
+                      window.location.href = '/signin';
+                    }
+                  }}
+                >
                   Login to Review
                 </button>
               </div>
@@ -398,6 +477,18 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onRep
               reviews.map(review => {
                 const createdDate = new Date(review.createdAt).toLocaleDateString();
                 const liked = likedReviews.has(review._id);
+                const canDelete = isAuthenticated && user && review.userId === user.id;
+                const displayAuthorName =
+                  review.authorName?.trim() ||
+                  reviewerNames[review.userId] ||
+                  (review.userId === user?.id ? postingName : '') ||
+                  'Anonymous';
+                const displayInitials = displayAuthorName
+                  .split(' ')
+                  .map(part => part[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase();
                 const handleClickLike = () => {
                   const nextLiked = !liked;
                   handleToggleLike(review, nextLiked);
@@ -407,42 +498,50 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({ gameId, onBack, onRep
                   <div key={review._id} className="game-details__review-card">
                     <header className="game-details__review-card-header">
                       <div className="game-details__review-avatar" aria-hidden="true">
-                        {review.authorName
-                          .split(' ')
-                          .map(part => part[0])
-                          .join('')
-                          .slice(0, 2)
-                          .toUpperCase()}
+                        {displayInitials}
                       </div>
                       <div className="game-details__review-meta">
-                        <p className="game-details__review-author">{review.authorName}</p>
-                        <p className="game-details__review-date">{createdDate}</p>
+                        <span className="game-details__review-author">{displayAuthorName}</span>
+                        <span className="game-details__review-date">Reviewed on {createdDate}</span>
                       </div>
-                      {isMaxEvans && review.authorName === 'Max Evans' && (
-                        <button type="button" className="game-details__review-delete">
-                          Delete
-                        </button>
-                      )}
                     </header>
                     <p className="game-details__review-text">{review.body}</p>
-                    <div className="game-details__review-footer">
+                    <footer className="game-details__review-footer">
                       <button
                         type="button"
                         className={`game-details__review-like${liked ? ' game-details__review-like--active' : ''}`}
                         onClick={handleClickLike}
                       >
-                        <span aria-hidden="true" className="game-details__review-like-icon" />
-                        {review.likes}
+                        <span className="game-details__review-like-icon" aria-hidden="true" />
+                        <span>{review.likes}</span>
                       </button>
                       <button
                         type="button"
                         className="game-details__review-report"
-                        onClick={() => onReportReview?.(review._id)}
                       >
-                        <span aria-hidden="true" className="game-details__review-report-icon" />
-                        Report
+                        <span className="game-details__review-report-icon" aria-hidden="true" />
+                        <span>Report</span>
                       </button>
-                    </div>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          className="game-details__review-delete"
+                          onClick={async () => {
+                            const confirmed = window.confirm('Are you sure you want to delete this review?');
+                            if (!confirmed) return;
+
+                            try {
+                              await deleteReview(review._id);
+                              setReviews(prev => prev.filter(r => r._id !== review._id));
+                            } catch (err) {
+                              console.error('Failed to delete review', err);
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </footer>
                   </div>
                 );
               })}

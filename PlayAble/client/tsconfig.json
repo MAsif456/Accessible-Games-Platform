@@ -15,7 +15,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["jest", "node"],
+    "types": ["vite/client", "jest", "node"],
     "esModuleInterop": true
   },
   "include": ["src", "tests"],

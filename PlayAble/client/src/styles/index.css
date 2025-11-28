@@ -79,6 +79,59 @@ body,
   border: 0;
 }
 
+/* Skip Link Pattern - appears when focused */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  z-index: 1000;
+  padding: 8px 16px;
+  background-color: #4f46e5;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: top 0.3s ease;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Enhanced Focus Indicators */
+*:focus {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+/* Custom focus styling for specific elements */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+a:focus,
+[role="button"]:focus,
+[role="menuitem"]:focus,
+[tabindex]:focus {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+/* High contrast focus indicators */
+@media (prefers-contrast: high) {
+  *:focus {
+    outline: 3px solid;
+    outline-color: highlight;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}
+
 /* NAVBAR */
 .navbar {
   position: sticky;
@@ -442,6 +495,14 @@ body,
   font-weight: bold;
 }
 
+/* Filters section */
+.browse-page__filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
 /* Filters button next to big search bar */
 .browse-page__filters-button {
   display: inline-flex;
@@ -453,6 +514,7 @@ body,
   background-color: #fff;
   cursor: pointer;
   font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .browse-page__filters-button--primary {
@@ -738,6 +800,17 @@ body,
   background-color: #f0f0f0;
 }
 
+.browse-page__filters-button:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.browse-page__filters-button[aria-pressed="true"] {
+  background-color: #4f46e5;
+  color: #ffffff;
+  border-color: #4f46e5;
+}
+
 /* Game grid */
 .browse-page__grid {
   display: grid;
@@ -752,14 +825,30 @@ body,
   box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  transition: all 0.2s ease;
   cursor: pointer;
   border: 2px solid transparent;
   position: relative;
 }
 
-.game-card:focus-visible {
+.game-card__button {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-card__button:focus-visible,
+.game-card:focus-within {
   outline: none;
-  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px #4f46e5;
+  transform: translateY(-2px);
+}
+
+.game-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.12);
 }
 
 .game-card__thumbnail {
@@ -2880,7 +2969,7 @@ body.high-contrast .contrast-theme-picker__header p {
   border: none;
   cursor: pointer;
   color: #ffffff;
-  background: #020617;
+  background: #000000;
 }
 
 .download-button__inner {
@@ -2893,15 +2982,28 @@ body.high-contrast .contrast-theme-picker__header p {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .download-button__icon--app-store::before {
-  content: '\f8ff'; /* Apple glyph where supported */
+  content: '';
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23fff' d='M17.24 12.69c-.02-1.66.73-2.92 2.23-3.81-.83-1.2-2.09-1.86-3.73-2-.34 0-.83.1-1.46.3-.63.21-1.08.31-1.34.31-.34 0-.77-.1-1.29-.29a5.4 5.4 0 0 0-1.59-.29c-1.17.02-2.22.35-3.13 1-.9.66-1.5 1.5-1.8 2.51-.3 1-.3 2 .02 3 .33 1.03.95 1.86 1.87 2.49.73.49 1.46.74 2.18.74.35 0 .8-.1 1.33-.28.53-.2.96-.3 1.27-.3.3 0 .72.1 1.28.29.55.2 1.06.3 1.52.3.77-.02 1.47-.23 2.12-.62.36-.22.68-.48.97-.78-.58-.55-.86-1.27-.88-2.07Zm-1.87-7.4c.47-.58.7-1.26.68-2.03-.66.04-1.26.27-1.78.69-.53.41-.88.97-1.03 1.67-.06.31-.08.54-.07.67.67.05 1.27-.2 1.8-.6.47-.35.83-.8 1.1-1.4Z'/%3E%3C/svg%3E");
 }
 
 .download-button__icon--play-store::before {
-  content: '\25B6'; /* Play triangle */
+  content: '';
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23fff' d='M4 3.6c0-.55.6-.9 1.07-.62l12.72 7.4c.48.28.48.96 0 1.24L5.07 19.02A.72.72 0 0 1 4 18.4V3.6Z'/%3E%3C/svg%3E");
 }
 
 .download-button__label {
@@ -2922,8 +3024,13 @@ body.high-contrast .contrast-theme-picker__header p {
 }
 
 .download-button__external::before {
-  content: '\2197';
-  font-size: 0.85rem;
+  content: '';
+  display: block;
+  width: 0.95rem;
+  height: 0.95rem;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M13 5h6m0 0v6m0-6-8 8m-2 2H6a1 1 0 0 1-1-1v-3'/%3E%3C/svg%3E");
 }
 
 /* Right column */
@@ -3166,13 +3273,20 @@ body.high-contrast .contrast-theme-picker__header p {
   gap: 0.4rem;
   padding: 0.6rem 1.2rem;
   border-radius: 999px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #111827;
   background-color: #ffffff;
   cursor: pointer;
+  color: #111827;
 }
 
 .game-details__voice-button::before {
-  content: '\1F3A4';
+  content: '';
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='9' y='4' width='6' height='10' rx='3' stroke='%23111827' stroke-width='2'/%3E%3Cpath stroke='%23111827' stroke-width='2' stroke-linecap='round' d='M12 18v2m-4-8a4 4 0 0 0 8 0'/%3E%3Cpath stroke='%23111827' stroke-width='2' stroke-linecap='round' d='M6 12a6 6 0 0 0 12 0'/%3E%3C/svg%3E");
 }
 
 /* Post Review: bottom-right in normal flow, NOT absolutely positioned */
@@ -3350,7 +3464,7 @@ body.high-contrast .contrast-theme-picker__header p {
 }
 
 .game-details__review-like {
-  margin-top: 1.1rem;
+  margin-top: 0;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -3364,7 +3478,13 @@ body.high-contrast .contrast-theme-picker__header p {
 }
 
 .game-details__review-like-icon::before {
-  content: '\1F44D';
+  content: '';
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10.5 21a1.5 1.5 0 0 1-1.5-1.5V10.2L13 4.5c.14-.23.4-.37.67-.37.76 0 1.34.68 1.16 1.42l-.86 3.45h4.1c.83 0 1.44.78 1.21 1.57l-1.75 6a1.3 1.3 0 0 1-1.24.93H10.5Z' stroke='currentColor' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M6.5 10v10' stroke='currentColor' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 .game-details__review-delete {
@@ -3479,10 +3599,16 @@ body.high-contrast .contrast-theme-picker__header p {
     justify-content: center; 
     gap: 6px;                
     border-radius: 12px;
+    border: 1px solid #c7cdd8;
+    background-color: #f8fafc;
+    cursor: pointer;
+    color: #374151;
 }
 
 .game-details__review-like--active {
-  border-color: #111827;
+  border-color: #2563eb;
+  background-color: #dbeafe;
+  color: #1d4ed8;
 }
 
 /* Simple thumbs-up icon (no extra box behind it) */
@@ -3502,7 +3628,7 @@ body.high-contrast .contrast-theme-picker__header p {
 
 /* Report stays red but same size as like */
 .game-details__review-report {
-  color: #b91c1c;
+  color: #374151;
 }
 
 .game-details__review-report-icon {
@@ -3518,7 +3644,7 @@ body.high-contrast .contrast-theme-picker__header p {
   bottom: 0;
   width: 0;
   height: 0.8rem;
-  border-left: 2px solid #b91c1c;
+  border-left: 2px solid #111827;
 }
 
 .game-details__review-report-icon::after {
@@ -3528,7 +3654,7 @@ body.high-contrast .contrast-theme-picker__header p {
   top: 0;
   width: 0.7rem;
   height: 0.6rem;
-  border: 2px solid #b91c1c;
+  border: 2px solid #111827;
   border-left: none;
   border-bottom-left-radius: 0.2rem;
   border-top-right-radius: 0.3rem;
@@ -3821,5 +3947,38 @@ body.high-contrast .contrast-theme-picker__header p {
   background-color: #ffffff;
   font-size: 0.9rem;
   cursor: pointer;
+}
+
+/* Icon overrides for monochrome SVGs */
+.game-details__review-like-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10.5 21a1.5 1.5 0 0 1-1.5-1.5V10.2L13 4.5c.14-.23.4-.37.67-.37.76 0 1.34.68 1.16 1.42l-.86 3.45h4.1c.83 0 1.44.78 1.21 1.57l-1.75 6a1.3 1.3 0 0 1-1.24.93H10.5Z' stroke='%23111827' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M6.5 10v10' stroke='%23111827' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.game-details__review-report-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 4v16m0-12h10l-2 4 2 4H6' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.game-details__review-report-icon::after {
+  content: none;
+}
+
+/* Final overrides to normalize like/report icons */
+.game-details__review-like-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10.5 21a1.5 1.5 0 0 1-1.5-1.5V10.2L13 4.5c.14-.23.4-.37.67-.37.76 0 1.34.68 1.16 1.42l-.86 3.45h4.1c.83 0 1.44.78 1.21 1.57l-1.75 6a1.3 1.3 0 0 1-1.24.93H10.5Z' stroke='currentColor' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M6.5 10v10' stroke='currentColor' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
