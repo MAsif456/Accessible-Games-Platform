@@ -14,12 +14,13 @@ import SignInPage from './pages/SignInPage';
 import MyProfilePage from './pages/MyProfilePage';
 import InboxPage from './pages/InboxPage';
 import AboutPage from './pages/AboutPage';
-import ReportPage from './pages/ReportPage';
 import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
+import GameDetailsPage from './pages/GameDetailsPage';
 
 export type AppPath =
   | '/'
   | '/browse'
+  | '/game-details'
   | '/favourites'
   | '/recently-viewed'
   | '/settings'
@@ -28,9 +29,7 @@ export type AppPath =
   | '/my-profile'
   | '/change-email-password'
   | '/inbox'
-  | '/about'
-  | '/report'
-  | '/change-email-password';
+  | '/about';
 
 const PAGE_SIZE = 9;
 const protectedPaths: AppPath[] = [
@@ -54,6 +53,7 @@ function App() {
 function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protectedPaths: AppPath[] }) {
   const { user, isAuthenticated, logout } = useAuth();
   const [path, setPath] = useState<AppPath>('/');
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -73,6 +73,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
     if (
       newPath === '/' ||
       newPath === '/browse' ||
+      newPath === '/game-details' ||
       newPath === '/favourites' ||
       newPath === '/recently-viewed' ||
       newPath === '/settings' ||
@@ -81,9 +82,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       newPath === '/my-profile' ||
       newPath === '/change-email-password' ||
       newPath === '/inbox' ||
-      newPath === '/about' ||
-      newPath === '/report' ||
-      newPath === '/change-email-password'
+      newPath === '/about'
     ) {
       const typedPath = newPath as AppPath;
 
@@ -127,7 +126,8 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
 
   const handleGameClick = (gameId: string) => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-    console.log('Open details for', gameId);
+    setSelectedGameId(gameId);
+    handleNavigate('/game-details');
   };
 
   const userRole = user?.role || 'guest';
@@ -198,10 +198,20 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
               onSearchChange={handleSearchChange}
             />
           )}
+
+          {path === '/game-details' && selectedGameId && (
+            <GameDetailsPage
+              gameId={selectedGameId}
+              onBack={() => handleNavigate('/browse')}
+              onNavigate={handleNavigate}
+            />
+          )}
+
           {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
           {path === '/recently-viewed' && <RecentlyViewedPage />}
           {path === '/settings' && <SettingsPage />}
           {path === '/admin' && <AdminPage />}
+
           {path === '/signin' && (
             <SignInPage
               onNavigate={handleNavigate}
@@ -215,11 +225,18 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
               }}
             />
           )}
-          {path === '/my-profile' && <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />}
-          {path === '/change-email-password' && <ChangeEmailPasswordPage onNavigate={handleNavigate} />}
+
+          {path === '/my-profile' && (
+            <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />
+          )}
+
+          {path === '/change-email-password' && (
+            <ChangeEmailPasswordPage onNavigate={handleNavigate} />
+          )}
+
           {path === '/inbox' && <InboxPage />}
           {path === '/about' && <AboutPage />}
-          {path === '/report' && <ReportPage />}
+
         </main>
       </div>
 
