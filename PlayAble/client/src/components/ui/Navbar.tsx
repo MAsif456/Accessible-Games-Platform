@@ -5,7 +5,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import useFocusTrap from '../../hooks/navigation/useFocusTrap';
 import NavbarAccountMenu from './NavbarAccountMenu';
-import NavbarVoicePopup from './NavbarVoicePopup';
+import { useVoiceAssistant } from '../../context/VoiceAssistantContext';
 
 export type UserRole = 'guest' | 'user' | 'admin';
 
@@ -25,7 +25,7 @@ const navItems = [
   { key: 'recently-viewed', label: 'Recently Viewed', path: '/recently-viewed', icon: 'clock' },
   { key: 'favourites', label: 'Favourites', path: '/favourites', icon: 'heart' },
   { key: 'settings', label: 'Settings', path: '/settings', icon: 'cog' },
-  { key: 'voice', label: 'Voice', path: '/voice', icon: 'mic' },
+  { key: 'voice', label: 'Listening', path: '/voice', icon: 'mic' },
 ];
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -41,6 +41,15 @@ const Navbar: React.FC<NavbarProps> = ({
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const {
+    voiceInputEnabled,
+    microphoneActive,
+    listeningState,
+    statusMessage,
+    isIndicatorVisible,
+    activateFromVoiceButton,
+    recognitionSupported,
+  } = useVoiceAssistant();
 
   // Refs for navigation elements
   const accountMenuRef = useRef<HTMLDivElement>(null);
@@ -53,7 +62,13 @@ const Navbar: React.FC<NavbarProps> = ({
 
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
-      setIsVoiceOpen(prev => !prev);
+      setIsVoiceOpen((prev) => {
+        const next = !prev;
+        if (!prev) {
+          activateFromVoiceButton();
+        }
+        return next;
+      });
       return;
     }
     if (onNavigate) onNavigate(path);
@@ -148,9 +163,56 @@ const Navbar: React.FC<NavbarProps> = ({
         </div>
         <nav className="navbar__nav" aria-label="Primary">
           <ul className="navbar__nav-list" role="menubar">
-            {navItems.map(item => {
-              const isActive =
-                currentPath === item.path || (item.key === 'browse' && currentPath === '/');
+            {navItems.map((item) => {
+              const isActive = currentPath === item.path || (item.key === 'browse' && currentPath === '/');
+              if (item.key === 'voice') {
+                return (
+                  <li key={item.key} className="navbar__voice" role="none">
+                    <div className="navbar__voice-wrapper">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleNavClick(item.path)}
+                        className={
+                          'navbar__nav-button navbar__nav-button--voice' +
+                          (isActive || isVoiceOpen ? ' navbar__nav-button--primary' : '')
+                        }
+                        aria-pressed={isVoiceOpen}
+                        aria-current={isActive ? 'page' : undefined}
+                      >
+                        <span
+                          className={`navbar__nav-icon navbar__nav-icon--${item.icon}`}
+                          aria-hidden="true"
+                        />
+                        <span>{voiceInputEnabled && microphoneActive ? 'Listening' : 'Voice'}</span>
+                        <span
+                          className={`navbar__voice-status ${
+                            microphoneActive ? 'navbar__voice-status--active' : 'navbar__voice-status--muted'
+                          }`}
+                        >
+                          {microphoneActive ? 'Mic Active' : 'Mic Muted'}
+                        </span>
+                      </button>
+                      {isIndicatorVisible && (
+                        <div
+                          className={`voice-indicator voice-indicator--${listeningState}`}
+                          role="status"
+                          aria-live="assertive"
+                        >
+                          <span className="voice-indicator__dot" aria-hidden="true" />
+                          <span className="voice-indicator__text">
+                            {listeningState === 'listening'
+                              ? 'Listening...'
+                              : listeningState === 'processing'
+                              ? 'Processing'
+                              : statusMessage}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              }
               return (
                 <li key={item.key} role="none">
                   <button
@@ -211,9 +273,64 @@ const Navbar: React.FC<NavbarProps> = ({
           </ul>
         </nav>
       </div>
-
-      <NavbarVoicePopup isOpen={isVoiceOpen} />
-
+      {isVoiceOpen && (
+        <div className="voice-popup" role="dialog" aria-modal="false" aria-live="polite">
+          <div className="voice-popup__header">
+            <div className={`voice-popup__chip voice-popup__chip--${listeningState}`}>
+              <span className="voice-popup__pulse" aria-hidden="true" />
+              {listeningState === 'listening'
+                ? 'Listening'
+                : listeningState === 'processing'
+                ? 'Working'
+                : listeningState === 'error'
+                ? 'Help needed'
+                : 'Ready'}
+            </div>
+            <button
+              type="button"
+              className="voice-popup__close"
+              onClick={() => setIsVoiceOpen(false)}
+              aria-label="Close voice panel"
+            >
+              ×
+            </button>
+          </div>
+          <p className="voice-popup__message">{statusMessage}</p>
+          <div className="voice-popup__status-grid">
+            <div className="voice-popup__status-card">
+              <span className="voice-popup__status-label">Voice Input</span>
+              <span className="voice-popup__status-value">{voiceInputEnabled ? 'On' : 'Off'}</span>
+            </div>
+            <div className="voice-popup__status-card">
+              <span className="voice-popup__status-label">Microphone</span>
+              <span className="voice-popup__status-value">
+                {microphoneActive ? 'Active' : 'Muted'}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="voice-popup__action"
+            onClick={activateFromVoiceButton}
+            disabled={!voiceInputEnabled || !microphoneActive || !recognitionSupported}
+          >
+            {listeningState === 'listening' ? 'Listening...' : 'Tap to start listening'}
+          </button>
+          {!recognitionSupported && (
+            <p className="voice-popup__notice">
+              Voice control is not supported in this browser. Try latest Chrome or Edge.
+            </p>
+          )}
+          <div className="voice-popup__examples">
+            <span>Try saying:</span>
+            <ul>
+              <li>"Hey Assistant, open accessibility settings"</li>
+              <li>"Show recently viewed games"</li>
+              <li>"Find games with subtitle support"</li>
+            </ul>
+          </div>
+        </div>
+      )}
       {showLogoutConfirm && (
         <div
           role="dialog"
