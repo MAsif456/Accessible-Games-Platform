@@ -2,6 +2,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 
+// Polyfill TextEncoder for react-router-dom and other libraries that expect it in the test environment
+import { TextEncoder as NodeTextEncoder } from 'util';
+// @ts-ignore
+if (typeof global.TextEncoder === 'undefined') {
+  // @ts-ignore
+  global.TextEncoder = NodeTextEncoder;
+}
+
 // Mock window.open so we can assert external navigation without actually leaving the test environment
 const originalWindowOpen = window.open;
 

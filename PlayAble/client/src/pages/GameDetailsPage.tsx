@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { GameDto, getCachedGame, getGameById, getReviews, getUserDisplayName, postReview, ReviewDto, toggleReviewLike, deleteReview } from '../services/api';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useFavouritesNav } from '../context/FavouritesContext';
 import type { AppPath } from '../App';
 
 interface GameDetailsPageProps {
@@ -25,6 +26,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   onOpenReviewReport,
 }) => {
   const { user, isAuthenticated } = useAuth();
+  const { toggleFavourite, isFavourite } = useFavouritesNav();
 
   const [game, setGame] = useState<GameDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -227,6 +229,17 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     }
   };
 
+  const handleToggleFavourite = async () => {
+    if (!game) return;
+    try {
+      await toggleFavourite(game.id);
+    } catch (err) {
+      console.error('Failed to toggle favourite from GameDetailsPage', err);
+    }
+  };
+
+  const isGameFavourite = game ? isFavourite(game.id) : false;
+
   if (loading) {
     return (
       <main className="game-details" aria-busy="true">
@@ -278,8 +291,17 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
               className="game-details__hero-image"
             />
             <div className="game-details__hero-actions">
-              <button type="button" className="game-details__primary-btn">
-                Add to Favourites
+              <button
+                type="button"
+                className="game-details__secondary-btn game-details__secondary-btn--favourite"
+                onClick={handleToggleFavourite}
+                aria-pressed={isGameFavourite}
+              >
+                <span
+                  className={`game-details__favourite-icon${isGameFavourite ? ' game-details__favourite-icon--active' : ''}`}
+                  aria-hidden="true"
+                />
+                <span>{isGameFavourite ? 'Unfavourite' : 'Add to favourites'}</span>
               </button>
               <button
                 type="button"
