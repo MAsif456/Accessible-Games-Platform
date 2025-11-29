@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Review from '../models/review';
 import User from '../models/user';
+import Game from '../models/game';
 
 type AuthedRequest = Request & {
   user?: {
@@ -117,7 +118,21 @@ export const getReviewById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Review not found' });
     }
 
-    res.json(review);
+    // Fetching the associated game so the reporting UI can show full context
+    const game = await Game.findById(review.gameId).lean();
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found for this review' });
+    }
+
+    return res.json({
+      game,
+      review: {
+        id: review._id.toString(),
+        author: review.authorName,
+        createdAt: review.createdAt,
+        content: review.body,
+      },
+    });
   } catch (error) {
     console.error('Error fetching review', error);
     res.status(500).json({ message: 'Failed to fetch review' });

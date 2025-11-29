@@ -1,14 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  GameDto,
-  getGames,
-  getReviews,
-  getUserDisplayName,
-  postReview,
-  ReviewDto,
-  toggleReviewLike,
-  deleteReview,
-} from '../services/api';
+import { GameDto, getCachedGame, getGameById, getReviews, getUserDisplayName, postReview, ReviewDto, toggleReviewLike, deleteReview } from '../services/api';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import type { AppPath } from '../App';
@@ -17,13 +8,8 @@ interface GameDetailsPageProps {
   gameId: string;
   onBack: () => void;
   onNavigate?: (path: AppPath) => void;
-}
-
-// Simple model fetch using existing getGames API (no new backend needed)
-async function fetchGameById(gameId: string): Promise<GameDto | null> {
-  const pageSize = 100;
-  const data = await getGames({ page: 1, pageSize });
-  return data.games.find(g => g.id === gameId) ?? null;
+  onOpenGameReport?: (gameId: string) => void;
+  onOpenReviewReport?: (reviewId: string, gameId: string) => void;
 }
 
 interface ExternalTarget {
@@ -35,6 +21,8 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   gameId,
   onBack,
   onNavigate,
+  onOpenGameReport,
+  onOpenReviewReport,
 }) => {
   const { user, isAuthenticated } = useAuth();
 
@@ -54,16 +42,23 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
 
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
+    const cached = getCachedGame(gameId);
+    if (cached) {
+      setGame(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
-    fetchGameById(gameId)
+    getGameById(gameId)
       .then(result => {
         if (!isMounted) return;
         if (!result) {
           setError('Game not found.');
+        } else {
+          setGame(result);
         }
-        setGame(result);
       })
       .catch(() => {
         if (!isMounted) return;
@@ -212,6 +207,26 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     }
   };
 
+  const handleReportGame = () => {
+    if (!game) return;
+    const dbId = (game as any)._id ?? game.id;
+    if (onOpenGameReport) {
+      onOpenGameReport(dbId);
+    } else if (onNavigate) {
+      onNavigate('/report/game');
+    }
+  };
+
+  const handleReportReview = (reviewId: string) => {
+    if (!reviewId) return;
+    if (onOpenReviewReport && game) {
+      const dbId = (game as any)._id ?? game.id;
+      onOpenReviewReport(reviewId, dbId);
+    } else if (onNavigate) {
+      onNavigate('/report/review');
+    }
+  };
+
   if (loading) {
     return (
       <main className="game-details" aria-busy="true">
@@ -266,7 +281,11 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
               <button type="button" className="game-details__primary-btn">
                 Add to Favourites
               </button>
-              <button type="button" className="game-details__secondary-btn">
+              <button
+                type="button"
+                className="game-details__secondary-btn"
+                onClick={handleReportGame}
+              >
                 Report Game
               </button>
             </div>
@@ -398,10 +417,10 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                     onChange={e => setWrittenReview(e.target.value)}
                     placeholder="Share your thoughts on the accessibility of this game. What worked well? What could be improved?"
                   />
-                  <p className="game-details__reviews-note">
+                  <p className="game-details__reviews-note game-details__reviews-note--alert">
                     A written review is required, or you can use voice recording below instead.
                   </p>
-                  <p className="game-details__reviews-note">
+                  <p className="game-details__reviews-note game-details__reviews-note--alert">
                     Minimum {minReviewLength} characters.
                   </p>
                   {reviewError && (
@@ -518,6 +537,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                       <button
                         type="button"
                         className="game-details__review-report"
+                        onClick={() => handleReportReview(review._id)}
                       >
                         <span className="game-details__review-report-icon" aria-hidden="true" />
                         <span>Report</span>

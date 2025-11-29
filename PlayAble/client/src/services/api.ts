@@ -53,6 +53,28 @@ export interface ReviewWithGameResponse {
   review: ReportReviewDto;
 }
 
+// In-memory cache for games to speed up back/forward navigation
+const gameCache = new Map<string, GameDto>();
+
+function cacheGame(game: GameDto) {
+  gameCache.set(game.id, game);
+  if (game._id) {
+    gameCache.set(game._id, game);
+  }
+}
+
+function findCachedGame(gameId: string): GameDto | undefined {
+  const direct = gameCache.get(gameId);
+  if (direct) return direct;
+
+  for (const cached of gameCache.values()) {
+    if (cached.id === gameId || cached._id === gameId) {
+      return cached;
+    }
+  }
+  return undefined;
+}
+
 export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGamesResponse> {
   const query = new URLSearchParams();
 
@@ -74,17 +96,39 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
   }
 
   const data: PaginatedGamesResponse = await res.json();
+
+  // Prime cache for faster lookups
+  data.games.forEach(cacheGame);
   return data;
 }
 
-// Fetch a single game by ID for report context
 export async function getGameById(gameId: string): Promise<GameDto> {
-  const res = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch game: ${res.status}`);
+  const cached = findCachedGame(gameId);
+  if (cached) {
+    return cached;
   }
-  const data: GameDto = await res.json();
-  return data;
+
+  try {
+    const byIdRes = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
+    if (byIdRes.ok) {
+      const game = (await byIdRes.json()) as GameDto;
+      cacheGame(game);
+      return game;
+    }
+  } catch {
+  }
+
+  const list = await getGames({ page: 1, pageSize: 200 });
+  const match = list.games.find(g => g.id === gameId || g._id === gameId);
+  if (!match) {
+    throw new Error('Game not found');
+  }
+  cacheGame(match);
+  return match;
+}
+
+export function getCachedGame(gameId: string): GameDto | undefined {
+  return findCachedGame(gameId);
 }
 
 // Fetch a single review by ID, along with its game context, for the reporting page

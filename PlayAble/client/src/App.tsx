@@ -17,7 +17,7 @@ import AboutPage from './pages/AboutPage';
 import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
 import GameDetailsPage from './pages/GameDetailsPage';
 import ReportPage from './pages/ReportPage';
-
+/// ok 
 export type AppPath =
   | '/'
   | '/browse'
@@ -57,7 +57,11 @@ function App() {
 function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protectedPaths: AppPath[] }) {
   const { user, isAuthenticated, logout } = useAuth();
   const [path, setPath] = useState<AppPath>('/');
+  const [previousPath, setPreviousPath] = useState<AppPath | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  const [reportType, setReportType] = useState<'general' | 'game' | 'review' | null>(null);
+  const [reportGameId, setReportGameId] = useState<string | undefined>(undefined);
+  const [reportReviewId, setReportReviewId] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -93,6 +97,17 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
     ) {
       const typedPath = newPath as AppPath;
 
+      if (typedPath !== path) {
+        setPreviousPath(path);
+      }
+
+      // Only reset state when explicitly going to the general report page
+      if (typedPath === '/report/general') {
+        setReportType('general');
+        setReportGameId(undefined);
+        setReportReviewId(undefined);
+      }
+
       // Check if trying to access protected route without authentication
       if (protectedPaths.includes(typedPath) && !isAuthenticated) {
         setPath('/signin');
@@ -107,6 +122,26 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
+
+  // Helper functions to open specific report modes with context ids
+  const openGameReport = (gameId: string) => {
+    setReportType('game');
+    setReportGameId(gameId);
+    setReportReviewId(undefined);
+    handleNavigate('/report/game');
+  };
+
+  const openReviewReport = (reviewId: string, gameId: string) => {
+    setReportType('review');
+    setReportGameId(gameId);
+    setReportReviewId(reviewId);
+    handleNavigate('/report/review');
+  };
+
+
+  (window as any).appNavigate = handleNavigate;
+  (window as any).openGameReport = openGameReport;
+  (window as any).openReviewReport = openReviewReport;
 
   const handleLogout = async () => {
     await logout();
@@ -138,7 +173,22 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
     handleNavigate('/game-details');
   };
 
+  const handleGameDetailsBack = () => {
+    if (previousPath) {
+      setPath(previousPath);
+      return;
+    }
+    setPath('/browse');
+  };
+
   const userRole = user?.role || 'guest';
+  const handleReportBack = () => {
+    if (previousPath) {
+      setPath(previousPath);
+      return;
+    }
+    setPath('/');
+  };
 
   useEffect(() => {
     if (lastAuthEvent.current === 'signup' && user) {
@@ -154,13 +204,17 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
 
   switch (path) {
     case '/report/general':
-      content = <ReportPage onShowToast={showPrompt} />;
-      break;
     case '/report/game':
-      content = <ReportPage onShowToast={showPrompt} />; // test route; real usage passes gameId via URL params
-      break;
     case '/report/review':
-      content = <ReportPage onShowToast={showPrompt} />; // test route; real usage passes reviewId via URL params
+      content = (
+        <ReportPage
+          onShowToast={showPrompt}
+          initialType={reportType || 'general'}
+          initialGameId={reportGameId}
+          initialReviewId={reportReviewId}
+          onBack={handleReportBack}
+        />
+      );
       break;
     default:
       content = (
@@ -180,8 +234,10 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
           {path === '/game-details' && selectedGameId && (
             <GameDetailsPage
               gameId={selectedGameId}
-              onBack={() => handleNavigate('/browse')}
+              onBack={handleGameDetailsBack}
               onNavigate={handleNavigate}
+              onOpenGameReport={openGameReport}
+              onOpenReviewReport={openReviewReport}
             />
           )}
 

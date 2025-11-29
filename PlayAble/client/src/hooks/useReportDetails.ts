@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { GameDto, getGameById, getReviewById } from '../services/api';
+import { GameDto, getCachedGame, getGameById, getReviewById } from '../services/api';
 
 export interface ReviewDetails {
   id: string;
@@ -23,7 +23,12 @@ export interface ReviewReportState extends BaseState {
 }
 
 export function useGameReportDetails(gameId?: string): GameReportState {
-  const [state, setState] = useState<GameReportState>({ loading: !!gameId, error: null, game: null });
+  const cached = gameId ? getCachedGame(gameId) : null;
+  const [state, setState] = useState<GameReportState>({
+    loading: !!gameId && !cached,
+    error: null,
+    game: cached ?? null,
+  });
 
   useEffect(() => {
     if (!gameId) return;

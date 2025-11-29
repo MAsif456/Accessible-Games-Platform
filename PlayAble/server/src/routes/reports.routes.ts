@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { ReportModel } from '../models/report';
 
 const router = Router();
+const MIN_CHARS = 10;
+const MAX_CHARS = 1000;
 
-router.post('/api/reports', async (req, res) => {
+export async function createReportHandler(req: any, res: any) {
   try {
     const { type, description, transcript, gameId, reviewId } = req.body as {
       type: 'general' | 'game' | 'review';
@@ -17,9 +19,23 @@ router.post('/api/reports', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Report type is required.' });
     }
 
+    const trimmedDescription = description?.trim();
+    if (trimmedDescription) {
+      if (trimmedDescription.length < MIN_CHARS) {
+        return res
+          .status(400)
+          .json({ success: false, message: `Description must be at least ${MIN_CHARS} characters.` });
+      }
+      if (trimmedDescription.length > MAX_CHARS) {
+        return res
+          .status(400)
+          .json({ success: false, message: `Description must be under ${MAX_CHARS} characters.` });
+      }
+    }
+
     const report = await ReportModel.create({
       type,
-      description,
+      description: trimmedDescription || undefined,
       transcript,
       game: gameId || undefined,
       review: reviewId || undefined,
@@ -30,6 +46,8 @@ router.post('/api/reports', async (req, res) => {
     console.error('Error creating report', err);
     return res.status(500).json({ success: false, message: 'Failed to submit report.' });
   }
-});
+}
+
+router.post('/api/reports', createReportHandler);
 
 export default router;
