@@ -14,23 +14,18 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
   const [selectedAccessibility, setSelectedAccessibility] = useState<string[]>([]);
   const [releaseYear, setReleaseYear] = useState<string>('Any Year');
   const [sortBy, setSortBy] = useState<string>('A-Z');
-
   const [tempSelectedGenres, setTempSelectedGenres] = useState<string[]>([]);
   const [tempSelectedAccessibility, setTempSelectedAccessibility] = useState<string[]>([]);
   const [tempReleaseYear, setTempReleaseYear] = useState<string>('Any Year');
   const [tempSortBy, setTempSortBy] = useState<string>('A-Z');
   const [showAllGenres, setShowAllGenres] = useState(false);
-
   const [games, setGames] = useState<GameDto[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [allGamesForFilters, setAllGamesForFilters] = useState<GameDto[]>([]);
-
   const safeAllGamesForFilters = Array.isArray(allGamesForFilters) ? allGamesForFilters : [];
-
   const effectiveSearchTerm = searchTerm;
 
   const apiSort = useMemo(() => {

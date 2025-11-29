@@ -903,8 +903,8 @@ a:focus,
 }
 
 .game-card__favourite-button {
-  background-color: white;
-  border: 1px solid black;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -914,23 +914,51 @@ a:focus,
 }
 
 .game-card__favourite-icon {
-  font-size: 1.5rem;
-  position: relative;
+  width: 1.25rem;
+  height: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: #111827;
 }
 
-.game-card__favourite-button--active .game-card__favourite-icon::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-top: 2px solid #000;
-  transform: rotate(-20deg);
-  transform-origin: center;
+.game-card__favourite-icon::before {
+  content: '♡';
+}
+
+.game-card__favourite-icon--active {
+  color: #dc2626;
+}
+
+.game-card__favourite-icon--active::before {
+  content: '♥';
 }
 
 .game-card__favourite-label {
   margin-left: 8px;
+}
+
+.game-details__favourite-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.game-details__favourite-icon::before {
+  content: '♡';
+}
+
+.game-details__favourite-icon--active {
+  color: #dc2626;
+}
+
+.game-details__favourite-icon--active::before {
+  content: '♥';
 }
 
 .pill {
@@ -2874,6 +2902,272 @@ body.high-contrast .contrast-theme-picker__header p {
   }
 }
 
+/* REPORT PAGE */
+.report-page {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 2rem 3rem;
+  color: #0b0b0b;
+}
+
+.report-page__header {
+  margin-bottom: 1rem;
+}
+
+.report-page__title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #0b0b0b;
+}
+
+.report-page__back {
+  margin-bottom: 0.75rem;
+  background: none;
+  border: none;
+  color: #0b0b0b;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.report-page__card {
+  width: 100%;
+  background-color: #ffffff;
+  border-radius: 0.85rem;
+  padding: 1.75rem 1.75rem 2rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.report-page__banner {
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background-color: #eef2ff;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 1.25rem;
+}
+
+.report-page__context {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.report-page__context-block {
+  padding: 1rem 1.1rem;
+  border-radius: 0.75rem;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.report-page__context-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #0b0b0b;
+}
+
+.report-page__context-intro {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #0b0b0b;
+}
+
+.report-page__context-helper {
+  margin-top: 0.25rem;
+  font-size: 0.95rem;
+  color: #0b0b0b;
+}
+
+.report-page__game-card {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.report-page__game-thumbnail {
+  width: 64px;
+  height: 64px;
+  border-radius: 0.5rem;
+  object-fit: cover;
+}
+
+.report-page__game-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0b0b0b;
+}
+
+.report-page__game-studio {
+  font-size: 0.9rem;
+  color: #0b0b0b;
+}
+
+.report-page__review-card {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: inset 0 0 0 1px #e5e7eb;
+}
+
+.report-page__review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.report-page__review-date {
+  font-size: 0.85rem;
+  color: #0b0b0b;
+}
+
+.report-page__review-content {
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  color: #0b0b0b;
+}
+
+.report-page__review-helper {
+  font-size: 0.9rem;
+  color: #0b0b0b;
+}
+
+/* White card specifically for form section */
+.report-page__form-card {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.report-form__field-group {
+  position: relative;
+}
+
+.report-form__header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.report-form__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0b0b0b;
+}
+
+.report-form__counter {
+  font-size: 0.85rem;
+  color: #0b0b0b;
+}
+
+.report-form__textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  font-size: 0.95rem;
+  resize: vertical;
+  color: #0b0b0b;
+}
+
+.report-form__helper {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: #0b0b0b;
+}
+
+.report-form__field-error {
+  margin-top: 0.45rem;
+  font-size: 0.9rem;
+  color: #b91c1c;
+}
+
+.report-form__clear {
+  margin-top: 0.5rem;
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.report-form__voice-title {
+  font-size: 0.95rem;
+}
+
+.report-form__voice-text {
+  font-size: 0.9rem;
+  color: #0b0b0b;
+  margin-bottom: 0.75rem;
+}
+
+.report-page input::placeholder,
+.report-page textarea::placeholder {
+  color: #1f2937;
+}
+
+.report-form__voice-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+
+.report-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.report-form__submit {
+  padding: 0.7rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  background-color: #020617;
+  color: #f9fafb;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.report-form__error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
+.report-form__success {
+  color: #16a34a;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .report-page {
+    padding: 1.5rem 1.25rem 2.25rem;
+  }
+
+  .report-page__card {
+    padding: 1.25rem 1.25rem 1.75rem;
+  }
+}
+
 /* Admin game form main styles */
 .admin-game-form-page__title {
   font-size: 1.5rem;
@@ -3380,7 +3674,6 @@ body.high-contrast .contrast-theme-picker__header p {
 }
 
 .profile-card-title {
-  font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
 }
@@ -3683,6 +3976,10 @@ body.high-contrast .contrast-theme-picker__header p {
   background: #ffffff;
   color: #111827;
   border: 1px solid #e5e7eb;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
 }
 
 .game-details__hero-meta {
