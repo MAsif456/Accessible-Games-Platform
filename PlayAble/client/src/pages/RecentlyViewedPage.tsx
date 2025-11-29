@@ -23,7 +23,6 @@ const RecentlyViewedPage: React.FC<RecentlyViewedPageProps> = ({ onNavigate, onG
     if (!isAuthenticated) return;
     let isMounted = true;
     const load = async () => {
-      setIsLoading(true);
       setError(null);
       try {
         const result = await getRecentlyViewed();

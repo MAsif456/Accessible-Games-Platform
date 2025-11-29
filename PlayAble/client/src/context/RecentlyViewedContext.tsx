@@ -1,58 +1,39 @@
-import React, { useState } from 'react';
-import { Modal, Button } from 'react-bootstrap';
+import { useState } from 'react';
 
-interface ConfirmationModalProps {
+// A simple, UI-agnostic confirmation modal hook that callers can combine
+// with their own modal implementation. This avoids depending on
+// external UI libraries like react-bootstrap.
+
+export interface ConfirmationState {
   show: boolean;
-  onHide: () => void;
-  onConfirm: () => void;
   title: string;
   body: string;
+  onConfirm: () => void;
 }
 
-const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ show, onHide, onConfirm, title, body }) => {
-  return (
-    <Modal show={show} onHide={onHide}>
-      <Modal.Header closeButton>
-        <Modal.Title>{title}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>{body}</Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Close
-        </Button>
-        <Button variant="primary" onClick={onConfirm}>
-          Confirm
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
+export const useConfirmationModal = () => {
+  const [state, setState] = useState<ConfirmationState>({
+    show: false,
+    title: '',
+    body: '',
+    onConfirm: () => {},
+  });
 
-const useConfirmationModal = () => {
-  const [show, setShow] = useState(false);
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [onConfirm, setOnConfirm] = useState<() => void>(() => {});
-
-  const handleShow = (newTitle: string, newBody: string, newOnConfirm: () => void) => {
-    setTitle(newTitle);
-    setBody(newBody);
-    setOnConfirm(() => newOnConfirm);
-    setShow(true);
+  const handleShow = (title: string, body: string, onConfirm: () => void) => {
+    setState({ show: true, title, body, onConfirm });
   };
 
   const handleHide = () => {
-    setShow(false);
+    setState(prev => ({ ...prev, show: false }));
   };
 
   return {
-    show,
-    title,
-    body,
-    onConfirm,
+    ...state,
     handleShow,
     handleHide,
   };
 };
 
-export { ConfirmationModal, useConfirmationModal };
+// If a component wants a concrete modal UI, it can import this hook
+// and render its own dialog using the returned state. This file no longer
+// depends on 'react-bootstrap'.

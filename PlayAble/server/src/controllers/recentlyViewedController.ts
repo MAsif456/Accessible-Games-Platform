@@ -69,8 +69,7 @@ export async function getRecentlyViewed(req: Request, res: Response) {
     }
 
     const ids = entries.map(e => e.gameId);
-    const games = (await GameModel.find({ _id: { $in: ids } }).lean()) as IGame[];
-
+    const games = (await GameModel.find({ _id: { $in: ids } }).lean()) as unknown as IGame[];
     const gameById = new Map<string, IGame>();
     games.forEach(g => gameById.set((g as any)._id.toString(), g));
 
