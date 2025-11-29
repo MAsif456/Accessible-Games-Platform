@@ -8,6 +8,7 @@ import {
   ReviewDto,
   toggleReviewLike,
   deleteReview,
+  addToRecentlyViewed,
 } from '../services/api';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -78,6 +79,13 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
       isMounted = false;
     };
   }, [gameId]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !gameId) return;
+    addToRecentlyViewed(gameId).catch(err => {
+      console.error('Failed to track recently viewed game', err);
+    });
+  }, [gameId, isAuthenticated]);
 
   useEffect(() => {
     if (!game?.id) return;

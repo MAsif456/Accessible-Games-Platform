@@ -7,7 +7,7 @@ export interface IUser extends Document {
   passwordHash: string;
   role: 'guest' | 'user' | 'admin';
   favourites: mongoose.Types.ObjectId[];
-  recentlyViewed: mongoose.Types.ObjectId[];
+  recentlyViewed: { gameId: mongoose.Types.ObjectId; viewedAt: Date }[];
   accessibilitySettings?: {
     highContrast?: boolean;
     screenReader?: boolean;
@@ -51,8 +51,8 @@ const UserSchema = new Schema<IUser>(
     ],
     recentlyViewed: [
       {
-        type: Schema.Types.ObjectId,
-        ref: 'Game',
+        gameId: { type: Schema.Types.ObjectId, ref: 'Game', required: true },
+        viewedAt: { type: Date, default: Date.now },
       },
     ],
     accessibilitySettings: {

@@ -220,7 +220,12 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
           )}
 
           {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
-          {path === '/recently-viewed' && <RecentlyViewedPage />}
+          {path === '/recently-viewed' && (
+            <RecentlyViewedPage
+              onNavigate={handleNavigate}
+              onGameClick={setSelectedGameId}
+            />
+          )}
           {path === '/settings' && <SettingsPage />}
           {path === '/admin' && <AdminPage onNavigate={handleNavigate} />}
           {path === '/admin/games/new' && (

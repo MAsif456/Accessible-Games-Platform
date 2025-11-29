@@ -39,6 +39,17 @@ export interface ReviewDto {
   updatedAt: string;
 }
 
+export interface RecentlyViewedEntry {
+  gameId: string;
+  viewedAt: string;
+}
+
+export interface RecentlyViewedResponse {
+  games: GameDto[];
+  total: number;
+  showing: string;
+}
+
 export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGamesResponse> {
   const query = new URLSearchParams();
 
@@ -187,4 +198,41 @@ export async function getUserDisplayName(userId: string): Promise<string | null>
     (data.user?.name || data.user?.fullName || data.user?.username) as string | undefined;
 
   return topLevelName?.trim() || nestedName?.trim() || null;
+}
+
+export async function addToRecentlyViewed(gameId: string): Promise<void> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+  const res = await fetch(`/api/recently-viewed/${gameId}`, {
+    method: 'POST',
+    headers,
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to add to recently viewed: ${res.status}`);
+  }
+}
+
+export async function getRecentlyViewed(): Promise<RecentlyViewedResponse> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+  const res = await fetch('/api/recently-viewed', { headers });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch recently viewed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function clearRecentlyViewed(): Promise<void> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+  const res = await fetch('/api/recently-viewed', {
+    method: 'DELETE',
+    headers,
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to clear recently viewed: ${res.status}`);
+  }
 }
