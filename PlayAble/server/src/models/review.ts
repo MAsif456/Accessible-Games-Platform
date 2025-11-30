@@ -1,4 +1,9 @@
 import { Schema, model, Types, Document } from 'mongoose';
+import crypto from 'crypto';
+
+const generatePublicId = (): string => {
+  return `rev_${crypto.randomBytes(4).toString('hex')}`;
+};
 
 export interface ReviewDocument extends Document {
   gameId: Types.ObjectId;
@@ -8,6 +13,9 @@ export interface ReviewDocument extends Document {
   likes: number;
   createdAt: Date;
   updatedAt: Date;
+  publicId: string;
+  adminReply?: string;
+  voiceTranscript?: string;
 }
 
 const reviewSchema = new Schema<ReviewDocument>(
@@ -17,9 +25,14 @@ const reviewSchema = new Schema<ReviewDocument>(
     authorName: { type: String, required: true },
     body: { type: String, required: true },
     likes: { type: Number, default: 0 },
+    publicId: { type: String, unique: true, default: generatePublicId },
+    adminReply: { type: String },
+    voiceTranscript: { type: String },
   },
   { timestamps: true }
 );
+
+reviewSchema.index({ publicId: 1 }, { unique: true });
 
 const Review = model<ReviewDocument>('Review', reviewSchema);
 
