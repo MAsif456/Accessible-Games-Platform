@@ -8,7 +8,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import path from 'path';
-import './models/user';
+import UserModel, { seedAdminUserIfNotExists } from './models/user';
 import GameModel, { seedGamesIfEmpty } from './models/game';
 import gamesRouter from '../routes/games.routes';
 import authRoutes from '../routes/authRoutes';
@@ -42,6 +42,9 @@ mongoose
 
     // Seed games collection from JSON if empty
     await seedGamesIfEmpty();
+    
+    // Seed admin user if it doesn't exist
+    await seedAdminUserIfNotExists();
   })
   .catch(error => {
     console.error('MongoDB connection error:', error);
