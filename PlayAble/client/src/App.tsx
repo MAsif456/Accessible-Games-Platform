@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import SkipLink from './components/navigation/SkipLink';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FavouritesProvider } from './context/FavouritesContext';
+import { RecentlyViewedProvider } from './context/RecentlyViewedContext';
 import Navbar from './components/ui/Navbar';
 import Footer from './components/ui/Footer';
 import { useGlobalKeyboardNavigation } from './hooks/useGlobalKeyboardNavigation';
@@ -17,7 +18,9 @@ import AboutPage from './pages/AboutPage';
 import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
 import AdminGameFormPage from './pages/AdminGameFormPage';
 import GameDetailsPage from './pages/GameDetailsPage';
+import ReportPage from './pages/ReportPage';
 
+/// ok
 export type AppPath =
   | '/'
   | '/browse'
@@ -32,7 +35,10 @@ export type AppPath =
   | '/my-profile'
   | '/change-email-password'
   | '/inbox'
-  | '/about';
+  | '/about'
+  | '/report/general'
+  | '/report/game'
+  | '/report/review';
 
 const PAGE_SIZE = 9;
 const protectedPaths: AppPath[] = [
@@ -47,7 +53,9 @@ function App() {
   return (
     <AuthProvider>
       <FavouritesProvider>
-        <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
+        <RecentlyViewedProvider>
+         <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
+        </RecentlyViewedProvider>
       </FavouritesProvider>
     </AuthProvider>
   );
@@ -56,7 +64,11 @@ function App() {
 function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protectedPaths: AppPath[] }) {
   const { user, isAuthenticated, logout } = useAuth();
   const [path, setPath] = useState<AppPath>('/');
+  const [previousPath, setPreviousPath] = useState<AppPath | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  const [reportType, setReportType] = useState<'general' | 'game' | 'review' | null>(null);
+  const [reportGameId, setReportGameId] = useState<string | undefined>(undefined);
+  const [reportReviewId, setReportReviewId] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -80,7 +92,6 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       return;
     }
 
-    // Type guard to ensure newPath is a valid AppPath
     if (
       newPath === '/' ||
       newPath === '/browse' ||
@@ -94,23 +105,55 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       newPath === '/my-profile' ||
       newPath === '/change-email-password' ||
       newPath === '/inbox' ||
-      newPath === '/about'
+      newPath === '/about' ||
+      newPath === '/report/general' ||
+      newPath === '/report/game' ||
+      newPath === '/report/review'
     ) {
       const typedPath = newPath as AppPath;
 
-      // Check if trying to access protected route without authentication
+      if (typedPath !== path) {
+        setPreviousPath(path);
+      }
+
+      if (typedPath === '/report/general') {
+        setReportType('general');
+        setReportGameId(undefined);
+        setReportReviewId(undefined);
+      }
+
       if (protectedPaths.includes(typedPath) && !isAuthenticated) {
         setPath('/signin');
         return;
       }
 
       if (typedPath === '/signin') {
-        lastAuthEvent.current = null; // reset on manual nav
+        lastAuthEvent.current = null;
       }
 
       setPath(typedPath);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
+
+  // Report helpers
+  const openGameReport = (gameId: string) => {
+    setReportType('game');
+    setReportGameId(gameId);
+    setReportReviewId(undefined);
+    handleNavigate('/report/game');
+  };
+
+  const openReviewReport = (reviewId: string, gameId: string) => {
+    setReportType('review');
+    setReportGameId(gameId);
+    setReportReviewId(reviewId);
+    handleNavigate('/report/review');
+  };
+
+  (window as any).appNavigate = handleNavigate;
+  (window as any).openGameReport = openGameReport;
+  (window as any).openReviewReport = openReviewReport;
 
   const handleLogout = async () => {
     await logout();
@@ -136,13 +179,30 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
     setCurrentPage(page);
   };
 
+  // Smooth Game Details navigation (favoured from incoming)
   const handleGameClick = (gameId: string) => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     setSelectedGameId(gameId);
     handleNavigate('/game-details');
   };
 
+  const handleGameDetailsBack = () => {
+    if (previousPath) {
+      setPath(previousPath);
+      return;
+    }
+    setPath('/browse');
+  };
+
   const userRole = user?.role || 'guest';
+
+  const handleReportBack = () => {
+    if (previousPath) {
+      setPath(previousPath);
+      return;
+    }
+    setPath('/');
+  };
 
   useEffect(() => {
     if (lastAuthEvent.current === 'signup' && user) {
@@ -153,6 +213,108 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       lastAuthEvent.current = null;
     }
   }, [user, showPrompt]);
+
+  let content: React.ReactNode = null;
+
+  switch (path) {
+    case '/report/general':
+    case '/report/game':
+    case '/report/review':
+      content = (
+        <ReportPage
+          onShowToast={showPrompt}
+          initialType={reportType || 'general'}
+          initialGameId={reportGameId}
+          initialReviewId={reportReviewId}
+          onBack={handleReportBack}
+        />
+      );
+      break;
+    case '/admin/games/new':
+      content = (
+        <main id="main-content" tabIndex={-1}>
+          <AdminGameFormPage mode="create" onNavigate={handleNavigate} showPrompt={showPrompt} />
+        </main>
+      );
+      break;
+    default:
+      if (path.startsWith('/admin/games/') && path !== '/admin/games/new') {
+        content = (
+          <main id="main-content" tabIndex={-1}>
+            <AdminGameFormPage
+              mode="edit"
+              gameId={path.split('/').pop() || ''}
+              onNavigate={handleNavigate}
+              showPrompt={showPrompt}
+            />
+          </main>
+        );
+      } else {
+        // main-branch centralised routing, but wired like your branch
+        content = (
+          <main id="main-content" tabIndex={-1}>
+            {(path === '/' || path === '/browse') && (
+              <BrowsePage
+                currentPath={path}
+                currentPage={currentPage}
+                pageSize={PAGE_SIZE}
+                onPageChange={handlePageChange}
+                searchTerm={searchTerm}
+                onGameClick={handleGameClick}
+                onSearchChange={handleSearchChange}
+              />
+            )}
+
+            {path === '/game-details' && selectedGameId && (
+              <GameDetailsPage
+                gameId={selectedGameId}
+                onBack={handleGameDetailsBack}
+                onNavigate={handleNavigate}
+                onOpenGameReport={openGameReport}
+                onOpenReviewReport={openReviewReport}
+              />
+            )}
+
+            {path === '/favourites' && (
+              <FavouritesPage onNavigate={handleNavigate} onGameClick={handleGameClick} />
+            )}
+
+            {/* Recently Viewed uses same onGameClick flow for smooth transition */}
+            {path === '/recently-viewed' && (
+              <RecentlyViewedPage onNavigate={handleNavigate} onGameClick={handleGameClick} />
+            )}
+
+            {path === '/settings' && <SettingsPage />}
+            {path === '/admin' && <AdminPage onNavigate={handleNavigate} />}
+
+            {path === '/signin' && (
+              <SignInPage
+                onNavigate={handleNavigate}
+                showPrompt={(msg, type) => {
+                  if (msg && msg.startsWith('Welcome to Accessible Games Platform')) {
+                    lastAuthEvent.current = 'signup';
+                  } else if (msg && msg === 'Login successful!') {
+                    lastAuthEvent.current = 'login';
+                  }
+                  showPrompt(msg, type);
+                }}
+              />
+            )}
+
+            {path === '/my-profile' && (
+              <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />
+            )}
+
+            {path === '/change-email-password' && (
+              <ChangeEmailPasswordPage onNavigate={handleNavigate} />
+            )}
+
+            {path === '/inbox' && <InboxPage />}
+            {path === '/about' && <AboutPage />}
+          </main>
+        );
+      }
+  }
 
   return (
     <div className="App">
@@ -175,7 +337,10 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
             alignItems: 'center',
             gap: 8,
             minWidth: 220,
-            borderLeft: prompt.type === 'success' ? '4px solid #22c55e' : '4px solid #ef4444',
+            borderLeft:
+              prompt.type === 'success'
+                ? '4px solid #22c55e'
+                : '4px solid #ef4444',
             animation: 'fadeIn 0.2s',
           }}
           role="status"
@@ -197,75 +362,8 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
         onLogout={handleLogout}
       />
 
-      <div className="App__content">
-        <main id="main-content" tabIndex={-1}>
-          {(path === '/' || path === '/browse') && (
-            <BrowsePage
-              currentPath={path}
-              currentPage={currentPage}
-              pageSize={PAGE_SIZE}
-              onPageChange={handlePageChange}
-              searchTerm={searchTerm}
-              onGameClick={handleGameClick}
-              onSearchChange={handleSearchChange}
-            />
-          )}
-
-          {path === '/game-details' && selectedGameId && (
-            <GameDetailsPage
-              gameId={selectedGameId}
-              onBack={() => handleNavigate('/browse')}
-              onNavigate={handleNavigate}
-            />
-          )}
-
-          {path === '/favourites' && <FavouritesPage onNavigate={handleNavigate} />}
-          {path === '/recently-viewed' && (
-            <RecentlyViewedPage
-              onNavigate={handleNavigate}
-              onGameClick={setSelectedGameId}
-            />
-          )}
-          {path === '/settings' && <SettingsPage />}
-          {path === '/admin' && <AdminPage onNavigate={handleNavigate} />}
-          {path === '/admin/games/new' && (
-            <AdminGameFormPage mode="create" onNavigate={handleNavigate} showPrompt={showPrompt} />
-          )}
-          {path.startsWith('/admin/games/') && path !== '/admin/games/new' && (
-            <AdminGameFormPage
-              mode="edit"
-              gameId={path.split('/').pop() || ''}
-              onNavigate={handleNavigate}
-              showPrompt={showPrompt}
-            />
-          )}
-
-          {path === '/signin' && (
-            <SignInPage
-              onNavigate={handleNavigate}
-              showPrompt={(msg, type) => {
-                if (msg && msg.startsWith('Welcome to Accessible Games Platform')) {
-                  lastAuthEvent.current = 'signup';
-                } else if (msg && msg === 'Login successful!') {
-                  lastAuthEvent.current = 'login';
-                }
-                showPrompt(msg, type);
-              }}
-            />
-          )}
-
-          {path === '/my-profile' && (
-            <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />
-          )}
-
-          {path === '/change-email-password' && (
-            <ChangeEmailPasswordPage onNavigate={handleNavigate} />
-          )}
-
-          {path === '/inbox' && <InboxPage />}
-          {path === '/about' && <AboutPage />}
-        </main>
-      </div>
+      {/* final, merged layout: single content container using central switch */}
+      <div className="App__content">{content}</div>
 
       <Footer onNavigate={handleNavigate} />
     </div>

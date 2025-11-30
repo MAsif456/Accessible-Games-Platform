@@ -1,39 +1,89 @@
-import { useState } from 'react';
 
-// A simple, UI-agnostic confirmation modal hook that callers can combine
-// with their own modal implementation. This avoids depending on
-// external UI libraries like react-bootstrap.
+import React, { createContext, useContext, useState } from 'react';
+import { useAuth } from './AuthContext';
+import authService from '../services/authService';
 
-export interface ConfirmationState {
-  show: boolean;
+export interface RecentlyViewedGameDto {
+  id: string;
   title: string;
-  body: string;
-  onConfirm: () => void;
+  studio: string;
+  description: string;
+  thumbnailUrl: string;
+  genres: string[];
+  accessibilityTags: string[];
 }
 
-export const useConfirmationModal = () => {
-  const [state, setState] = useState<ConfirmationState>({
-    show: false,
-    title: '',
-    body: '',
-    onConfirm: () => {},
-  });
+interface RecentlyViewedResponse {
+  games: RecentlyViewedGameDto[];
+  total: number;
+}
 
-  const handleShow = (title: string, body: string, onConfirm: () => void) => {
-    setState({ show: true, title, body, onConfirm });
-  };
+interface RecentlyViewedContextType {
+  games: RecentlyViewedGameDto[];
+  total: number;
+  isLoading: boolean;
+  fetchRecentlyViewed: () => Promise<void>;
+  clearRecentlyViewed: () => Promise<void>;
+}
 
-  const handleHide = () => {
-    setState(prev => ({ ...prev, show: false }));
-  };
+const RecentlyViewedContext = createContext<RecentlyViewedContextType | undefined>(undefined);
 
-  return {
-    ...state,
-    handleShow,
-    handleHide,
-  };
+export const useRecentlyViewed = () => {
+  const ctx = useContext(RecentlyViewedContext);
+  if (!ctx) {
+    throw new Error('useRecentlyViewed must be used within a RecentlyViewedProvider');
+  }
+  return ctx;
 };
 
-// If a component wants a concrete modal UI, it can import this hook
-// and render its own dialog using the returned state. This file no longer
-// depends on 'react-bootstrap'.
+interface Props {
+  children: React.ReactNode;
+}
+
+export const RecentlyViewedProvider: React.FC<Props> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  const [games, setGames] = useState<RecentlyViewedGameDto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchRecentlyViewed = async () => {
+    if (!isAuthenticated) return;
+    setIsLoading(true);
+    try {
+      const token = authService.getToken();
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch('/api/recently-viewed', { headers });
+      if (!res.ok) throw new Error('Failed to load recently viewed games');
+      const data: RecentlyViewedResponse = await res.json();
+      setGames(data.games);
+      setTotal(data.total);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearRecentlyViewed = async () => {
+    if (!isAuthenticated) return;
+    const token = authService.getToken();
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch('/api/recently-viewed', { method: 'DELETE', headers });
+    if (!res.ok) {
+      console.error('Failed to clear recently viewed history');
+      return;
+    }
+    setGames([]);
+    setTotal(0);
+  };
+
+  const value: RecentlyViewedContextType = {
+    games,
+    total,
+    isLoading,
+    fetchRecentlyViewed,
+    clearRecentlyViewed,
+  };
+
+  return <RecentlyViewedContext.Provider value={value}>{children}</RecentlyViewedContext.Provider>;
+};
