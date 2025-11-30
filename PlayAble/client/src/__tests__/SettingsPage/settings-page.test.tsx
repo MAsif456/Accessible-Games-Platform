@@ -59,17 +59,24 @@ describe('SettingsPage', () => {
   });
 
   describe('Loading and Initial Render', () => {
-    test('displays loading state initially', () => {
-      useAuth.mockReturnValue({
-        user: { id: 'test-user', name: 'Test User', role: 'user' },
-        userSettings: null,
-        updateUserSettingsState: mockUpdateUserSettingsState,
-      });
+    test('renders settings page with default values when userSettings is null', async () => {
+  useAuth.mockReturnValue({
+    user: { id: 'test-user', name: 'Test User', role: 'user' },
+    userSettings: null,
+    updateUserSettingsState: mockUpdateUserSettingsState,
+  });
 
-      renderWithProviders(<SettingsPage />);
+  renderWithProviders(<SettingsPage />);
 
-      expect(screen.getByText('Loading settings...')).toBeInTheDocument();
-    });
+  // Component renders with default settings instead of loading state
+  await waitFor(() => {
+    expect(screen.getByRole('main', { name: /settings page/i })).toBeInTheDocument();
+  });
+
+  expect(screen.getByRole('heading', { name: /Accessibility Settings/i })).toBeInTheDocument();
+  // Default settings should be applied (Voice Input defaults to On)
+  expect(screen.getByRole('switch', { name: /Voice Input: On/i })).toBeInTheDocument();
+});
 
     test('renders settings page for logged-in user with saved settings', async () => {
       useAuth.mockReturnValue({
