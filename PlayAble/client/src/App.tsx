@@ -310,7 +310,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
             )}
 
             {path === '/inbox' && <InboxPage />}
-            {path === '/about' && <AboutPage />}
+            {path === '/about' && <AboutPage onNavigate={handleNavigate} />}
           </main>
         );
       }
