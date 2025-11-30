@@ -180,8 +180,8 @@ describe('Recently Viewed integration', () => {
       expect(mockedApi.addToRecentlyViewed).toHaveBeenCalledWith('1');
     });
 
-    // Navigate to Recently Viewed via nav
-    const recentlyViewedNav = screen.getByRole('menuitem', { name: /Recently Viewed/i });
+    // Navigate to Recently Viewed via nav (changed from menuitem to button)
+    const recentlyViewedNav = screen.getByRole('button', { name: /Recently Viewed/i });
     fireEvent.click(recentlyViewedNav);
 
     // Use level: 1 to target only the h1 heading
@@ -197,8 +197,8 @@ describe('Recently Viewed integration', () => {
 
     renderWithProviders(<App />);
 
-    // Navigate directly to Recently Viewed nav
-    const recentlyViewedNav = await screen.findByRole('menuitem', { name: /Recently Viewed/i });
+    // Navigate directly to Recently Viewed nav (changed from menuitem to button)
+    const recentlyViewedNav = await screen.findByRole('button', { name: /Recently Viewed/i });
     fireEvent.click(recentlyViewedNav);
 
     // Use level: 1 to target only the h1 heading
@@ -240,8 +240,8 @@ describe('Recently Viewed integration', () => {
     fireEvent.click(screen.getByText('Game Two'));
     await screen.findByRole('main', { name: /Game details for Game Two/i });
 
-    // Navigate to Recently Viewed
-    const recentlyViewedNav = screen.getByRole('menuitem', { name: /Recently Viewed/i });
+    // Navigate to Recently Viewed (changed from menuitem to button)
+    const recentlyViewedNav = screen.getByRole('button', { name: /Recently Viewed/i });
     fireEvent.click(recentlyViewedNav);
 
     // Use level: 1 to target only the h1 heading
@@ -256,8 +256,8 @@ describe('Recently Viewed integration', () => {
     fireEvent.click(screen.getByText('Game One'));
     await screen.findByRole('main', { name: /Game details for Game One/i });
 
-    // Back to Recently Viewed via nav again
-    const rvNavAgain = screen.getByRole('menuitem', { name: /Recently Viewed/i });
+    // Back to Recently Viewed via nav again (changed from menuitem to button)
+    const rvNavAgain = screen.getByRole('button', { name: /Recently Viewed/i });
     fireEvent.click(rvNavAgain);
 
     // Use level: 1 to target only the h1 heading
@@ -276,7 +276,8 @@ describe('Recently Viewed integration', () => {
 
     renderWithProviders(<App />);
 
-    const recentlyViewedNav = await screen.findByRole('menuitem', { name: /Recently Viewed/i });
+    // Navigate to Recently Viewed (changed from menuitem to button)
+    const recentlyViewedNav = await screen.findByRole('button', { name: /Recently Viewed/i });
     fireEvent.click(recentlyViewedNav);
 
     // Use level: 1 to target only the h1 heading
@@ -314,8 +315,8 @@ describe('Recently Viewed integration', () => {
     fireEvent.click(screen.getByText('Game Two'));
     await screen.findByRole('main', { name: /Game details for Game Two/i });
 
-    // Go to Recently Viewed
-    const recentlyViewedNav = screen.getByRole('menuitem', { name: /Recently Viewed/i });
+    // Go to Recently Viewed (changed from menuitem to button)
+    const recentlyViewedNav = screen.getByRole('button', { name: /Recently Viewed/i });
     fireEvent.click(recentlyViewedNav);
 
     // Use level: 1 to target only the h1 heading
@@ -326,8 +327,8 @@ describe('Recently Viewed integration', () => {
 
     await screen.findByRole('main', { name: /Game details for Game Two/i });
 
-    // Go back to Recently Viewed and ensure Game Two is still first
-    const rvNavAgain = screen.getByRole('menuitem', { name: /Recently Viewed/i });
+    // Go back to Recently Viewed and ensure Game Two is still first (changed from menuitem to button)
+    const rvNavAgain = screen.getByRole('button', { name: /Recently Viewed/i });
     fireEvent.click(rvNavAgain);
 
     // Use level: 1 to target only the h1 heading
