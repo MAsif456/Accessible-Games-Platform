@@ -86,3 +86,46 @@ export async function getPaginatedGames(query: GamesFilterQuery): Promise<Pagina
     totalPages,
   };
 }
+
+export async function getAllGamesForAdmin() {
+  const games = await GameModel.find({}).sort({ title: 1 }).exec();
+  return games;
+}
+
+export async function getGameById(id: string) {
+  return GameModel.findById(id).exec();
+}
+
+export interface AdminGameInput {
+  slug: string;
+  title: string;
+  studio: string;
+  description: string;
+  thumbnailUrl: string;
+  genres: string[];
+  accessibilityTags: string[];
+  releaseYear?: number;
+  isPublished?: boolean;
+}
+
+export async function createGame(input: AdminGameInput): Promise<IGame> {
+  const game = new GameModel({
+    ...input,
+    isPublished: input.isPublished ?? true,
+  });
+  await game.save();
+  return game;
+}
+
+export async function updateGame(id: string, input: Partial<AdminGameInput>): Promise<IGame | null> {
+  const game = await GameModel.findByIdAndUpdate(
+    id,
+    { $set: input },
+    { new: true, runValidators: true },
+  ).exec();
+  return game;
+}
+
+export async function deleteGame(id: string): Promise<void> {
+  await GameModel.findByIdAndDelete(id).exec();
+}

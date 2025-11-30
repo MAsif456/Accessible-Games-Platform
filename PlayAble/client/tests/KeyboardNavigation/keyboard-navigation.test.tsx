@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import SkipLink from '../../components/navigation/SkipLink';
-import { useGlobalKeyboardNavigation } from '../../hooks/useGlobalKeyboardNavigation';
+import SkipLink from '../../src/components/navigation/SkipLink';
+import { useGlobalKeyboardNavigation } from '../../src/hooks/useGlobalKeyboardNavigation';
 
 // Simple test component used to exercise the global keyboard navigation hook
 function TestPage() {
@@ -24,7 +24,7 @@ function TestPage() {
 }
 
 // Mock the global keyboard navigation hook so it does not register real listeners on document
-jest.mock('../../hooks/useGlobalKeyboardNavigation', () => ({
+jest.mock('../../src/hooks/useGlobalKeyboardNavigation', () => ({
   useGlobalKeyboardNavigation: jest.fn(),
 }));
 
