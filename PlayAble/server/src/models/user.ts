@@ -91,4 +91,44 @@ UserSchema.methods.comparePassword = async function (
 
 const UserModel = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 
+// Seed admin user if it doesn't exist
+export async function seedAdminUserIfNotExists() {
+  const adminEmail = 'admin@playable.com';
+  const existingAdmin = await UserModel.findOne({ email: adminEmail });
+  
+  if (existingAdmin) {
+    // Ensure existing admin has admin role
+    if (existingAdmin.role !== 'admin') {
+      existingAdmin.role = 'admin';
+      await existingAdmin.save();
+      console.log('Updated existing user to admin role');
+    }
+    return;
+  }
+
+  // Create new admin user
+  // Password will be hashed by the pre-save hook
+  const adminUser = new UserModel({
+    name: 'Admin',
+    email: adminEmail,
+    passwordHash: 'admin123', // Will be hashed by pre-save hook
+    role: 'admin',
+    favourites: [],
+    recentlyViewed: [],
+    accessibilitySettings: {
+      highContrast: false,
+      screenReader: false,
+      keyboardNavigation: true,
+      voiceControl: false,
+    },
+    bio: 'System Administrator',
+  });
+
+  await adminUser.save();
+  console.log('Admin user created successfully');
+  console.log('Admin credentials:');
+  console.log('  Email: admin@playable.com');
+  console.log('  Password: admin123');
+}
+
 export default UserModel;

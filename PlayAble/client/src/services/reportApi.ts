@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 export type ReportType = 'general' | 'game' | 'review';
 
 export interface SubmitReportPayload {
@@ -16,6 +14,17 @@ export interface SubmitReportResponse {
 }
 
 export async function submitReport(payload: SubmitReportPayload): Promise<SubmitReportResponse> {
-  const response = await axios.post('/api/reports', payload);
-  return response.data;
+  const response = await fetch('/api/reports', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to submit report');
+  }
+
+  return response.json();
 }
