@@ -96,6 +96,18 @@ const SettingsPage = () => {
         isInitialLoadRef.current = true;
       }
       setIsLoading(false);
+    } else if (user?.id && !userSettings) {
+      // Logged-in user but no settings loaded yet: fall back to defaults
+      setSettings({
+        voiceInput: true,
+        captions: true,
+        microphoneActive: true,
+        highContrastMode: false,
+        highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        reducedMotion: false,
+        darkMode: false,
+      });
+      setIsLoading(false);
     } else if (!user?.id) {
       // For non-logged-in users, try to load from sessionStorage first
       const sessionSettings = loadSessionSettings();
