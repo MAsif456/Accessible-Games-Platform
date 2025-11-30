@@ -20,13 +20,54 @@ import reviewsRoutes from './routes/reviews.routes';
 import reviewReportsRoutes from './routes/reviewReports.routes';
 import recentlyViewedRoutes from './routes/recentlyViewed.routes';
 
+// Import security middleware
+import cookieParser from 'cookie-parser';
+import {
+  securityHeadersMiddleware,
+  customSecurityHeaders,
+  corsSecurityMiddleware,
+  securityLoggingMiddleware,
+  validateSecurityHeaders,
+  cspViolationReportHandler
+} from './middleware/securityHeaders';
+
 dotenv.config();
 
 const app: Express = express();
 const PORT = process.env.PORT || 5001;
 
+// ============================================================================
+// SECURITY MIDDLEWARE (Applied first for maximum protection)
+// ============================================================================
+
+// Apply Helmet security headers (CSP, HSTS, X-Frame-Options, etc.)
+app.use(securityHeadersMiddleware);
+
+// Apply custom security headers
+app.use(customSecurityHeaders);
+
+// Security logging for monitoring suspicious activity
+app.use(securityLoggingMiddleware);
+
+// Validate security headers in development mode
+if (process.env.NODE_ENV === 'development') {
+  app.use(validateSecurityHeaders);
+}
+
+// ============================================================================
+// STANDARD MIDDLEWARE
+// ============================================================================
+
 // Enable CORS for cross-origin requests from the frontend (Vite dev server).
 app.use(cors());
+
+// Enhanced CORS security checks
+app.use(corsSecurityMiddleware);
+
+// Cookie parser middleware (required for secure cookie handling)
+app.use(cookieParser());
+
+// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -55,6 +96,10 @@ mongoose
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
+
+// CSP Violation Report endpoint
+// Receives reports from browsers when Content Security Policy is violated
+app.post('/api/csp-violation-report', cspViolationReportHandler);
 
 // Games API routes
 app.use('/api', gamesRouter);
