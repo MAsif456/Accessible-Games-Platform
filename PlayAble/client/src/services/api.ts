@@ -17,6 +17,7 @@ export interface GameDto {
   thumbnailUrl: string;
   genres: string[];
   accessibilityTags: string[];
+  specificAccessibilityTags?: Record<string, string[]>;
   releaseYear?: number;
 }
 

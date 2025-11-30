@@ -5,10 +5,41 @@
     "studio": "Dowino",
     "description": "Audio-only action adventure built for blind players with fully voiced instructions.",
     "thumbnailUrl": "/images/games/a-blind-legend.jpg",
-    "genres": ["Action", "Adventure"],
-    "accessibilityTags": ["Vision", "Hearing", "Audio", "Motor", "Cognitive"],
+    "genres": [
+      "Action",
+      "Adventure"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Hearing",
+      "Audio",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2015,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "Screen-Reader Compatible",
+        "No Visuals Needed"
+      ],
+      "Hearing": [
+        "Mandatory Audio Cues",
+        "Voice Instructions"
+      ],
+      "Audio": [
+        "3D Binaural Sound",
+        "Audio Navigation"
+      ],
+      "Motor": [
+        "Simple Taps",
+        "Simple Swipes"
+      ],
+      "Cognitive": [
+        "Linear Objectives",
+        "Clear Spoken Prompts"
+      ]
+    }
   },
   {
     "slug": "audiowizards",
@@ -16,10 +47,41 @@
     "studio": "Accessible Games",
     "description": "Spell-casting game playable without sight, using spatial sound to locate enemies.",
     "thumbnailUrl": "/images/games/audiowizards.jpg",
-    "genres": ["Arcade", "Rhythm"],
-    "accessibilityTags": ["Vision", "Hearing", "Audio", "Motor", "Cognitive"],
+    "genres": [
+      "Arcade",
+      "Rhythm"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Hearing",
+      "Audio",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2019,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "Screen-Reader Menus",
+        "No Visual Dependency"
+      ],
+      "Hearing": [
+        "Required Audio Cues",
+        "Directional Sound Indicators"
+      ],
+      "Audio": [
+        "Spatial Audio",
+        "Audio-Only Tutorials"
+      ],
+      "Motor": [
+        "Tap Controls",
+        "Swipe Controls"
+      ],
+      "Cognitive": [
+        "Pattern Recognition",
+        "Gradual Difficulty"
+      ]
+    }
   },
   {
     "slug": "altos-odyssey",
@@ -27,10 +89,33 @@
     "studio": "Snowman",
     "description": "Relaxing endless sandboarding with one-tap controls and an optional Zen Mode.",
     "thumbnailUrl": "/images/games/altos-odyssey.jpg",
-    "genres": ["Endless Runner"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Endless Runner"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2018,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "High Contrast Visuals",
+        "Minimal UI"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "One-Tap Controls",
+        "Zen Mode"
+      ],
+      "Cognitive": [
+        "No Timers",
+        "Low Cognitive Load"
+      ]
+    }
   },
   {
     "slug": "altos-adventure",
@@ -38,10 +123,33 @@
     "studio": "Snowman",
     "description": "Snowboarding adventure with forgiving single-button controls and calm pacing.",
     "thumbnailUrl": "/images/games/altos-adventure.jpg",
-    "genres": ["Endless Runner"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Endless Runner"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2015,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "Clear Visuals",
+        "Simple Shapes"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Single-Tap Input",
+        "Zen Mode"
+      ],
+      "Cognitive": [
+        "Relaxed Pacing",
+        "Simple Goals"
+      ]
+    }
   },
   {
     "slug": "monument-valley",
@@ -49,10 +157,34 @@
     "studio": "ustwo games",
     "description": "Escher-inspired puzzle game with clear visuals and no time limits.",
     "thumbnailUrl": "/images/games/monument-valley.jpg",
-    "genres": ["Puzzle"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Puzzle"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2014,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "High Clarity",
+        "Colorblind-Friendly",
+        "Large Touch Targets"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Tap Controls",
+        "No Timing Requirements"
+      ],
+      "Cognitive": [
+        "No Time Limits",
+        "Hint System"
+      ]
+    }
   },
   {
     "slug": "monument-valley-2",
@@ -60,10 +192,34 @@
     "studio": "ustwo games",
     "description": "Sequel with larger touch targets and gentle, linear puzzle progression.",
     "thumbnailUrl": "/images/games/monument-valley-2.jpg",
-    "genres": ["Puzzle"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Puzzle"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2017,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "Improved Contrast",
+        "Clear Shapes",
+        "Large Touch Targets"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Tap Controls",
+        "Drag Controls"
+      ],
+      "Cognitive": [
+        "Linear Puzzles",
+        "Low Pressure"
+      ]
+    }
   },
   {
     "slug": "the-room",
@@ -71,10 +227,36 @@
     "studio": "Fireproof Games",
     "description": "Tactile puzzle box with highlighted interactables and a flexible hint system.",
     "thumbnailUrl": "/images/games/the-room.jpg",
-    "genres": ["Puzzle", "Mystery"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Puzzle",
+      "Mystery"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2012,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "Highlighted Objects",
+        "High Contrast",
+        "Zoom Support"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Tap Controls",
+        "Slide Controls",
+        "Rotate Controls"
+      ],
+      "Cognitive": [
+        "Hint System",
+        "Gradual Difficulty"
+      ]
+    }
   },
   {
     "slug": "the-room-two",
@@ -82,10 +264,35 @@
     "studio": "Fireproof Games",
     "description": "Sequel with similar accessible gestures, zoom support, and progressive puzzles.",
     "thumbnailUrl": "/images/games/the-room-two.jpg",
-    "genres": ["Puzzle"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Puzzle"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2013,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "Highlighted Interactables",
+        "Clear Textures",
+        "Zoom Assist"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Tap Controls",
+        "Slide Controls",
+        "Rotate Controls"
+      ],
+      "Cognitive": [
+        "Hint System",
+        "Progressive Puzzles"
+      ]
+    }
   },
   {
     "slug": "the-room-three",
@@ -93,10 +300,35 @@
     "studio": "Fireproof Games",
     "description": "Third entry with high-contrast interactables and comfort settings for motion.",
     "thumbnailUrl": "/images/games/the-room-three.jpg",
-    "genres": ["Puzzle"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Puzzle"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2015,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "High Contrast",
+        "Highlighted Elements",
+        "Zoom Assistance"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Tap Controls",
+        "Slide Controls",
+        "Rotate Controls"
+      ],
+      "Cognitive": [
+        "Hint System",
+        "Scalable Difficulty"
+      ]
+    }
   },
   {
     "slug": "prune",
@@ -104,10 +336,33 @@
     "studio": "Joel McDonald",
     "description": "Minimalist tree-pruning game with forgiving swipe controls and calm pacing.",
     "thumbnailUrl": "/images/games/prune.jpg",
-    "genres": ["Puzzle"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Puzzle"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2015,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "High Contrast",
+        "Minimal Visuals"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Swipe Controls",
+        "Forgiving Input"
+      ],
+      "Cognitive": [
+        "Relaxed Pacing",
+        "Intuitive Goals"
+      ]
+    }
   },
   {
     "slug": "a-dark-room",
@@ -115,10 +370,33 @@
     "studio": "Doublespeak Games",
     "description": "Text-driven narrative with screen-reader support and adjustable font size.",
     "thumbnailUrl": "/images/games/a-dark-room.jpg",
-    "genres": ["Narrative", "Idle"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Narrative",
+      "Idle"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2013,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "High Contrast Text",
+        "Screen-Reader Friendly"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Tap-Only Input"
+      ],
+      "Cognitive": [
+        "Simple Choices",
+        "Slow Pacing"
+      ]
+    }
   },
   {
     "slug": "genshin-impact",
@@ -126,10 +404,43 @@
     "studio": "HoYoverse",
     "description": "Open-world action RPG with extensive accessibility toggles and auto-navigation.",
     "thumbnailUrl": "/images/games/genshin-impact.jpg",
-    "genres": ["Action RPG", "Open World"],
-    "accessibilityTags": ["Vision", "Hearing", "Motor", "Cognitive"],
+    "genres": [
+      "Action RPG",
+      "Open World"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Hearing",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2020,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "Adjustable Subtitles",
+        "High Contrast UI",
+        "Colorblind-Friendly Icons"
+      ],
+      "Hearing": [
+        "Full Subtitles",
+        "Visual Attack Cues"
+      ],
+      "Audio": [
+        "Adjustable Audio Mix"
+      ],
+      "Motor": [
+        "Auto-Aim",
+        "Auto-Path",
+        "Remappable Controls",
+        "Adjustable Sensitivity"
+      ],
+      "Cognitive": [
+        "Clear Quest Tracking",
+        "Tutorials",
+        "Reduced Effects Options"
+      ]
+    }
   },
   {
     "slug": "mini-metro",
@@ -137,10 +448,35 @@
     "studio": "Dinosaur Polo Club",
     "description": "Minimalist subway planner with colorblind mode and fully visual feedback.",
     "thumbnailUrl": "/images/games/mini-metro.jpg",
-    "genres": ["Strategy", "Simulation"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Strategy",
+      "Simulation"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2014,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "Colorblind Mode",
+        "High Contrast Icons",
+        "Zoom"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Drag-and-Drop",
+        "Pause Anytime"
+      ],
+      "Cognitive": [
+        "Slow Pace",
+        "Minimal Distractions"
+      ]
+    }
   },
   {
     "slug": "plague-inc",
@@ -148,9 +484,34 @@
     "studio": "Ndemic Creations",
     "description": "Strategy simulation with adjustable text size and player-paced decision making.",
     "thumbnailUrl": "/images/games/plague-inc.jpg",
-    "genres": ["Strategy", "Simulation"],
-    "accessibilityTags": ["Vision", "Motor", "Cognitive"],
+    "genres": [
+      "Strategy",
+      "Simulation"
+    ],
+    "accessibilityTags": [
+      "Vision",
+      "Motor",
+      "Cognitive"
+    ],
     "releaseYear": 2012,
-    "isPublished": true
+    "isPublished": true,
+    "specificAccessibilityTags": {
+      "Vision": [
+        "Adjustable Text Size",
+        "Zoom Support",
+        "High Contrast UI"
+      ],
+      "Hearing": [
+        "Optional Audio"
+      ],
+      "Motor": [
+        "Tap Controls",
+        "Pausable Gameplay"
+      ],
+      "Cognitive": [
+        "Player-Paced Decisions",
+        "Simple UI Flow"
+      ]
+    }
   }
 ]

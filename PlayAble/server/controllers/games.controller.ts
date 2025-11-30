@@ -3,6 +3,28 @@ import { getPaginatedGames } from '../services/games.service';
 import { parseGamesQuery } from '../utils/validate';
 import { IGame } from '../src/models';
 
+function normalizeSpecificAccessibilityTags(
+  tags: IGame['specificAccessibilityTags']
+): Record<string, string[]> | null {
+  if (!tags) return null;
+  let raw: any = tags;
+  if (raw instanceof Map) {
+    raw = Object.fromEntries(raw.entries());
+  }
+  if (typeof raw !== 'object' || raw === null) {
+    return null;
+  }
+  const normalized: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (Array.isArray(value) && value.length) {
+      normalized[key] = value;
+    } else if (Array.isArray(value)) {
+      normalized[key] = value;
+    }
+  }
+  return Object.keys(normalized).length ? normalized : null;
+}
+
 // Adapter/DTO to shape the Game document for API responses
 function toGameDto(game: IGame & { createdAt?: Date; updatedAt?: Date }) {
   return {
@@ -14,6 +36,7 @@ function toGameDto(game: IGame & { createdAt?: Date; updatedAt?: Date }) {
     thumbnailUrl: game.thumbnailUrl,
     genres: game.genres,
     accessibilityTags: game.accessibilityTags,
+    specificAccessibilityTags: normalizeSpecificAccessibilityTags(game.specificAccessibilityTags),
     releaseYear: game.releaseYear ?? null,
     isPublished: game.isPublished,
     createdAt: (game as any).createdAt ?? null,

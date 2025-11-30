@@ -212,6 +212,39 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     }
   };
 
+  const specificAccessibilitySections = useMemo(() => {
+    if (!game) return null;
+    const entries = Object.entries(game.specificAccessibilityTags ?? {}).filter(
+      ([, tags]) => Array.isArray(tags) && tags.length > 0
+    );
+    if (!entries.length) return null;
+    const order = ['Vision', 'Hearing', 'Audio', 'Motor', 'Cognitive'];
+    return entries
+      .sort((a, b) => {
+        const aIndex = order.indexOf(a[0]);
+        const bIndex = order.indexOf(b[0]);
+        return (aIndex === -1 ? order.length : aIndex) - (bIndex === -1 ? order.length : bIndex);
+      })
+      .map(([category, tags]) => ({ category, tags }));
+  }, [game]);
+
+  const fallbackAccessibilitySections = useMemo(() => {
+    if (!game) return [];
+    const tags = game.accessibilityTags ?? [];
+    if (!tags.length) return [];
+    const midpoint = Math.ceil(tags.length / 2);
+    return [
+      { category: 'Visual', tags: tags.slice(0, midpoint) },
+      { category: 'Motor', tags: tags.slice(midpoint) },
+    ].filter(section => section.tags.length > 0);
+  }, [game]);
+
+  const accessibilitySections = specificAccessibilitySections ?? fallbackAccessibilitySections;
+  const accessibilityCount = game
+    ? specificAccessibilitySections?.reduce((sum, section) => sum + section.tags.length, 0) ??
+      (game.accessibilityTags?.length ?? 0)
+    : 0;
+
   if (loading) {
     return (
       <main className="game-details" aria-busy="true">
@@ -230,12 +263,6 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
       </main>
     );
   }
-
-  const accessibilityCount = game.accessibilityTags?.length ?? 0;
-
-  // Split accessibility tags roughly between Visual and Motor sections
-  const visualTags = game.accessibilityTags.slice(0, Math.ceil(game.accessibilityTags.length / 2));
-  const motorTags = game.accessibilityTags.slice(Math.ceil(game.accessibilityTags.length / 2));
 
   const isMaxEvans = isAuthenticated && user?.name === 'Max Evans';
   const postingName = isMaxEvans ? user?.name : user?.name ?? user?.email ?? 'Guest';
@@ -329,42 +356,31 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
             aria-label="Accessibility features"
           >
             <h2 className="game-details__section-heading">Accessibility Features</h2>
-            <div className="game-details__accessibility-grid">
-              <article className="game-details__accessibility-card">
-                <header className="game-details__accessibility-card-header">
-                  <span className="game-details__accessibility-icon" aria-hidden="true" />
-                  <h3>Visual</h3>
-                </header>
-                <hr className="game-details__accessibility-divider" />
-                <ul className="game-details__feature-list">
-                  {visualTags.map(tag => (
-                    <li key={tag} className="game-details__feature-item">
-                      <span className="game-details__feature-tick" aria-hidden="true" />
-                      <span>{tag}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-
-              <article className="game-details__accessibility-card">
-                <header className="game-details__accessibility-card-header">
-                  <span
-                    className="game-details__accessibility-icon game-details__accessibility-icon--motor"
-                    aria-hidden="true"
-                  />
-                  <h3>Motor</h3>
-                </header>
-                <hr className="game-details__accessibility-divider" />
-                <ul className="game-details__feature-list">
-                  {motorTags.map(tag => (
-                    <li key={tag} className="game-details__feature-item">
-                      <span className="game-details__feature-tick" aria-hidden="true" />
-                      <span>{tag}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            </div>
+            {accessibilitySections.length > 0 ? (
+              <div className="game-details__accessibility-grid">
+                {accessibilitySections.map(section => (
+                  <article key={section.category} className="game-details__accessibility-card">
+                    <header className="game-details__accessibility-card-header">
+                      <span className="game-details__accessibility-icon" aria-hidden="true" />
+                      <h3>{section.category}</h3>
+                    </header>
+                    <hr className="game-details__accessibility-divider" />
+                    <ul className="game-details__feature-list">
+                      {section.tags.map(tag => (
+                        <li key={tag} className="game-details__feature-item">
+                          <span className="game-details__feature-tick" aria-hidden="true" />
+                          <span>{tag}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="game-details__about-text">
+                Accessibility feature information is not available for this title yet.
+              </p>
+            )}
           </section>
 
           <section className="game-details__about" aria-label="About this game">

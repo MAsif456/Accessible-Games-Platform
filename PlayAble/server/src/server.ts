@@ -9,7 +9,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import path from 'path';
 import './models/user';
-import GameModel, { seedGamesIfEmpty } from './models/game';
+import GameModel, { seedGamesIfEmpty, syncSpecificAccessibilityTags } from './models/game';
 import gamesRouter from '../routes/games.routes';
 import authRoutes from '../routes/authRoutes';
 import './models/settings';
@@ -41,6 +41,7 @@ mongoose
 
     // Seed games collection from JSON if empty
     await seedGamesIfEmpty();
+    await syncSpecificAccessibilityTags();
   })
   .catch(error => {
     console.error('MongoDB connection error:', error);
