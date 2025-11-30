@@ -276,7 +276,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
             )}
             {path === '/recently-viewed' && <RecentlyViewedPage />}
             {path === '/settings' && <SettingsPage />}
-            {path === '/admin' && <AdminPage onNavigate={handleNavigate} />}
+            {path === '/admin' && <AdminPage onNavigate={handleNavigate} showPrompt={showPrompt} />}
             {path === '/signin' && (
               <SignInPage
                 onNavigate={handleNavigate}

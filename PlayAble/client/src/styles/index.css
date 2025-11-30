@@ -1295,6 +1295,17 @@ a:focus,
   background-color: #f9fafb;
   font-size: 0.9rem;
 }
+.admin-section-card__search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.admin-section-card__search-input::-webkit-search-cancel-button,
+.admin-section-card__search-input::-ms-clear {
+  display: none;
+  width: 0;
+  height: 0;
+}
 
 .admin-section-card__search-input:focus-visible {
   outline: 2px solid #4f46e5;
@@ -1362,6 +1373,39 @@ a:focus,
 
 .admin-table__actions-cell {
   text-align: right;
+}
+.admin-table__actions-cell--split {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.admin-table__actions-spacer {
+  flex: 1;
+}
+.report-modal__sections {
+  display: grid;
+  gap: 1rem;
+}
+.report-modal__section {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+}
+.report-modal__section h3 {
+  margin-bottom: 0.35rem;
+  font-size: 1rem;
+}
+.report-modal__textarea {
+  width: 100%;
+  min-height: 90px;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+}
+.report-modal__section p {
+  margin: 0.15rem 0;
 }
 
 /* Badges */
@@ -1665,6 +1709,10 @@ a:focus,
   width: 90%;
   padding: 1.5rem 1.75rem 1.25rem;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.35);
+}
+.modal-content--wide {
+  max-width: 900px;
+  width: min(94vw, 900px);
 }
 
 /* SETTINGS PAGE */
@@ -2319,6 +2367,22 @@ a:focus,
 .dialog__button:focus-visible {
   outline: 2px solid #4f46e5;
   outline-offset: 2px;
+}
+.dialog__actions-group {
+  display: flex;
+  gap: 0.75rem;
+}
+.dialog__actions--split {
+  justify-content: space-between;
+}
+.dialog__button--contrast {
+  background-color: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+.dialog__button--contrast:hover {
+  background-color: #020617;
+  border-color: #020617;
 }
 
 /* Notification */
@@ -3517,6 +3581,12 @@ body.high-contrast .contrast-theme-picker__header p {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+}
+
+.admin-form-field-error {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: #b91c1c;
 }
 
 @media (max-width: 768px) {

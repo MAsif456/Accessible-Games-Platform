@@ -31,6 +31,9 @@ export interface PaginatedGamesResponse {
 // Single canonical ReviewDto used by reviews feature
 export interface ReviewDto {
   _id: string;
+  publicId?: string;
+  gameSlug?: string;
+  gameTitle?: string;
   gameId: string;
   userId: string;
   authorName: string;

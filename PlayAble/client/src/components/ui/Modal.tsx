@@ -6,9 +6,17 @@ interface ModalProps {
   descriptionId?: string;
   onClose: () => void;
   children: React.ReactNode;
+  contentClassName?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, titleId, descriptionId, onClose, children }) => {
+const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  titleId,
+  descriptionId,
+  onClose,
+  children,
+  contentClassName = '',
+}) => {
   if (!isOpen) return null;
 
   return (
@@ -21,7 +29,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, titleId, descriptionId, onClose, 
       onClick={onClose}
     >
       <div
-        className="modal-content"
+        className={`modal-content${contentClassName ? ` ${contentClassName}` : ''}`}
         onClick={e => e.stopPropagation()}
       >
         {children}
