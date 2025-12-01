@@ -1,16 +1,63 @@
+/**
+ * Props for the AboutUs page component.
+ * @interface AboutUsProps
+ * @property {function} [onNavigate] - Optional navigation callback for in-app navigation
+ */
 interface AboutUsProps {
   onNavigate?: (path: string) => void;
 }
 
+/**
+ * About Us page component explaining the platform's mission and accessibility features.
+ *
+ * @component
+ * @param {AboutUsProps} props - Component props
+ * @returns {JSX.Element} The About Us page
+ *
+ * @description
+ * Comprehensive informational page covering:
+ * - Platform mission and purpose
+ * - Target audience (Visual, Auditory, Motor, Cognitive, Speech impairments)
+ * - WCAG 2.1 AA compliance statement
+ * - Platform accessibility features
+ * - Voice command instructions
+ * - Keyboard navigation guide
+ * - How to report accessibility issues
+ * - Call-to-action buttons
+ *
+ * **Accessibility Features:**
+ * - Semantic HTML with proper heading hierarchy
+ * - ARIA labels for all sections
+ * - Keyboard-accessible navigation buttons
+ * - Screen reader optimized content structure
+ * - Clear, plain language explanations
+ *
+ * **Navigation Handlers:**
+ * - handleNavigateToBrowse: Routes to /browse
+ * - handleNavigateToSettings: Routes to /settings
+ * - handleNavigateToReport: Routes to /report/general
+ *
+ * @example
+ * <AboutUs onNavigate={navigate} />
+ */
 const AboutUs = ({ onNavigate }: AboutUsProps) => {
+  /**
+   * Navigates to the Browse Games page.
+   */
   const handleNavigateToBrowse = () => {
     onNavigate?.('/browse');
   };
 
+  /**
+   * Navigates to the Accessibility Settings page.
+   */
   const handleNavigateToSettings = () => {
     onNavigate?.('/settings');
   };
 
+  /**
+   * Navigates to the Report Issue page.
+   */
   const handleNavigateToReport = () => {
     onNavigate?.('/report/general');
   };

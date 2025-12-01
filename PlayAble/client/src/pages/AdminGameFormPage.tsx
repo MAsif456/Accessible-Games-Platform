@@ -9,6 +9,14 @@ import {
   getAdminGames,
 } from '../services/gamesAdminService';
 
+/**
+ * Props for the AdminGameFormPage component.
+ * @interface AdminGameFormPageProps
+ * @property {'create' | 'edit'} mode - Form mode: create new game or edit existing
+ * @property {string} [gameId] - MongoDB ObjectId of game to edit (required in edit mode)
+ * @property {function} onNavigate - Navigation callback
+ * @property {function} showPrompt - Toast/alert callback for user feedback
+ */
 interface AdminGameFormPageProps {
   mode: 'create' | 'edit';
   gameId?: string;
@@ -16,19 +24,49 @@ interface AdminGameFormPageProps {
   showPrompt: (message: string, type?: 'success' | 'error') => void;
 }
 
+/**
+ * Accessibility category types supported by the platform.
+ * @typedef {'Visual' | 'Auditory' | 'Motor' | 'Cognitive' | 'Speech'} AccessibilityCategory
+ */
 type AccessibilityCategory = 'Visual' | 'Auditory' | 'Motor' | 'Cognitive' | 'Speech';
 
+/**
+ * Structure for accessibility feature tags with category classification.
+ * @interface AccessibilityFeatureTag
+ * @property {AccessibilityCategory} category - The accessibility category
+ * @property {string} name - Human-readable feature name
+ */
 interface AccessibilityFeatureTag {
   category: AccessibilityCategory;
   name: string;
 }
 
+/**
+ * Structure for store/platform links (currently not persisted to backend).
+ * @interface StoreLink
+ * @property {string} id - Unique identifier for the link
+ * @property {string} platform - Platform name (e.g., 'Steam', 'PlayStation')
+ * @property {string} url - Full URL to the game on that platform
+ */
 interface StoreLink {
   id: string;
   platform: string;
   url: string;
 }
 
+/**
+ * Internal form state structure for managing game data before submission.
+ * @interface FormState
+ * @property {string} title - Game title
+ * @property {string} studio - Developer/studio name
+ * @property {string} shortDescription - Brief description for cards
+ * @property {string} fullDescription - Complete game description
+ * @property {string} thumbnailUrl - Cover image URL or data URI
+ * @property {string} yearOfRelease - Year as string from select input
+ * @property {string[]} genres - Selected genre names
+ * @property {AccessibilityFeatureTag[]} accessibilityFeatures - Tagged accessibility features
+ * @property {StoreLink[]} storeLinks - Platform store links (not currently saved)
+ */
 interface FormState {
   title: string;
   studio: string;
@@ -78,10 +116,57 @@ const initialFormState: FormState = {
   storeLinks: [],
 };
 
+/**
+ * Validation error structure mapping field names to error messages.
+ * @interface ValidationErrors
+ */
 interface ValidationErrors {
   [key: string]: string | undefined;
 }
 
+/**
+ * Admin game form component for creating and editing games.
+ *
+ * @component
+ * @param {AdminGameFormPageProps} props - Component props
+ * @returns {JSX.Element} The admin game form page
+ *
+ * @description
+ * Comprehensive form for game management with the following features:
+ * - Create or edit mode based on props
+ * - Multi-step form with validation
+ * - Genre and accessibility feature selection
+ * - Image upload (converts to data URI)
+ * - Store link management (UI only, not persisted)
+ * - Duplicate title prevention
+ * - Confirmation dialog for deletion
+ *
+ * **Validation Rules:**
+ * - All basic fields (title, studio, descriptions, thumbnail, year) are required
+ * - At least one genre must be selected
+ * - At least two accessibility features must be added
+ * - Title must be unique across all games
+ *
+ * **State Management:**
+ * - Loads existing game data in edit mode
+ * - Preserves original release year for seeded games to prevent data corruption
+ * - Tracks loading, saving, and deleting states for UX feedback
+ *
+ * @example
+ * <AdminGameFormPage
+ *   mode="create"
+ *   onNavigate={navigate}
+ *   showPrompt={showToast}
+ * />
+ *
+ * @example
+ * <AdminGameFormPage
+ *   mode="edit"
+ *   gameId="507f1f77bcf86cd799439011"
+ *   onNavigate={navigate}
+ *   showPrompt={showToast}
+ * />
+ */
 const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onNavigate, showPrompt }) => {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [loading, setLoading] = useState(mode === 'edit');

@@ -1,16 +1,58 @@
-// ChangeEmailPasswordPage.tsx
-// Dedicated page for updating email and password from the My Profile page.
-// Implements validation rules: new password must be at least 8 characters and contain at least one number,
-// and must be confirmed before submission. A back button returns to the profile page without saving.
+/**
+ * Page for changing user email and password with comprehensive validation.
+ *
+ * @module ChangeEmailPasswordPage
+ * @description
+ * Dedicated page for updating email and password from the My Profile page.
+ * Implements validation rules and provides clear user feedback.
+ */
 
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
 
+/**
+ * Props for the ChangeEmailPasswordPage component.
+ * @interface ChangeEmailPasswordPageProps
+ * @property {function} onNavigate - Navigation callback
+ */
 interface ChangeEmailPasswordPageProps {
   onNavigate: (path: string) => void;
 }
 
+/**
+ * Email and password change page component.
+ *
+ * @component
+ * @param {ChangeEmailPasswordPageProps} props - Component props
+ * @returns {JSX.Element} The change credentials page
+ *
+ * @description
+ * Provides separate forms for changing email and password with validation.
+ *
+ * **Email Change Validation:**
+ * - Must be valid email format
+ * - Must be different from current email
+ * - Must not be already in use by another account
+ *
+ * **Password Change Validation:**
+ * - Requires current password verification
+ * - New password must be at least 8 characters
+ * - New password must contain at least one number
+ * - New password and confirmation must match
+ *
+ * **State Management:**
+ * - Separate state for email and password forms
+ * - Error and success messages for each form
+ * - Updates AuthContext on successful email change
+ *
+ * **API Interactions:**
+ * - authService.updateAccount() for both operations
+ * - CSRF protected via apiPut helper
+ *
+ * @example
+ * <ChangeEmailPasswordPage onNavigate={navigate} />
+ */
 const ChangeEmailPasswordPage: React.FC<ChangeEmailPasswordPageProps> = ({ onNavigate }) => {
   const { user, updateUser } = useAuth();
 
