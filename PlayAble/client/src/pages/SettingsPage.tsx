@@ -190,6 +190,15 @@ const SettingsPage = () => {
       const nextValue = !prev[key];
       if (key === 'voiceInput') {
         applyVoiceInputPreference(nextValue);
+        // When voice input is turned off, also mute the microphone
+        if (!nextValue) {
+          applyMicrophonePreference(false);
+          return {
+            ...prev,
+            [key]: nextValue,
+            microphoneActive: false,
+          };
+        }
       } else if (key === 'microphoneActive') {
         applyMicrophonePreference(nextValue);
       }
