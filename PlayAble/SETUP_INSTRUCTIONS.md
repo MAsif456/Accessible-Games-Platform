@@ -5,8 +5,6 @@
 - npm or yarn package manager
 - MongoDB installed locally OR MongoDB Atlas account (for cloud database)
 - Gmail account for sending password reset emails (see Email Setup below)
-- Gmail account for sending password reset emails (see Email Setup below)
-
 ---
 
 ## Step 1: Install Frontend Dependencies
@@ -82,24 +80,6 @@ EMAIL_USER=Your email username
 EMAIL_PASS=Your email app password
 ```
 - Replace `<db_password>` with the password for the `<db_username>` database user.
-
-**Important:** You must use the following account details for PlayAble's email service:
-```
-EMAIL_USER=playablehelp@gmail.com
-EMAIL_PASS=wervjuybyknubdnx
-```
-These credentials are required for password reset and notification features to work correctly.
-EMAIL_USER=playablehelp@gmail.com
-EMAIL_PASS=wervjuybyknubdnx
-```
-- Replace `<db_password>` with the password for the `<db_username>` database user.
-
-**Important:** You must use the following account details for PlayAble's email service:
-```
-EMAIL_USER=playablehelp@gmail.com
-EMAIL_PASS=wervjuybyknubdnx
-```
-These credentials are required for password reset and notification features to work correctly.
 
 ---
 
