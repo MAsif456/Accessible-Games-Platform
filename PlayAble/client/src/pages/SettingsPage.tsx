@@ -138,6 +138,7 @@ const SettingsPage = () => {
 
   // I debounce saves with a 500ms delay to batch rapid changes and avoid excessive API calls
   useEffect(() => {
+    // Skip save on initial load or when explicitly skipped
     if (isInitialLoadRef.current || skipNextSaveRef.current) {
       isInitialLoadRef.current = false;
       skipNextSaveRef.current = false;
@@ -145,6 +146,7 @@ const SettingsPage = () => {
       return;
     }
 
+    // Only save if settings actually changed and we're not loading
     if (!isLoading && settingsChanged(previousSettingsRef.current, settings)) {
       if (user?.id) {
         // I use a timeout to debounce saves, so multiple rapid toggles result in a single API call
@@ -156,6 +158,7 @@ const SettingsPage = () => {
             previousSettingsRef.current = updated;
           } catch (error) {
             console.error('Failed to save settings:', error);
+            // Don't update previousSettingsRef on error so it will retry on next change
           } finally {
             setTimeout(() => setAutoSaveIndicator(false), 2000);
           }
@@ -170,10 +173,14 @@ const SettingsPage = () => {
 
         return () => clearTimeout(saveTimeout);
       }
-    } else {
-      previousSettingsRef.current = settings;
+    } else if (!isLoading && previousSettingsRef.current) {
+      // Settings haven't changed, but sync previousSettingsRef to current settings
+      // This prevents the ref from getting out of sync on re-renders
+      if (!settingsChanged(previousSettingsRef.current, settings)) {
+        previousSettingsRef.current = settings;
+      }
     }
-  }, [settings, isLoading, user?.id, updateUserSettingsState]);
+  }, [settings, isLoading, user?.id]);
 
   useEffect(() => {
     applyAccessibilityPreferences(settings);

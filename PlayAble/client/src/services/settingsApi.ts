@@ -39,9 +39,11 @@ export const settingsApi = {
       { headers: userHeader(userId) }
     );
     if (!response.ok) {
-      throw new Error('Failed to update settings');
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to update settings: ${response.status} ${errorText}`);
     }
-    return response.json();
+    const data = await response.json();
+    return data;
   },
 
   async resetSettings(

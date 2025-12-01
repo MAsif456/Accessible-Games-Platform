@@ -113,7 +113,7 @@ export const corsSecurityMiddleware = (
   next: NextFunction
 ): void => {
   const origin = req.headers.origin;
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'];
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'];
 
   // Log suspicious cross-origin requests
   if (origin && !allowedOrigins.includes(origin)) {

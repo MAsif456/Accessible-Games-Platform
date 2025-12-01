@@ -62,6 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const loaded = await settingsApi.getSettings(userId);
       if (loaded) {
+        setUserSettings(loaded);
         applyAccessibilityPreferences(loaded);
       }
     } catch (error) {
