@@ -4,6 +4,18 @@
 
 This document outlines the JWT (JSON Web Token) security implementation in the PlayAble application, including the security measures implemented to protect against common JWT vulnerabilities.
 
+## Acceptance Criteria
+
+**Given** a user successfully authenticates,
+**When** tokens are generated,
+**Then** the system must:
+- Issue access tokens with proper claims (jti, iat, exp, user ID, role)
+- Use explicit HS256 algorithm specification
+- Validate tokens on every protected request
+- Invalidate tokens upon logout through blacklisting
+- Use a strong cryptographic secret (512-bit)
+- Protect against algorithm confusion attacks
+
 ## Security Features Implemented
 
 ### 1. **Strong Cryptographic Secret** ✅

@@ -36,6 +36,7 @@ import {
   csrfErrorHandler,
   csrfDevBypass
 } from './middleware/csrfProtection';
+import { generalApiLimiter } from './middleware/rateLimiting';
 
 dotenv.config();
 
@@ -76,6 +77,14 @@ app.use(cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-change-thi
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ============================================================================
+// RATE LIMITING (Applied early to protect all endpoints)
+// ============================================================================
+
+// Apply general rate limiting to all API routes
+// Limits: 100 requests per 15 minutes per IP
+app.use('/api', generalApiLimiter);
 
 // ============================================================================
 // CSRF PROTECTION (Applied before routes for state-changing requests)
