@@ -29,17 +29,22 @@ export function useGameReportDetails(gameId?: string): GameReportState {
     error: null,
     game: cached ?? null,
   });
+  const [requestId, setRequestId] = useState(0);
 
   useEffect(() => {
     if (!gameId) return;
+    const nextRequest = requestId + 1;
+    setRequestId(nextRequest);
     let cancelled = false;
 
     (async () => {
       try {
         const game = await getGameById(gameId);
-        if (!cancelled) setState({ loading: false, error: null, game });
+        if (!cancelled && requestId + 1 === nextRequest)
+          setState({ loading: false, error: null, game });
       } catch (err) {
-        if (!cancelled) setState({ loading: false, error: 'Could not load game details.', game: null });
+        if (!cancelled && requestId + 1 === nextRequest)
+          setState({ loading: false, error: 'Could not load game details.', game: null });
       }
     })();
 
@@ -58,17 +63,33 @@ export function useReviewReportDetails(reviewId?: string): ReviewReportState {
     game: null,
     review: null,
   });
+  const [requestId, setRequestId] = useState(0);
 
   useEffect(() => {
     if (!reviewId) return;
+    const nextRequest = requestId + 1;
+    setRequestId(nextRequest);
     let cancelled = false;
 
     (async () => {
       try {
         const { game, review } = await getReviewById(reviewId);
-        if (!cancelled) setState({ loading: false, error: null, game, review });
+        if (!cancelled && requestId + 1 === nextRequest) {
+          const mappedReview: ReviewDetails = {
+            id: review.id,
+            author: review.author,
+            createdAt: review.createdAt,
+            content: review.content,
+          };
+          setState({
+            loading: false,
+            error: null,
+            game: game ?? null,
+            review: mappedReview,
+          });
+        }
       } catch (err) {
-        if (!cancelled)
+        if (!cancelled && requestId + 1 === nextRequest)
           setState({ loading: false, error: 'Could not load review details.', game: null, review: null });
       }
     })();
