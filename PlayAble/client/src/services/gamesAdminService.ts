@@ -1,5 +1,6 @@
 import { GameDto } from './api';
 import authService from './authService';
+import { apiPost, apiPut, apiDelete } from '../utils/apiHelper';
 
 export interface AdminGamesResponse {
   games: GameDto[];
@@ -45,10 +46,13 @@ export type AdminGameInput = Omit<
 };
 
 export async function createAdminGame(input: AdminGameInput): Promise<{ game: GameDto }> {
-  const res = await authFetch('/api/admin/games', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+  const token = authService.getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await apiPost('/api/admin/games', input, { headers });
   if (!res.ok) {
     throw new Error(`Failed to create game: ${res.status}`);
   }
@@ -59,10 +63,13 @@ export async function updateAdminGame(
   id: string,
   input: Partial<AdminGameInput>
 ): Promise<{ game: GameDto }> {
-  const res = await authFetch(`/api/admin/games/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    body: JSON.stringify(input),
-  });
+  const token = authService.getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await apiPut(`/api/admin/games/${encodeURIComponent(id)}`, input, { headers });
   if (!res.ok) {
     throw new Error(`Failed to update game: ${res.status}`);
   }
@@ -70,9 +77,13 @@ export async function updateAdminGame(
 }
 
 export async function deleteAdminGame(id: string): Promise<void> {
-  const res = await authFetch(`/api/admin/games/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  });
+  const token = authService.getToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await apiDelete(`/api/admin/games/${encodeURIComponent(id)}`, { headers });
   if (!res.ok) {
     throw new Error(`Failed to delete game: ${res.status}`);
   }

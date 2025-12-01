@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { useAuth } from './AuthContext';
 import authService from '../services/authService';
+import { apiDelete } from '../utils/apiHelper';
 
 export interface RecentlyViewedGameDto {
   id: string;
@@ -68,7 +69,7 @@ export const RecentlyViewedProvider: React.FC<Props> = ({ children }) => {
     if (!isAuthenticated) return;
     const token = authService.getToken();
     const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch('/api/recently-viewed', { method: 'DELETE', headers });
+    const res = await apiDelete('/api/recently-viewed', { headers });
     if (!res.ok) {
       console.error('Failed to clear recently viewed history');
       return;

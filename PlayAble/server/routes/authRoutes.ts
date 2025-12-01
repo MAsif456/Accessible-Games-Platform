@@ -14,13 +14,23 @@ import {
   updateEmailAndPassword,
 } from '../controllers/authController';
 import { protect } from '../middleware/auth';
+import {
+  loginLimiter,
+  signupLimiter,
+  passwordResetLimiter
+} from '../src/middleware/rateLimiting';
 
 const router = express.Router();
 
-// Public routes
-router.post('/signup', signup);
-router.post('/login', login);
-router.post('/request-password-reset', requestPasswordReset);
+// Public routes with rate limiting
+// Login: 5 attempts per 15 minutes (prevents brute force attacks)
+router.post('/login', loginLimiter, login);
+
+// Signup: 3 attempts per hour (prevents mass account creation)
+router.post('/signup', signupLimiter, signup);
+
+// Password reset: 3 attempts per hour (prevents email flooding)
+router.post('/request-password-reset', passwordResetLimiter, requestPasswordReset);
 router.post('/reset-password', resetPassword);
 
 // Protected routes

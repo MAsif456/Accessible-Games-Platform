@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { useAuth } from './AuthContext';
 import authService from '../services/authService';
+import { apiPost, apiDelete } from '../utils/apiHelper';
 
 export interface FavouriteGameDto {
   id: string;
@@ -110,7 +111,7 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
     }
     const token = authService.getToken();
     const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch(`/api/favourites/${gameId}`, { method: 'POST', headers });
+    const res = await apiPost(`/api/favourites/${gameId}`, undefined, { headers });
     if (!res.ok && res.status !== 409) return;
 
     setFavouriteIds(prev => {
@@ -126,7 +127,7 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
     if (!isAuthenticated) return;
     const token = authService.getToken();
     const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch(`/api/favourites/${gameId}`, { method: 'DELETE', headers });
+    const res = await apiDelete(`/api/favourites/${gameId}`, { headers });
     if (!res.ok) return;
 
     setFavouriteIds(prev => {
