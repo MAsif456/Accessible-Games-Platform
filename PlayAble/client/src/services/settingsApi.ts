@@ -1,3 +1,5 @@
+import { apiPut, apiPost } from '../utils/apiHelper';
+
 const API_BASE_URL = 'http://localhost:5001/api';
 
 export interface UserSettings {
@@ -13,7 +15,6 @@ export interface UserSettings {
 }
 
 const userHeader = (userId: string) => ({
-  'Content-Type': 'application/json',
   'X-User-Id': userId,
 });
 
@@ -32,11 +33,11 @@ export const settingsApi = {
     userId: string,
     settings: Partial<UserSettings>
   ): Promise<UserSettings> {
-    const response = await fetch(`${API_BASE_URL}/settings`, {
-      method: 'PUT',
-      headers: userHeader(userId),
-      body: JSON.stringify({ userId, ...settings }),
-    });
+    const response = await apiPut(
+      `${API_BASE_URL}/settings`,
+      { userId, ...settings },
+      { headers: userHeader(userId) }
+    );
     if (!response.ok) {
       throw new Error('Failed to update settings');
     }
@@ -46,11 +47,11 @@ export const settingsApi = {
   async resetSettings(
     userId: string
   ): Promise<{ message: string; settings: UserSettings }> {
-    const response = await fetch(`${API_BASE_URL}/settings/reset`, {
-      method: 'POST',
-      headers: userHeader(userId),
-      body: JSON.stringify({ userId }),
-    });
+    const response = await apiPost(
+      `${API_BASE_URL}/settings/reset`,
+      { userId },
+      { headers: userHeader(userId) }
+    );
     if (!response.ok) {
       throw new Error('Failed to reset settings');
     }

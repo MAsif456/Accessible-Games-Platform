@@ -20,15 +20,91 @@ import reviewsRoutes from './routes/reviews.routes';
 import reviewReportsRoutes from './routes/reviewReports.routes';
 import recentlyViewedRoutes from './routes/recentlyViewed.routes';
 
+// Import security middleware
+import cookieParser from 'cookie-parser';
+import {
+  securityHeadersMiddleware,
+  customSecurityHeaders,
+  corsSecurityMiddleware,
+  securityLoggingMiddleware,
+  validateSecurityHeaders,
+  cspViolationReportHandler
+} from './middleware/securityHeaders';
+import {
+  csrfProtection,
+  generateCsrfToken,
+  csrfErrorHandler,
+  csrfDevBypass
+} from './middleware/csrfProtection';
+import { generalApiLimiter } from './middleware/rateLimiting';
+
 dotenv.config();
 
 const app: Express = express();
 const PORT = process.env.PORT || 5001;
 
+// ============================================================================
+// SECURITY MIDDLEWARE (Applied first for maximum protection)
+// ============================================================================
+
+// Apply Helmet security headers (CSP, HSTS, X-Frame-Options, etc.)
+app.use(securityHeadersMiddleware);
+
+// Apply custom security headers
+app.use(customSecurityHeaders);
+
+// Security logging for monitoring suspicious activity
+app.use(securityLoggingMiddleware);
+
+// Validate security headers in development mode
+if (process.env.NODE_ENV === 'development') {
+  app.use(validateSecurityHeaders);
+}
+
+// ============================================================================
+// STANDARD MIDDLEWARE
+// ============================================================================
+
 // Enable CORS for cross-origin requests from the frontend (Vite dev server).
 app.use(cors());
+
+// Enhanced CORS security checks
+app.use(corsSecurityMiddleware);
+
+// Cookie parser middleware (required for secure cookie handling and CSRF)
+app.use(cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-change-this'));
+
+// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ============================================================================
+// RATE LIMITING (Applied early to protect all endpoints)
+// ============================================================================
+
+// Apply general rate limiting to all API routes
+// Limits: 100 requests per 15 minutes per IP
+app.use('/api', generalApiLimiter);
+
+// ============================================================================
+// CSRF PROTECTION (Applied before routes for state-changing requests)
+// ============================================================================
+
+// CSRF token endpoint - Frontend requests this to get a CSRF token
+// Must be BEFORE csrfProtection middleware to avoid chicken-and-egg problem
+app.get('/api/csrf-token', (req: Request, res: Response) => {
+  const token = generateCsrfToken(req, res);
+  res.json({ csrfToken: token });
+});
+
+// Development bypass (optional - allows development without CSRF tokens)
+if (process.env.CSRF_DEV_BYPASS === 'true') {
+  console.log('[DEV] CSRF protection bypassed - development mode');
+} else {
+  // Apply CSRF protection to all state-changing requests (POST, PUT, PATCH, DELETE)
+  // GET requests are automatically excluded as they should be safe/idempotent
+  app.use(csrfProtection);
+}
 
 // Serve static images
 app.use('/images', express.static(path.join(__dirname, '../public/images')));
@@ -55,6 +131,10 @@ mongoose
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
+
+// CSP Violation Report endpoint
+// Receives reports from browsers when Content Security Policy is violated
+app.post('/api/csp-violation-report', cspViolationReportHandler);
 
 // Games API routes
 app.use('/api', gamesRouter);
@@ -208,6 +288,13 @@ app.post('/api/settings/reset', async (req: Request, res: Response) => {
 app.use('/api/*', (req, res) => {
   res.status(404).json({ success: false, message: 'API route not found' });
 });
+
+// ============================================================================
+// ERROR HANDLERS (Applied last to catch all errors)
+// ============================================================================
+
+// CSRF error handler - Must be before global error handler
+app.use(csrfErrorHandler);
 
 // Global error handler for catching unexpected errors and returning a standard JSON response.
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

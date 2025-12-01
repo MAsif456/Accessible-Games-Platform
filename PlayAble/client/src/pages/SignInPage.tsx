@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { apiPost } from '../utils/apiHelper';
 import '../styles/SignIn.css';
 
 interface SignInPageProps {
@@ -183,16 +184,13 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
   };
 
   // Handle password reset request
+  // CSRF protection applied automatically via apiPost helper
   const handleRequestReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetLoading(true);
     setResetError('');
     try {
-      const res = await fetch('/api/auth/request-password-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail }),
-      });
+      const res = await apiPost('/api/auth/request-password-reset', { email: resetEmail });
       if (res.ok) {
         setResetStep('check');
         setResetTimer(60);
@@ -216,16 +214,13 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
   }, [resetStep, resetTimer]);
 
   // Handle resend
+  // CSRF protection applied automatically via apiPost helper
   const handleResend = async () => {
     setResetResent(false);
     setResetLoading(true);
     setResetError('');
     try {
-      const res = await fetch('/api/auth/request-password-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail }),
-      });
+      const res = await apiPost('/api/auth/request-password-reset', { email: resetEmail });
       if (res.ok) {
         setResetResent(true);
         setResetTimer(60);
@@ -240,15 +235,16 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
   };
 
   // Handle code and new password submit
+  // CSRF protection applied automatically via apiPost helper
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetLoading(true);
     setResetError('');
     try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, code: resetCode, newPassword: resetNewPassword }),
+      const res = await apiPost('/api/auth/reset-password', {
+        email: resetEmail,
+        code: resetCode,
+        newPassword: resetNewPassword
       });
       const data = await res.json();
       if (data.success) {
