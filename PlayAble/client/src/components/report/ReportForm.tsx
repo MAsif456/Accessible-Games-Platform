@@ -42,14 +42,9 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
     wasMicActiveRef.current = assistantMicActive;
     wasVoiceEnabledRef.current = assistantVoiceEnabled;
     
-    // Force stop voice assistant recognition FIRST (most aggressive)
-    if (forceStopRecognition) {
-      forceStopRecognition();
-    }
-    cancelListening();
-    
-    // Temporarily disable BOTH voice input AND microphone to completely prevent restart
-    // This ensures canListen is false, so the voice assistant won't restart
+    // STEP 1: Disable voice input and microphone FIRST
+    // This ensures canListen becomes false BEFORE we stop recognition
+    // This prevents the onend handler from restarting
     if (assistantVoiceEnabled) {
       applyVoiceInputPreference(false);
     }
@@ -57,8 +52,18 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       applyMicrophonePreference(false);
     }
     
-    // Longer delay to ensure voice assistant fully stops and all handlers finish
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // STEP 2: Wait a moment for the settings to take effect
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // STEP 3: Force stop voice assistant recognition (now that canListen is false)
+    if (forceStopRecognition) {
+      forceStopRecognition();
+    }
+    cancelListening();
+    
+    // STEP 4: Longer delay to ensure voice assistant fully stops and all handlers finish
+    // The onend handler checks canListen, which is now false, so it won't restart
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     await startVoiceRecording();
   };

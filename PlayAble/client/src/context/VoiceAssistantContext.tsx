@@ -56,11 +56,13 @@ declare global {
 
 const VoiceAssistantContext = createContext<VoiceAssistantContextValue | undefined>(undefined);
 
-const VOICE_RESET_DELAY = 1000; // Reduced from 1800ms for faster responses
+// I use a delay before resetting to idle so users have time to see status messages and visual feedback
+const VOICE_RESET_DELAY = 1000;
+// I provide Safari-specific instructions because Safari requires user interaction before starting recognition
 const SAFARI_LISTENING_HINT =
   'Tap the Voice button or press Ctrl + Shift + V to activate listening in Safari.';
 
-// Wake words that activate listening
+// I support multiple wake word variations to make activation more natural and forgiving
 const WAKE_WORDS = ['hey assistant', 'hey', 'assistant'];
 
 const navigationCommands: {
@@ -68,7 +70,6 @@ const navigationCommands: {
   path: string;
   announcement: string;
 }[] = [
-  // Settings
   {
     matchers: [
       'open accessibility settings',
@@ -91,7 +92,6 @@ const navigationCommands: {
     path: '/settings',
     announcement: 'Opening accessibility settings',
   },
-  // Recently Viewed
   {
     matchers: [
       'show recently viewed',
@@ -116,7 +116,6 @@ const navigationCommands: {
     path: '/recently-viewed',
     announcement: 'Showing recently viewed games',
   },
-  // Profile
   {
     matchers: [
       'take me to my profile',
@@ -142,7 +141,6 @@ const navigationCommands: {
     path: '/my-profile',
     announcement: 'Opening your profile',
   },
-  // Favourites
   {
     matchers: [
       'show favorites',
@@ -181,7 +179,6 @@ const navigationCommands: {
     path: '/favourites',
     announcement: 'Opening favourites',
   },
-  // Browse/Home
   {
     matchers: [
       'go home',
@@ -217,7 +214,6 @@ const navigationCommands: {
     path: '/browse',
     announcement: 'Opening browse page',
   },
-  // Inbox
   {
     matchers: [
       'open inbox',
@@ -237,7 +233,6 @@ const navigationCommands: {
     path: '/inbox',
     announcement: 'Opening inbox',
   },
-  // Report
   {
     matchers: [
       'i want to report this game',
@@ -259,7 +254,6 @@ const navigationCommands: {
     path: '/report',
     announcement: 'Opening report page',
   },
-  // About
   {
     matchers: [
       'about',
@@ -278,7 +272,6 @@ const navigationCommands: {
   },
 ];
 
-// Map accessibility-related voice commands to search terms
 const accessibilitySearchMap: { [key: string]: string } = {
   'subtitle support': 'subtitle',
   'subtitles': 'subtitle',
@@ -300,7 +293,6 @@ const accessibilitySearchMap: { [key: string]: string } = {
   'cognitive support': 'cognitive',
 };
 
-// Map genre voice commands to search terms
 const genreSearchMap: { [key: string]: string } = {
   'puzzle games': 'puzzle',
   'puzzle': 'puzzle',
@@ -331,26 +323,22 @@ const genreSearchMap: { [key: string]: string } = {
 const extractSearchTerm = (command: string): string | null => {
   const normalized = command.trim().toLowerCase();
 
-  // Check for accessibility-related searches first
   for (const [key, value] of Object.entries(accessibilitySearchMap)) {
     if (normalized.includes(key)) {
       return value;
     }
   }
 
-  // Check for genre searches
   for (const [key, value] of Object.entries(genreSearchMap)) {
     if (normalized.includes(key)) {
       return value;
     }
   }
 
-  // Handle "clear all my search filters" or similar
   if (normalized.includes('clear') && (normalized.includes('filter') || normalized.includes('search'))) {
-    return ''; // Empty string to clear search
+    return '';
   }
 
-  // Standard search prefix extraction
   const searchPrefixes = [
     'search for',
     'show me',
@@ -369,7 +357,6 @@ const extractSearchTerm = (command: string): string | null => {
       term = term.replace(/^all\s+/, '');
       term = term.replace(/(games|game)$/, '').trim();
       
-      // Check if it's a genre or accessibility term
       if (genreSearchMap[term]) {
         return genreSearchMap[term];
       }
@@ -381,12 +368,10 @@ const extractSearchTerm = (command: string): string | null => {
     }
   }
 
-  // Handle "games with X" pattern
   if (normalized.includes('games with')) {
     const start = normalized.indexOf('games with') + 'games with'.length;
     let term = normalized.slice(start).trim();
     
-    // Check accessibility map
     if (accessibilitySearchMap[term]) {
       return accessibilitySearchMap[term];
     }
@@ -394,7 +379,6 @@ const extractSearchTerm = (command: string): string | null => {
     return term || null;
   }
 
-  // Handle "all X games" pattern
   if (normalized.match(/^(all|show|find|search)\s+.+\s+games?$/)) {
     let term = normalized.replace(/^(all|show|find|search)\s+/, '').replace(/\s+games?$/, '').trim();
     
@@ -432,11 +416,13 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
   const hideIndicatorRef = useRef<number | null>(null);
   const safariActivationRef = useRef(false);
 
+  // I detect Safari specifically because it has different recognition behavior requiring user activation
   const isSafari =
     typeof navigator !== 'undefined' &&
     /safari/i.test(navigator.userAgent) &&
     !/chrome|crios|android/i.test(navigator.userAgent);
 
+  // I combine all conditions into one flag to simplify checks throughout the component
   const canListen = voiceInputEnabled && microphoneActive && recognitionSupported;
 
   const clearHideTimer = useCallback(() => {
@@ -446,21 +432,18 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     }
   }, []);
 
+  // I use a delayed reset to give users time to see feedback before returning to idle, and support keeping listening active for continuous interactions
   const resetToIdle = useCallback(
     (delay = VOICE_RESET_DELAY, keepListening = false) => {
       clearHideTimer();
-      // Don't reset if we're actively listening from button activation
       if (keepListening && safariActivationRef.current && listeningState === 'listening') {
-        return; // Keep listening, don't reset
+        return;
       }
       hideIndicatorRef.current = window.setTimeout(() => {
-        // Check again if we should keep listening (state might have changed)
         if (keepListening && safariActivationRef.current && canListen) {
-          // Keep listening if activated from button
           setListeningState('listening');
           setStatusMessage('Listening... Speak now or say "cancel"');
           setIsIndicatorVisible(true);
-          // Ensure recognition is still running - will be defined later
           if (recognitionRef.current && canListen) {
             try {
               recognitionRef.current.start();
@@ -486,6 +469,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     [canListen, clearHideTimer, isSafari, listeningState]
   );
 
+  // I check Safari activation state before starting recognition because Safari requires explicit user interaction
   const ensureRecognition = useCallback(
     (requireActivation = false) => {
       if (!recognitionRef.current || !canListen) {
@@ -497,10 +481,8 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       }
 
       try {
-        // Check if already started to avoid InvalidStateError
         recognitionRef.current.start();
       } catch (error: any) {
-        // InvalidStateError means it's already running, which is fine
         if (error?.name !== 'InvalidStateError') {
           console.error('Speech recognition start error:', error);
         }
@@ -514,21 +496,17 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       return;
     }
     try {
-      // Try to start immediately first
       try {
         recognitionRef.current.start();
       } catch (error: any) {
-        // If already running, that's fine
         if (error?.name === 'InvalidStateError') {
-          return; // Already running, no need to retry
+          return;
         }
-        // For other errors, try again after a delay
         setTimeout(() => {
           if (recognitionRef.current && canListen) {
             try {
               recognitionRef.current.start();
             } catch (retryError: any) {
-              // InvalidStateError means it's already running, which is fine
               if (retryError?.name !== 'InvalidStateError') {
                 console.error('Speech recognition start error:', retryError);
               }
@@ -543,10 +521,8 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     }
   }, [canListen]);
 
-  // Helper function to update settings
   const updateSetting = useCallback(
     async (settingKey: keyof UserSettings, value: boolean | string) => {
-      // Update local state immediately for voice input and microphone
       if (settingKey === 'voiceInput') {
         setVoiceInputEnabled(value as boolean);
       } else if (settingKey === 'microphoneActive') {
@@ -554,7 +530,6 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       }
 
       if (!user?.id) {
-        // For non-logged-in users, just apply locally
         const newSettings = {
           ...userSettings,
           [settingKey]: value,
@@ -589,9 +564,10 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       }
 
       setLastHeardPhrase(command);
+      // I normalize commands to lowercase to make matching case-insensitive and more forgiving
       const normalized = command.toLowerCase();
 
-      // Handle cancel command
+      // I check for cancel commands first to allow users to exit quickly at any time
       if (normalized.includes('cancel') || normalized.includes('stop listening') || normalized.includes('stop')) {
         setStatusMessage('Listening cancelled');
         setListeningState('idle');
@@ -602,8 +578,6 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         return;
       }
 
-      // Handle settings commands (high contrast, dark mode, mic, voice input)
-      // High contrast mode
       if (
         (normalized.includes('high contrast') || normalized.includes('high-contrast')) &&
         (normalized.includes('on') || normalized.includes('enable') || normalized.includes('turn on') || normalized.includes('activate'))
@@ -628,7 +602,6 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         return;
       }
 
-      // Dark mode
       if (
         (normalized.includes('dark mode') || normalized.includes('dark-mode') || normalized.includes('dark')) &&
         (normalized.includes('on') || normalized.includes('enable') || normalized.includes('turn on') || normalized.includes('activate'))
@@ -653,7 +626,6 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         return;
       }
 
-      // Microphone
       if (
         (normalized.includes('mic') || normalized.includes('microphone')) &&
         (normalized.includes('off') || normalized.includes('disable') || normalized.includes('turn off') || normalized.includes('mute'))
@@ -662,7 +634,6 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setListeningState('processing');
         setIsIndicatorVisible(true);
         updateSetting('microphoneActive', false);
-        // applyMicrophonePreference will be called via useEffect when userSettings updates
         resetToIdle(800, wasActivatedFromButton);
         return;
       }
@@ -675,12 +646,10 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setListeningState('processing');
         setIsIndicatorVisible(true);
         updateSetting('microphoneActive', true);
-        // applyMicrophonePreference will be called via useEffect when userSettings updates
         resetToIdle(800, wasActivatedFromButton);
         return;
       }
 
-      // Voice input
       if (
         (normalized.includes('voice input') || normalized.includes('voice-input') || normalized.includes('voice')) &&
         (normalized.includes('off') || normalized.includes('disable') || normalized.includes('turn off') || normalized.includes('deactivate'))
@@ -689,7 +658,6 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setListeningState('processing');
         setIsIndicatorVisible(true);
         updateSetting('voiceInput', false);
-        // applyVoiceInputPreference will be called via useEffect when userSettings updates
         resetToIdle(800, wasActivatedFromButton);
         return;
       }
@@ -702,12 +670,11 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setListeningState('processing');
         setIsIndicatorVisible(true);
         updateSetting('voiceInput', true);
-        // applyVoiceInputPreference will be called via useEffect when userSettings updates
         resetToIdle(800, wasActivatedFromButton);
         return;
       }
 
-      // Check for navigation commands
+      // I check navigation commands before search to prioritize explicit navigation over search queries
       const navMatch = navigationCommands.find((item) =>
         item.matchers.some((matcher) => normalized.includes(matcher))
       );
@@ -716,13 +683,11 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setStatusMessage(navMatch.announcement);
         setListeningState('processing');
         setIsIndicatorVisible(true);
-        // Navigate immediately for faster response
         onNavigate(navMatch.path);
-        resetToIdle(800, wasActivatedFromButton); // Reduced delay
+        resetToIdle(800, wasActivatedFromButton);
         return;
       }
 
-      // Handle clear filters/search - more variations
       if (
         (normalized.includes('clear') || normalized.includes('remove') || normalized.includes('reset')) &&
         (normalized.includes('filter') ||
@@ -735,37 +700,34 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setIsIndicatorVisible(true);
         onNavigate('/browse');
         setSearchTerm('');
-        resetToIdle(800, wasActivatedFromButton); // Reduced delay
+        resetToIdle(800, wasActivatedFromButton);
         return;
       }
 
-      // Extract and process search terms
+      // I extract search terms last as a fallback, allowing natural language queries after checking for specific commands
       const searchTerm = extractSearchTerm(normalized);
       if (searchTerm !== null) {
         if (searchTerm === '') {
-          // Clear search
           setStatusMessage('Clearing search');
           setListeningState('processing');
           setIsIndicatorVisible(true);
           onNavigate('/browse');
           setSearchTerm('');
         } else {
-          // Perform search
           setStatusMessage(`Searching for "${searchTerm}"`);
           setListeningState('processing');
           setIsIndicatorVisible(true);
           onNavigate('/browse');
           setSearchTerm(searchTerm);
         }
-        resetToIdle(800, wasActivatedFromButton); // Reduced delay
+        resetToIdle(800, wasActivatedFromButton);
         return;
       }
 
-      // If no match found - try to be more helpful
       setStatusMessage("I didn't understand. Try: 'go to favorites', 'search for games', 'open settings', 'turn on dark mode', or 'turn off microphone'.");
       setListeningState('error');
       setIsIndicatorVisible(true);
-      resetToIdle(1200, wasActivatedFromButton); // Slightly longer for error messages
+      resetToIdle(1200, wasActivatedFromButton);
     },
     [onNavigate, resetToIdle, setSearchTerm, updateSetting]
   );
@@ -776,19 +738,16 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
 
       const normalized = transcript.trim().toLowerCase();
 
-      // Check if we're in listening mode
       const isCurrentlyListening = listeningState === 'listening' || listeningState === 'processing';
       const wasActivatedFromButton = safariActivationRef.current;
 
-      // Always check for wake words first, even when in awaiting mode
+      // I check for wake words when not actively listening to allow natural activation phrases
       if (!isCurrentlyListening) {
-        // Look for any wake word (hey assistant, hey, or assistant)
-        // Check in order: longest first to avoid partial matches
         let wakeWordFound = false;
         let withoutWakeWord = normalized;
         let matchedWakeWord = '';
 
-        // Check for "hey assistant" first (longest)
+        // I check for the longest wake word first to avoid partial matches
         if (normalized.includes('hey assistant')) {
           wakeWordFound = true;
           matchedWakeWord = 'hey assistant';
@@ -801,16 +760,15 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         }
 
         if (wakeWordFound) {
-          // Remove the wake word and any following whitespace
+          // I remove the wake word from the command so users can say the wake word and command in one phrase
           const regex = new RegExp(matchedWakeWord.replace(/\s+/g, '\\s+'), 'i');
           withoutWakeWord = normalized.replace(regex, '').trim();
           
           setStatusMessage('Listening... Speak now');
           setIsIndicatorVisible(true);
           setListeningState('listening');
-          safariActivationRef.current = true; // Mark as activated
+          safariActivationRef.current = true;
           
-          // Ensure recognition keeps running
           if (recognitionRef.current && canListen) {
             try {
               recognitionRef.current.start();
@@ -821,8 +779,8 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
             }
           }
           
+          // I process any command that came with the wake word immediately for faster response
           if (withoutWakeWord) {
-            // Process command immediately if there's text after wake word
             setTimeout(() => {
               processCommand(withoutWakeWord, false);
             }, 50);
@@ -830,12 +788,9 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
           return;
         }
         
-        // No wake word found and not listening - ignore
         return;
       }
 
-      // We're in listening mode, process the command directly
-      // Also check if wake word is in the command and remove it
       let commandToProcess = normalized;
       for (const wakeWord of WAKE_WORDS) {
         if (normalized.includes(wakeWord)) {
@@ -854,12 +809,10 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
 
   const handleRecognitionError = useCallback(
     (event: { error: string }) => {
-      // Don't reset if we're actively listening from button
       const isActivelyListening = safariActivationRef.current && listeningState === 'listening';
       
       if (event.error === 'no-speech') {
         if (isActivelyListening) {
-          // Keep listening, just show message
           setStatusMessage("I didn't hear anything. Try speaking again.");
           setListeningState('listening');
           setIsIndicatorVisible(true);
@@ -870,12 +823,10 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
           resetToIdle(1000, false);
         }
       } else if (event.error === 'aborted') {
-        // Aborted is fine, recognition will restart
         return;
       } else {
         console.error('Speech recognition error:', event.error);
         if (isActivelyListening) {
-          // Keep listening even on error
           setStatusMessage('Encountered an error, but still listening. Try again.');
           setListeningState('listening');
           setIsIndicatorVisible(true);
@@ -915,42 +866,31 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     };
 
     recognition.onerror = handleRecognitionError;
+    // I restart recognition automatically when it ends to maintain continuous listening, but only if we're in an active listening state
     recognition.onend = () => {
-      // Only restart if we should be listening
       if (canListen && recognitionRef.current) {
-        // If we're in listening mode (especially from button), restart immediately
         const shouldKeepListening = safariActivationRef.current || listeningState === 'listening' || listeningState === 'processing';
         if (shouldKeepListening) {
-          // Restart immediately when actively listening - critical for button activation
           setTimeout(() => {
             if (recognitionRef.current && canListen && (safariActivationRef.current || listeningState === 'listening')) {
               try {
                 recognitionRef.current.start();
               } catch (error: any) {
-                // InvalidStateError means it's already running or starting
                 if (error?.name !== 'InvalidStateError') {
                   console.error('Speech recognition restart error:', error);
                 }
               }
             }
-          }, 100); // Small delay to ensure clean restart
+          }, 100);
         } else {
-          // Otherwise, restart with activation requirement (for wake word mode)
           ensureRecognition(true);
         }
       }
     };
 
-    // Start recognition in background to listen for wake words
-    // But don't set state to 'listening' until wake words are detected or button is pressed
-    // For non-Safari browsers, start recognition to detect wake words
-    // For Safari, only start if explicitly activated
     if (!isSafari) {
-      // Start recognition in background for wake word detection
-      // State will remain 'idle' until wake word is detected
       ensureRecognitionUnlocked();
     } else if (safariActivationRef.current) {
-      // For Safari, only start if explicitly activated
       ensureRecognitionUnlocked();
     }
 
@@ -965,41 +905,30 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
   useEffect(() => {
     if (!recognitionSupported) return;
 
-    // Don't reset state if we're actively listening from button - this is critical!
     if (safariActivationRef.current && (listeningState === 'listening' || listeningState === 'processing')) {
-      // Keep recognition running
       if (canListen && recognitionRef.current) {
         try {
           recognitionRef.current.start();
         } catch (error: any) {
-          // Already running is fine
           if (error?.name !== 'InvalidStateError') {
             console.error('Recognition start error in useEffect:', error);
           }
         }
       }
-      return; // Keep current state - don't reset!
+      return;
     }
 
     if (canListen) {
-      // Only set to awaiting if not already listening or processing
       if (listeningState !== 'listening' && listeningState !== 'processing') {
-        // Keep state as 'idle' initially - don't show as 'awaiting' until wake word detected
         setListeningState('idle');
         setStatusMessage('Say "Hey", "Assistant", or "Hey Assistant" to start');
       }
-      // Start recognition in background for wake word detection (non-Safari)
-      // For Safari, only start if explicitly activated
       if (!isSafari) {
-        // Start recognition in background to listen for wake words
-        // State remains 'idle' until wake word is detected
         ensureRecognitionUnlocked();
       } else if (safariActivationRef.current) {
-        // For Safari, only start if explicitly activated
         ensureRecognitionUnlocked();
       }
     } else {
-      // Only reset if not actively listening from button
       if (!safariActivationRef.current || listeningState !== 'listening') {
         setListeningState('idle');
         setIsIndicatorVisible(false);
@@ -1029,27 +958,20 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       return;
     }
 
-    // Clear any pending resets - this is critical!
     clearHideTimer();
     
-    // Set activation flag BEFORE setting state
     safariActivationRef.current = true;
     setIsIndicatorVisible(true);
     setListeningState('listening');
     setStatusMessage('Listening... Say "Hey", "Assistant", or your command');
     
-    // Start recognition immediately and keep it running
-    // Use a small delay to ensure state is set
     setTimeout(() => {
       if (recognitionRef.current && canListen) {
         try {
-          // Stop first if running to restart fresh
           try {
             recognitionRef.current.stop();
           } catch (e) {
-            // Ignore stop errors
           }
-          // Then start
           setTimeout(() => {
             if (recognitionRef.current && canListen && safariActivationRef.current) {
               try {
@@ -1066,8 +988,6 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         }
       }
     }, 10);
-    
-    // Don't auto-reset when activated from button - user must say "cancel" or close the popup
   }, [canListen, microphoneActive, resetToIdle, voiceInputEnabled, clearHideTimer]);
 
   const applyVoiceInputPreference = useCallback(
@@ -1079,10 +999,8 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setStatusMessage('Voice input is switched off');
         recognitionRef.current?.stop();
       } else if (microphoneActive && recognitionSupported) {
-        // Keep state as 'idle' - don't show as 'awaiting' until wake word detected
         setListeningState('idle');
         setStatusMessage('Say "Hey", "Assistant", or "Hey Assistant" to start');
-        // Start recognition in background for wake word detection (non-Safari)
         if (!isSafari) {
           ensureRecognitionUnlocked();
         } else if (safariActivationRef.current) {
@@ -1102,10 +1020,8 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
         setStatusMessage('Microphone is muted');
         recognitionRef.current?.stop();
       } else if (voiceInputEnabled && recognitionSupported) {
-        // Keep state as 'idle' - don't show as 'awaiting' until wake word detected
         setListeningState('idle');
         setStatusMessage('Say "Hey", "Assistant", or "Hey Assistant" to start');
-        // Start recognition in background for wake word detection (non-Safari)
         if (!isSafari) {
           ensureRecognitionUnlocked();
         } else if (safariActivationRef.current) {
@@ -1152,32 +1068,29 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-        // Note: abort() may not exist on all browsers
         if (typeof (recognitionRef.current as any).abort === 'function') {
           (recognitionRef.current as any).abort();
         }
       } catch {
-        // Ignore errors
       }
     }
     resetToIdle(500, false);
   }, [resetToIdle]);
 
-  // Expose a method to forcefully stop recognition (for use by voice recording)
   const forceStopRecognition = useCallback(() => {
+    setListeningState('idle');
+    setIsIndicatorVisible(false);
+    safariActivationRef.current = false;
+    
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-        // Note: abort() may not exist on all browsers
         if (typeof (recognitionRef.current as any).abort === 'function') {
           (recognitionRef.current as any).abort();
         }
       } catch {
-        // Ignore errors
       }
     }
-    setListeningState('idle');
-    safariActivationRef.current = false;
   }, []);
 
   const value = useMemo(

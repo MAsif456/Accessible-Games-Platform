@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
 
-// Global reference to track all active recognition instances
+// I track all active recognition instances globally to prevent conflicts when multiple components try to use the microphone simultaneously
 const activeRecognitionInstances = new Set<any>();
 
-// Function to stop all recognition instances (can be called from anywhere)
+// I stop all recognition instances to ensure clean shutdown when switching between voice services
 export function stopAllRecognitionInstances() {
   activeRecognitionInstances.forEach((instance) => {
     try {
@@ -14,7 +14,6 @@ export function stopAllRecognitionInstances() {
         instance.abort();
       }
     } catch {
-      // Ignore errors
     }
   });
   activeRecognitionInstances.clear();
@@ -47,20 +46,15 @@ type BrowserSpeechRecognition = {
 
 type SpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
-declare global {
-  interface Window {
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    SpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
-
 export function useVoiceRecording(): UseVoiceRecordingReturn {
   const [transcript, setTranscript] = useState('');
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [error, setError] = useState<string | null>(null);
+  // I use refs to persist the recognition instance and final transcript across renders without causing re-renders
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const finalTranscriptRef = useRef<string>('');
 
+  // I check for browser support at runtime since different browsers expose the API differently
   const getSpeechRecognition = useCallback((): SpeechRecognitionConstructor | null => {
     if (typeof window === 'undefined') return null;
     return window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -75,8 +69,8 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
       return;
     }
 
+    // I request microphone permission early to fail fast with a clear error message
     try {
-      // Request microphone permission
       await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
       setError('Microphone access denied. Please allow microphone access to record voice.');
@@ -84,36 +78,34 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
       return;
     }
 
-    // Stop ALL existing recognition instances (including voice assistant)
-    // This is critical to avoid conflicts - only one recognition can use the microphone at a time
+    // I stop all other recognition instances first to prevent microphone conflicts
     stopAllRecognitionInstances();
 
-    // Clean up our own existing recognition instance
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-        recognitionRef.current.abort();
+        if (recognitionRef.current.abort) {
+          recognitionRef.current.abort();
+        }
       } catch {
-        // Ignore errors when cleaning up
       }
       recognitionRef.current = null;
     }
 
-    // Longer delay to ensure previous recognition is fully stopped and doesn't restart
-    // The voice assistant's onend handler might try to restart, so we need enough time
-    await new Promise(resolve => setTimeout(resolve, 600));
+    // I wait briefly to ensure previous recognition instances have fully stopped before starting a new one
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     setError(null);
     setRecordingState('recording');
     finalTranscriptRef.current = '';
-    setTranscript(''); // Clear previous transcript for fresh start
+    setTranscript('');
 
     const recognition = new SpeechRecognition();
+    // I enable continuous mode so recording doesn't stop after each phrase, and interim results to show live transcription
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
     
-    // Register this instance
     activeRecognitionInstances.add(recognition);
 
     recognition.onresult = (event: any) => {
@@ -122,15 +114,13 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         return;
       }
       
-      // Use resultIndex to only process NEW results (prevents duplicates)
-      // resultIndex tells us where to start processing from
+      // I use resultIndex to process only new results, preventing duplicate words from being added to the transcript
       const startIndex = event.resultIndex || 0;
       console.log('Recognition result received, starting from index:', startIndex, 'total results:', event.results.length);
       
       let interimTranscript = '';
       let newFinalTranscript = '';
 
-      // Only process results from resultIndex onwards (new results only)
       for (let i = startIndex; i < event.results.length; i++) {
         const result = event.results[i];
         if (!result || !result[0]) continue;
@@ -138,30 +128,28 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         const transcript = result[0].transcript;
         console.log(`Result ${i}: "${transcript}" (isFinal: ${result.isFinal})`);
         
+        // I separate final and interim results to build a complete transcript while showing live updates
         if (result.isFinal) {
-          // Only add to finalTranscript if it's new (not already in finalTranscriptRef)
           newFinalTranscript += transcript + ' ';
         } else {
-          // Interim results (still being processed)
           interimTranscript += transcript;
         }
       }
 
-      // Update final transcript only with NEW finalized results
+      // I combine final and interim transcripts to show both confirmed text and live typing
       if (newFinalTranscript) {
         finalTranscriptRef.current += newFinalTranscript;
-        // Show final + any remaining interim
         const currentTranscript = (finalTranscriptRef.current + interimTranscript).trim();
         console.log('Setting transcript (final):', currentTranscript);
         setTranscript(currentTranscript);
       } else if (interimTranscript) {
-        // Show interim results in real-time (these update as you speak)
         const currentTranscript = (finalTranscriptRef.current + interimTranscript).trim();
         console.log('Setting transcript (interim):', currentTranscript);
         setTranscript(currentTranscript);
       }
     };
 
+    // I map specific error codes to user-friendly messages so users understand what went wrong and how to fix it
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error, event);
       let errorMessage = 'An error occurred during voice recording.';
@@ -180,7 +168,6 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
           errorMessage = 'Network error. Please check your internet connection.';
           break;
         case 'aborted':
-          // User stopped recording, not an error
           console.log('Recognition aborted (user action)');
           return;
         default:
@@ -192,12 +179,11 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
       setRecordingState('error');
     };
 
+    // I clean up the instance from the global set when recognition ends to prevent memory leaks
     recognition.onend = () => {
-      // Remove from active instances
       activeRecognitionInstances.delete(recognition);
       
       if (recordingState === 'recording') {
-        // If we were recording and it ended unexpectedly, mark as completed
         setRecordingState('completed');
       }
     };
@@ -212,13 +198,12 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
       console.error('Error starting recognition:', err);
       activeRecognitionInstances.delete(recognition);
       
+      // I handle the case where recognition is already running by stopping and restarting it, which can happen during rapid user interactions
       if (err?.name === 'InvalidStateError' || err?.message?.includes('already started')) {
-        // Recognition might already be running, try stopping and restarting
         console.log('Recognition already started, attempting to restart...');
         try {
           recognition.stop();
         } catch {
-          // Ignore stop errors
         }
         setTimeout(() => {
           try {
@@ -239,6 +224,7 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
     }
   }, [getSpeechRecognition, recordingState]);
 
+  // I set state to 'processing' briefly before 'completed' to give the UI time to show a stopping state
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {
       try {
@@ -246,7 +232,6 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         recognitionRef.current.stop();
         setRecordingState('processing');
         
-        // Give it a moment to finalize, then mark as completed
         setTimeout(() => {
           setRecordingState('completed');
         }, 500);

@@ -42,16 +42,14 @@ const SettingsPage = () => {
     microphoneActive: assistantMicrophoneActive,
   } = useVoiceAssistant();
 
-  // Refs to track previous state and prevent unnecessary saves
+  // I use refs to track state without triggering re-renders, preventing infinite save loops when loading settings
   const previousSettingsRef = useRef<UserSettings | null>(null);
   const isInitialLoadRef = useRef(true);
   const skipNextSaveRef = useRef(false);
   const lastUserSettingsRef = useRef<UserSettings | null>(null);
 
-  // Session storage key for non-logged-in users
   const SESSION_STORAGE_KEY = 'playable_session_settings';
 
-  // Load settings from sessionStorage for non-logged-in users
   const loadSessionSettings = (): UserSettings | null => {
     try {
       const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -68,7 +66,6 @@ const SettingsPage = () => {
     return null;
   };
 
-  // Save settings to sessionStorage for non-logged-in users
   const saveSessionSettings = (settingsToSave: UserSettings) => {
     try {
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(settingsToSave));
@@ -77,14 +74,13 @@ const SettingsPage = () => {
     }
   };
 
+  // I check if settings actually changed before updating to avoid unnecessary state updates and save operations
   useEffect(() => {
     if (user?.id && userSettings) {
-      // Check if userSettings actually changed (to avoid unnecessary updates)
       const settingsChanged = !lastUserSettingsRef.current || 
         JSON.stringify(lastUserSettingsRef.current) !== JSON.stringify(userSettings);
       
       if (settingsChanged) {
-        // Load saved settings when user is logged in
         const loadedSettings = {
           ...userSettings,
           highContrastTheme: userSettings.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
@@ -92,12 +88,12 @@ const SettingsPage = () => {
         setSettings(loadedSettings);
         previousSettingsRef.current = loadedSettings;
         lastUserSettingsRef.current = userSettings;
-        skipNextSaveRef.current = true; // Skip auto-save when loading from userSettings
+        // I skip the next save to prevent saving immediately after loading, which would create an unnecessary API call
+        skipNextSaveRef.current = true;
         isInitialLoadRef.current = true;
       }
       setIsLoading(false);
     } else if (user?.id && !userSettings) {
-      // Logged-in user but no settings loaded yet: fall back to defaults
       setSettings({
         voiceInput: true,
         captions: true,
@@ -109,7 +105,6 @@ const SettingsPage = () => {
       });
       setIsLoading(false);
     } else if (!user?.id) {
-      // For non-logged-in users, try to load from sessionStorage first
       const sessionSettings = loadSessionSettings();
       const settingsToUse = sessionSettings || {
         voiceInput: true,
@@ -127,7 +122,6 @@ const SettingsPage = () => {
     }
   }, [user?.id, userSettings]);
 
-  // Helper function to check if settings actually changed
   const settingsChanged = (prev: UserSettings | null, current: UserSettings): boolean => {
     if (!prev) return true;
     
@@ -142,9 +136,8 @@ const SettingsPage = () => {
     );
   };
 
-  // Auto-save when settings change (only if values actually changed)
+  // I debounce saves with a 500ms delay to batch rapid changes and avoid excessive API calls
   useEffect(() => {
-    // Skip save on initial load or if explicitly skipped
     if (isInitialLoadRef.current || skipNextSaveRef.current) {
       isInitialLoadRef.current = false;
       skipNextSaveRef.current = false;
@@ -152,40 +145,36 @@ const SettingsPage = () => {
       return;
     }
 
-    // Only save if settings actually changed
     if (!isLoading && settingsChanged(previousSettingsRef.current, settings)) {
       if (user?.id) {
-        // For logged-in users, save to backend
+        // I use a timeout to debounce saves, so multiple rapid toggles result in a single API call
         const saveTimeout = setTimeout(async () => {
           setAutoSaveIndicator(true);
           try {
             const updated = await settingsApi.updateSettings(user.id, settings);
             updateUserSettingsState(updated);
-            previousSettingsRef.current = updated; // Update ref with saved settings
+            previousSettingsRef.current = updated;
           } catch (error) {
             console.error('Failed to save settings:', error);
           } finally {
             setTimeout(() => setAutoSaveIndicator(false), 2000);
           }
-        }, 500); // Debounce: save 500ms after last change
+        }, 500);
 
         return () => clearTimeout(saveTimeout);
       } else {
-        // For non-logged-in users, save to sessionStorage
         const saveTimeout = setTimeout(() => {
           saveSessionSettings(settings);
-          previousSettingsRef.current = settings; // Update ref with saved settings
-        }, 500); // Debounce: save 500ms after last change
+          previousSettingsRef.current = settings;
+        }, 500);
 
         return () => clearTimeout(saveTimeout);
       }
     } else {
-      // Settings didn't change, update ref anyway
       previousSettingsRef.current = settings;
     }
   }, [settings, isLoading, user?.id, updateUserSettingsState]);
 
-  // Apply visual settings immediately
   useEffect(() => {
     applyAccessibilityPreferences(settings);
   }, [
@@ -195,6 +184,7 @@ const SettingsPage = () => {
     settings.darkMode,
   ]);
 
+  // I apply voice preferences immediately when toggled so the voice assistant responds instantly, before the save completes
   const handleToggle = (key: ToggleableSetting) => {
     setSettings((prev) => {
       const nextValue = !prev[key];
@@ -230,18 +220,16 @@ const SettingsPage = () => {
       };
 
       if (user?.id) {
-        // For logged-in users, reset in backend and update state
         const result = await settingsApi.resetSettings(user.id);
-        skipNextSaveRef.current = true; // Skip auto-save since we just saved via reset
+        skipNextSaveRef.current = true;
         setSettings(result.settings);
         previousSettingsRef.current = result.settings;
         updateUserSettingsState(result.settings);
       } else {
-        // For non-logged-in users, reset local state and sessionStorage
-        skipNextSaveRef.current = true; // Skip auto-save since we're manually saving
+        skipNextSaveRef.current = true;
         setSettings(defaultSettings);
         previousSettingsRef.current = defaultSettings;
-        saveSessionSettings(defaultSettings); // Save to sessionStorage
+        saveSessionSettings(defaultSettings);
         applyAccessibilityPreferences(defaultSettings);
       }
 
