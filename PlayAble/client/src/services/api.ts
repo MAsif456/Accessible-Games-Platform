@@ -31,6 +31,9 @@ export interface PaginatedGamesResponse {
 // Single canonical ReviewDto used by reviews feature
 export interface ReviewDto {
   _id: string;
+  publicId?: string;
+  gameSlug?: string;
+  gameTitle?: string;
   gameId: string;
   userId: string;
   authorName: string;
@@ -40,6 +43,19 @@ export interface ReviewDto {
   updatedAt: string;
 }
 
+// --- Recently Viewed (your branch) ---
+export interface RecentlyViewedEntry {
+  gameId: string;
+  viewedAt: string;
+}
+
+export interface RecentlyViewedResponse {
+  games: GameDto[];
+  total: number;
+  showing: string;
+}
+
+// --- Reporting / cached game helpers (incoming) ---
 // Lightweight shape used by the reporting context hook
 export interface ReportReviewDto {
   id: string;
@@ -116,6 +132,7 @@ export async function getGameById(gameId: string): Promise<GameDto> {
       return game;
     }
   } catch {
+    // fall through to list fetch
   }
 
   const list = await getGames({ page: 1, pageSize: 200 });
@@ -258,4 +275,41 @@ export async function getUserDisplayName(userId: string): Promise<string | null>
     (data.user?.name || data.user?.fullName || data.user?.username) as string | undefined;
 
   return topLevelName?.trim() || nestedName?.trim() || null;
+}
+
+export async function addToRecentlyViewed(gameId: string): Promise<void> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+  const res = await fetch(`/api/recently-viewed/${gameId}`, {
+    method: 'POST',
+    headers,
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to add to recently viewed: ${res.status}`);
+  }
+}
+
+export async function getRecentlyViewed(): Promise<RecentlyViewedResponse> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+  const res = await fetch('/api/recently-viewed', { headers });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch recently viewed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function clearRecentlyViewed(): Promise<void> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+  const res = await fetch('/api/recently-viewed', {
+    method: 'DELETE',
+    headers,
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to clear recently viewed: ${res.status}`);
+  }
 }

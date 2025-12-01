@@ -1,5 +1,16 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { GameDto, getCachedGame, getGameById, getReviews, getUserDisplayName, postReview, ReviewDto, toggleReviewLike, deleteReview } from '../services/api';
+import {
+  GameDto,
+  getCachedGame,
+  getGameById,
+  getReviews,
+  getUserDisplayName,
+  postReview,
+  ReviewDto,
+  toggleReviewLike,
+  deleteReview,
+  addToRecentlyViewed,
+} from '../services/api';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useFavouritesNav } from '../context/FavouritesContext';
@@ -167,6 +178,13 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
       isMounted = false;
     };
   }, [gameId]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !gameId) return;
+    addToRecentlyViewed(gameId).catch(err => {
+      console.error('Failed to track recently viewed game', err);
+    });
+  }, [gameId, isAuthenticated]);
 
   useEffect(() => {
     if (!game?.id) return;

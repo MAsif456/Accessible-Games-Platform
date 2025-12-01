@@ -3,6 +3,7 @@ import SkipLink from './components/navigation/SkipLink';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FavouritesProvider } from './context/FavouritesContext';
 import { VoiceAssistantProvider } from './context/VoiceAssistantContext';
+import { RecentlyViewedProvider } from './context/RecentlyViewedContext';
 import Navbar from './components/ui/Navbar';
 import Footer from './components/ui/Footer';
 import { useGlobalKeyboardNavigation } from './hooks/useGlobalKeyboardNavigation';
@@ -19,7 +20,8 @@ import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
 import AdminGameFormPage from './pages/AdminGameFormPage';
 import GameDetailsPage from './pages/GameDetailsPage';
 import ReportPage from './pages/ReportPage';
-/// ok 
+
+/// ok
 export type AppPath =
   | '/'
   | '/browse'
@@ -52,7 +54,9 @@ function App() {
   return (
     <AuthProvider>
       <FavouritesProvider>
-        <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
+        <RecentlyViewedProvider>
+          <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
+        </RecentlyViewedProvider>
       </FavouritesProvider>
     </AuthProvider>
   );
@@ -90,7 +94,6 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
       return;
     }
 
-    // Type guard to ensure newPath is a valid AppPath
     if (
       newPath === '/' ||
       newPath === '/browse' ||
@@ -115,21 +118,19 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
         setPreviousPath(path);
       }
 
-      // Only reset state when explicitly going to the general report page
       if (typedPath === '/report/general') {
         setReportType('general');
         setReportGameId(undefined);
         setReportReviewId(undefined);
       }
 
-      // Check if trying to access protected route without authentication
       if (protectedPaths.includes(typedPath) && !isAuthenticated) {
         setPath('/signin');
         return;
       }
 
       if (typedPath === '/signin') {
-        lastAuthEvent.current = null; // reset on manual nav
+        lastAuthEvent.current = null;
       }
 
       setPath(typedPath);
@@ -137,7 +138,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
     }
   };
 
-  // Helper functions to open specific report modes with context ids
+  // Report helpers
   const openGameReport = (gameId: string) => {
     setReportType('game');
     setReportGameId(gameId);
@@ -180,6 +181,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
     setCurrentPage(page);
   };
 
+  // Smooth Game Details navigation (favoured from incoming)
   const handleGameClick = (gameId: string) => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     setSelectedGameId(gameId);
@@ -195,6 +197,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   };
 
   const userRole = user?.role || 'guest';
+
   const handleReportBack = () => {
     if (previousPath) {
       setPath(previousPath);
@@ -249,6 +252,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
           </main>
         );
       } else {
+        // main-branch centralised routing, but wired like your branch
         content = (
           <main id="main-content" tabIndex={-1}>
             {(path === '/' || path === '/browse') && (
@@ -276,9 +280,14 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
             {path === '/favourites' && (
               <FavouritesPage onNavigate={handleNavigate} onGameClick={handleGameClick} />
             )}
-            {path === '/recently-viewed' && <RecentlyViewedPage />}
+
+            {/* Recently Viewed uses same onGameClick flow for smooth transition */}
+            {path === '/recently-viewed' && (
+              <RecentlyViewedPage onNavigate={handleNavigate} onGameClick={handleGameClick} />
+            )}
+
             {path === '/settings' && <SettingsPage />}
-            {path === '/admin' && <AdminPage onNavigate={handleNavigate} />}
+            {path === '/admin' && <AdminPage onNavigate={handleNavigate} showPrompt={showPrompt} />}
             {path === '/signin' && (
               <SignInPage
                 onNavigate={handleNavigate}
@@ -292,10 +301,17 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
                 }}
               />
             )}
-            {path === '/my-profile' && <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />}
-            {path === '/change-email-password' && <ChangeEmailPasswordPage onNavigate={handleNavigate} />}
+
+            {path === '/my-profile' && (
+              <MyProfilePage onNavigate={handleNavigate} onLogout={handleLogout} />
+            )}
+
+            {path === '/change-email-password' && (
+              <ChangeEmailPasswordPage onNavigate={handleNavigate} />
+            )}
+
             {path === '/inbox' && <InboxPage />}
-            {path === '/about' && <AboutPage />}
+            {path === '/about' && <AboutPage onNavigate={handleNavigate} />}
           </main>
         );
       }
@@ -345,6 +361,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
           onLogout={handleLogout}
         />
 
+        {/* final, merged layout: single content container using central switch */}
         <div className="App__content">{content}</div>
 
         <Footer onNavigate={handleNavigate} />
