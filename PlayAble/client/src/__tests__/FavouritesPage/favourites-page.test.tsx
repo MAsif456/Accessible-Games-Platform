@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FavouritesPage from '../../pages/FavouritesPage';
 import { FavouritesProvider, FavouriteGameDto } from '../../context/FavouritesContext';
@@ -49,6 +49,16 @@ describe('FavouritesPage', () => {
     });
   });
 
+  test('does not crash when fetch fails and still shows empty state', async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('network down'));
+
+    renderWithProviders(<FavouritesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/No Favourites Yet/i)).toBeInTheDocument();
+    });
+  });
+
   test('renders favourite cards and pagination', async () => {
     const favourites: FavouriteGameDto[] = Array.from({ length: 10 }, (_, i) => ({
       id: `fav-${i + 1}`,
@@ -76,6 +86,7 @@ describe('FavouritesPage', () => {
 
     const cards = await screen.findAllByRole('article');
     expect(cards.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Page 1 of 2/i)).toBeInTheDocument();
 
     const nextButton = await screen.findByRole('button', { name: /Next/i });
     expect(nextButton).toBeEnabled();
@@ -107,7 +118,8 @@ describe('FavouritesPage', () => {
         ok: true,
         json: async () => ({ items: favourites, total: 1, page: 1, pageSize: 9 }),
       } as any)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as any)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) } as any) // DELETE call
+      // Refetch after delete
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ items: [], total: 0, page: 1, pageSize: 9 }),
@@ -115,7 +127,8 @@ describe('FavouritesPage', () => {
 
     renderWithProviders(<FavouritesPage />);
 
-    const removeButton = await screen.findByRole('button', { name: /Remove Favourite/i });
+    const cards = await screen.findAllByRole('article');
+    const removeButton = within(cards[0]).getByRole('button', { name: /Remove favourite/i });
     await userEvent.click(removeButton);
 
     const dialogTitle = await screen.findByRole('heading', { name: /Remove from Favourites\?/i });

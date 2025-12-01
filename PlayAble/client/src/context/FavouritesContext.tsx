@@ -112,12 +112,14 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
       // Ignore if a newer request has been started
       if (requestRef.current !== requestId) return;
 
-      setFavourites(data.items);
-      setTotal(data.total);
+      const safeItems = Array.isArray(data.items) ? data.items : [];
+
+      setFavourites(safeItems);
+      setTotal(typeof data.total === 'number' ? data.total : safeItems.length);
       lastPageRef.current = requestedPage;
       setPagesCache(prev => {
         const copy = new Map(prev);
-        copy.set(requestedPage, data.items);
+        copy.set(requestedPage, safeItems);
         return copy;
       });
     } catch (err) {

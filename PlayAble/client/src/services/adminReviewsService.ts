@@ -84,7 +84,8 @@ export async function getAdminReportedReviews(params: {
     throw new Error(`Failed to fetch reported reviews: ${res.status}`);
   }
   const data: AdminReportedReviewsResponse = await res.json();
-  return { items: data.items, total: data.total };
+  const items = Array.isArray(data.items) ? data.items : [];
+  return { items, total: data.total ?? items.length };
 }
 
 export async function getAdminResolvedReviewReports(params: {
@@ -102,7 +103,8 @@ export async function getAdminResolvedReviewReports(params: {
     throw new Error(`Failed to fetch resolved reported reviews: ${res.status}`);
   }
   const data: AdminResolvedReportsResponse = await res.json();
-  return { items: data.items, total: data.total };
+  const items = Array.isArray(data.items) ? data.items : [];
+  return { items, total: data.total ?? items.length };
 }
 
 export async function adminDeleteReview(reviewId: string): Promise<void> {

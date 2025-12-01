@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useFavourites, FavouriteGameDto } from '../context/FavouritesContext';
 import GameCard from '../components/GameCard';
 import Pagination from '../components/ui/Pagination';
@@ -14,10 +14,6 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate, onGameClick
     useFavourites();
   const [gameIdToRemove, setGameIdToRemove] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    fetchFavourites(currentPage);
-  }, [currentPage]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 

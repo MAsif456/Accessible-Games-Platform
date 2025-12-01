@@ -1,8 +1,8 @@
 import FavouriteModel, { IFavourite } from '../models/favourite';
-import mongoose, { LeanDocument } from 'mongoose';
+import mongoose from 'mongoose';
 
 export interface PaginatedFavourites {
-  items: Array<LeanDocument<IFavourite> & { game?: any }>;
+  items: any[];
   total: number;
   page: number;
   pageSize: number;
@@ -31,7 +31,7 @@ export class FavouritesRepository {
     return { items, total, page, pageSize };
   }
 
-  async addFavourite(userId: string, gameId: string): Promise<LeanDocument<IFavourite> & { game?: any }> {
+  async addFavourite(userId: string, gameId: string): Promise<IFavourite & { game?: any }> {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const gameObjectId = new mongoose.Types.ObjectId(gameId);
 
@@ -42,13 +42,13 @@ export class FavouritesRepository {
     )
       .populate({ path: 'game', options: { lean: true } })
       .lean()
-      .exec();
+      .exec() as IFavourite & { game?: any } | null;
 
     if (!favourite) {
       throw new Error('Failed to add favourite');
     }
 
-    return favourite;
+    return favourite as IFavourite & { game?: any };
   }
 
   async removeFavourite(userId: string, gameId: string): Promise<number> {

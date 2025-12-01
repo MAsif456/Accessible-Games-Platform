@@ -31,24 +31,31 @@ function usePaginatedSearchTable<T>(
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [requestId, setRequestId] = useState(0);
 
   const effectiveSearch = debouncedSearchTerm.trim();
 
   const load = (override?: { page?: number; search?: string }) => {
     const nextPage = override?.page ?? page;
     const nextSearch = override?.search ?? effectiveSearch;
+    const nextRequest = requestId + 1;
+    setRequestId(nextRequest);
     setLoading(true);
     setError(null);
     fetcher({ page: nextPage, pageSize, search: nextSearch || undefined })
       .then(res => {
-        setItems(res.items);
-        setTotal(res.total);
+        if (nextRequest !== requestId + 1) return;
+        const safeItems = Array.isArray(res.items) ? res.items : [];
+        setItems(safeItems);
+        setTotal(typeof res.total === 'number' ? res.total : safeItems.length);
       })
       .catch(err => {
         console.error('Failed to load admin table', err);
         setError('Unable to load data. Please try again later.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (nextRequest === requestId + 1) setLoading(false);
+      });
   };
 
   useEffect(() => {
