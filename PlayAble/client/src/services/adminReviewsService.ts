@@ -1,5 +1,6 @@
 import type { ReviewDto } from './api';
 import authService from './authService';
+import { apiFetch } from '../utils/apiHelper';
 
 async function authFetch(input: RequestInfo, init: RequestInit = {}): Promise<Response> {
   const token = authService.getToken();
@@ -13,7 +14,8 @@ async function authFetch(input: RequestInfo, init: RequestInit = {}): Promise<Re
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  return fetch(input, { ...init, headers });
+  // Use apiFetch for CSRF protection on state-changing requests
+  return apiFetch(input as string, { ...init, headers });
 }
 
 export interface AdminReviewsResponse {

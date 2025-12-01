@@ -175,7 +175,14 @@ The PlayAble Team
 ---
 This is an automated message, please do not reply to this email.`;
 
-  await sendEmail(email, emailSubject, emailBody);
+  const emailSent = await sendEmail(email, emailSubject, emailBody);
+
+  if (!emailSent) {
+    console.error(`[authController] Failed to send password reset email to ${email}`);
+    // Still return success to avoid revealing if email exists, but log the error
+    // In production, you might want to queue this for retry
+  }
+
   res.json({ success: true });
 };
 // Resets the user's password after verifying the one-time code. Ensures the code is valid and not expired.
