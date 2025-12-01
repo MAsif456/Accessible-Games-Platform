@@ -32,8 +32,6 @@ const reviewSchema = new Schema<ReviewDocument>(
   { timestamps: true }
 );
 
-reviewSchema.index({ publicId: 1 }, { unique: true });
-
 const Review = model<ReviewDocument>('Review', reviewSchema);
 
 export default Review;
