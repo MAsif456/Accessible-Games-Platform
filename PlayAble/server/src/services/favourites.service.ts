@@ -19,6 +19,18 @@ export interface PaginatedFavouriteGames {
 }
 
 class FavouritesService {
+  private toDto(game: any): FavouriteGameDto {
+    return {
+      id: game._id?.toString?.() ?? game.id,
+      title: game.title,
+      studio: game.studio,
+      description: game.description,
+      thumbnailUrl: game.thumbnailUrl,
+      genres: game.genres,
+      accessibilityTags: game.accessibilityTags,
+    };
+  }
+
   async getFavouritesForUser(
     userId: string,
     page: number,
@@ -32,17 +44,9 @@ class FavouritesService {
 
     const games: FavouriteGameDto[] = items
       .map(f => {
-        const game: any = f.game;
+        const game: any = (f as any).game;
         if (!game) return null;
-        return {
-          id: game._id.toString(),
-          title: game.title,
-          studio: game.studio,
-          description: game.description,
-          thumbnailUrl: game.thumbnailUrl,
-          genres: game.genres,
-          accessibilityTags: game.accessibilityTags,
-        };
+        return this.toDto(game);
       })
       .filter(Boolean) as FavouriteGameDto[];
 
@@ -50,27 +54,22 @@ class FavouritesService {
   }
 
   async addFavourite(userId: string, gameId: string): Promise<FavouriteGameDto> {
-    const game = await GameModel.findById(gameId).exec();
-    if (!game) {
+    const gameExists = await GameModel.exists({ _id: gameId });
+    if (!gameExists) {
       throw new Error('Game not found');
     }
 
     const favourite = await favouritesRepository.addFavourite(userId, gameId);
-    const favGame: any = (favourite as any).game || game;
+    const favGame: any = (favourite as any).game;
+    if (!favGame) {
+      throw new Error('Game not found');
+    }
 
-    return {
-      id: favGame._id.toString(),
-      title: favGame.title,
-      studio: favGame.studio,
-      description: favGame.description,
-      thumbnailUrl: favGame.thumbnailUrl,
-      genres: favGame.genres,
-      accessibilityTags: favGame.accessibilityTags,
-    };
+    return this.toDto(favGame);
   }
 
-  async removeFavourite(userId: string, gameId: string): Promise<void> {
-    await favouritesRepository.removeFavourite(userId, gameId);
+  async removeFavourite(userId: string, gameId: string): Promise<number> {
+    return favouritesRepository.removeFavourite(userId, gameId);
   }
 }
 

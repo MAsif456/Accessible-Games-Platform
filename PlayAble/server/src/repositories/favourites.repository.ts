@@ -1,9 +1,8 @@
 import FavouriteModel, { IFavourite } from '../models/favourite';
-import GameModel from '../models/game';
-import mongoose from 'mongoose';
+import mongoose, { LeanDocument } from 'mongoose';
 
 export interface PaginatedFavourites {
-  items: IFavourite[];
+  items: Array<LeanDocument<IFavourite> & { game?: any }>;
   total: number;
   page: number;
   pageSize: number;
@@ -23,7 +22,8 @@ export class FavouritesRepository {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageSize)
-        .populate('game')
+        .populate({ path: 'game', options: { lean: true } })
+        .lean()
         .exec(),
       FavouriteModel.countDocuments({ user: userObjectId }),
     ]);
@@ -31,7 +31,7 @@ export class FavouritesRepository {
     return { items, total, page, pageSize };
   }
 
-  async addFavourite(userId: string, gameId: string): Promise<IFavourite> {
+  async addFavourite(userId: string, gameId: string): Promise<LeanDocument<IFavourite> & { game?: any }> {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const gameObjectId = new mongoose.Types.ObjectId(gameId);
 
@@ -39,7 +39,10 @@ export class FavouritesRepository {
       { user: userObjectId, game: gameObjectId },
       { $setOnInsert: { user: userObjectId, game: gameObjectId } },
       { new: true, upsert: true }
-    ).exec();
+    )
+      .populate({ path: 'game', options: { lean: true } })
+      .lean()
+      .exec();
 
     if (!favourite) {
       throw new Error('Failed to add favourite');
@@ -48,10 +51,11 @@ export class FavouritesRepository {
     return favourite;
   }
 
-  async removeFavourite(userId: string, gameId: string): Promise<void> {
+  async removeFavourite(userId: string, gameId: string): Promise<number> {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const gameObjectId = new mongoose.Types.ObjectId(gameId);
-    await FavouriteModel.deleteOne({ user: userObjectId, game: gameObjectId }).exec();
+    const result = await FavouriteModel.deleteOne({ user: userObjectId, game: gameObjectId }).exec();
+    return result.deletedCount ?? 0;
   }
 }
 

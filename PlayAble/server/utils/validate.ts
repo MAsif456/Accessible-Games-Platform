@@ -46,3 +46,17 @@ export function parseGamesQuery(query: any): GamesFilterQuery {
 
   return { page, pageSize, search: sanitizedSearch, genres, tags, sort };
 }
+
+export function parsePagination(query: any, defaults?: { page?: number; pageSize?: number; maxPageSize?: number }) {
+  const fallbackPage = defaults?.page ?? 1;
+  const fallbackPageSize = defaults?.pageSize ?? 9;
+  const maxPageSize = defaults?.maxPageSize ?? 50;
+
+  const rawPage = parseInt(query.page as string, 10);
+  const page = Math.max(rawPage || fallbackPage, 1);
+
+  const rawPageSize = parseInt(query.pageSize as string, 10);
+  const pageSize = Math.min(Math.max(rawPageSize || fallbackPageSize, 1), maxPageSize);
+
+  return { page, pageSize };
+}

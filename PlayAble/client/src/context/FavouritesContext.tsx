@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
 import authService from '../services/authService';
 import { apiPost, apiDelete } from '../utils/apiHelper';
@@ -24,10 +24,10 @@ interface FavouritesContextType {
   favourites: FavouriteGameDto[];
   favouriteIds: Set<string>;
   isLoading: boolean;
-  page: number;
   pageSize: number;
   total: number;
-  fetchFavourites: (page?: number) => Promise<void>;
+  error: string | null;
+  fetchFavourites: (page?: number, options?: { force?: boolean }) => Promise<void>;
   addFavourite: (gameId: string) => Promise<void>;
   removeFavourite: (gameId: string) => Promise<void>;
   toggleFavourite: (gameId: string) => Promise<void>;
@@ -57,50 +57,76 @@ interface Props {
 export const FavouritesProvider: React.FC<Props> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [favourites, setFavourites] = useState<FavouriteGameDto[]>([]);
-  const [favouriteIds, setFavouriteIds] = useState<Set<string>>(new Set());
+  const [pagesCache, setPagesCache] = useState<Map<number, FavouriteGameDto[]>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
-  const [page, setPage] = useState(1);
   const [pageSize] = useState(9);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const requestRef = useRef(0);
+  const lastPageRef = useRef(1);
 
-  const syncFromResult = (result: PaginatedFavouriteGames) => {
-    setFavourites(result.items);
-    setTotal(result.total);
-    setPage(result.page);
+  const favouriteIds = useMemo(() => new Set(favourites.map(f => f.id)), [favourites]);
 
-    const pageIds = result.items.map(g => g.id);
-    setFavouriteIds(prev => {
-      const next = new Set(prev);
-      if (result.total === 0) {
-        next.clear();
-        return next;
-      }
-      for (const id of pageIds) {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchFavourites(1, { force: true });
+    } else {
+      setFavourites([]);
+      setPagesCache(new Map());
+      setTotal(0);
+      setError(null);
+    }
+  }, [isAuthenticated]);
 
-  const fetchFavourites = async (requestedPage: number = 1) => {
+  const fetchFavourites = async (requestedPage: number = 1, options?: { force?: boolean }) => {
     if (!isAuthenticated) return;
+    const force = options?.force === true;
+
+    // Increment a numeric request id to track the latest in-flight request
+    requestRef.current += 1;
+    const requestId = requestRef.current;
+
     setIsLoading(true);
+    setError(null);
+
+    if (!force && pagesCache.has(requestedPage)) {
+      lastPageRef.current = requestedPage;
+      setFavourites(pagesCache.get(requestedPage) || []);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const params = new URLSearchParams({
         page: String(requestedPage),
         pageSize: String(pageSize),
       });
-      const token = authService.getToken();
-      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const authToken = authService.getToken();
+      const headers: HeadersInit = authToken ? { Authorization: `Bearer ${authToken}` } : {};
       const res = await fetch(`/api/favourites?${params.toString()}`, { headers });
 
       if (!res.ok) throw new Error('Failed to load favourites');
       const data: PaginatedFavouriteGames = await res.json();
-      syncFromResult(data);
-    } catch (error) {
-      console.error(error);
+
+      // Ignore if a newer request has been started
+      if (requestRef.current !== requestId) return;
+
+      setFavourites(data.items);
+      setTotal(data.total);
+      lastPageRef.current = requestedPage;
+      setPagesCache(prev => {
+        const copy = new Map(prev);
+        copy.set(requestedPage, data.items);
+        return copy;
+      });
+    } catch (err) {
+      if (requestRef.current !== requestId) return;
+      setError('Failed to load favourites');
     } finally {
-      setIsLoading(false);
+      if (requestRef.current === requestId) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -114,13 +140,8 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
     const res = await apiPost(`/api/favourites/${gameId}`, undefined, { headers });
     if (!res.ok && res.status !== 409) return;
 
-    setFavouriteIds(prev => {
-      const copy = new Set(prev);
-      copy.add(gameId);
-      return copy;
-    });
-
-    await fetchFavourites(page);
+    // Refetch current page to keep pagination accurate
+    await fetchFavourites(lastPageRef.current, { force: true });
   };
 
   const removeFavourite = async (gameId: string) => {
@@ -130,13 +151,21 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
     const res = await apiDelete(`/api/favourites/${gameId}`, { headers });
     if (!res.ok) return;
 
-    setFavouriteIds(prev => {
-      const copy = new Set(prev);
-      copy.delete(gameId);
+    // Remove from all cached pages to avoid stale ids
+    setPagesCache(prev => {
+      const copy = new Map<number, FavouriteGameDto[]>();
+      prev.forEach((items, pageKey) => {
+        copy.set(
+          pageKey,
+          items.filter(item => item.id !== gameId),
+        );
+      });
       return copy;
     });
+    setFavourites(prev => prev.filter(item => item.id !== gameId));
+    setTotal(prev => Math.max(0, prev - 1));
 
-    await fetchFavourites(page);
+    await fetchFavourites(lastPageRef.current, { force: true });
   };
 
   const toggleFavourite = async (gameId: string) => {
@@ -157,9 +186,9 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
     favourites,
     favouriteIds,
     isLoading,
-    page,
     pageSize,
     total,
+    error,
     fetchFavourites,
     addFavourite,
     removeFavourite,

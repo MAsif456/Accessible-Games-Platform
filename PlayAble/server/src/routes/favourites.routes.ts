@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { protect } from '../../middleware/auth';
 import favouritesService from '../services/favourites.service';
+import { parsePagination } from '../../utils/validate';
 
 const router = Router();
 
@@ -14,8 +15,7 @@ router.get('/', async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Unauthenticated' });
     }
 
-    const page = parseInt((req.query.page as string) || '1', 10);
-    const pageSize = parseInt((req.query.pageSize as string) || '9', 10);
+    const { page, pageSize } = parsePagination(req.query, { page: 1, pageSize: 9, maxPageSize: 50 });
 
     const result = await favouritesService.getFavouritesForUser(userId, page, pageSize);
     res.json(result);
@@ -49,7 +49,10 @@ router.delete('/:gameId', async (req: Request, res: Response) => {
     }
 
     const { gameId } = req.params;
-    await favouritesService.removeFavourite(userId, gameId);
+    const deleted = await favouritesService.removeFavourite(userId, gameId);
+    if (!deleted) {
+      return res.status(404).json({ message: 'Favourite not found' });
+    }
     res.status(204).send();
   } catch (error: any) {
     console.error('Failed to remove favourite', error);

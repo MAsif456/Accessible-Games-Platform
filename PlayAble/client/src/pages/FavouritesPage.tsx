@@ -10,13 +10,14 @@ interface FavouritesPageProps {
 }
 
 const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate, onGameClick }) => {
-  const { favourites, isLoading, fetchFavourites, removeFavourite, total, page, pageSize } =
+  const { favourites, isLoading, fetchFavourites, removeFavourite, total, pageSize, error } =
     useFavourites();
   const [gameIdToRemove, setGameIdToRemove] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    fetchFavourites(1);
-  }, []);
+    fetchFavourites(currentPage);
+  }, [currentPage]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -33,7 +34,8 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate, onGameClick
   };
 
   const handlePageChange = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages || newPage === page) return;
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) return;
+    setCurrentPage(newPage);
     fetchFavourites(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -57,9 +59,15 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate, onGameClick
           </div>
         </header>
 
+        {error && (
+          <p className="browse-page__no-results" role="status">
+            {error}
+          </p>
+        )}
+
         {hasFavourites && totalPages > 1 && (
           <p className="browse-page__page-indicator" aria-live="polite">
-            Page {page} of {totalPages}
+            Page {currentPage} of {totalPages}
           </p>
         )}
 
@@ -99,7 +107,7 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate, onGameClick
               ))}
             </section>
             <Pagination
-              page={page}
+              page={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
               ariaLabel="Favourites pagination"
