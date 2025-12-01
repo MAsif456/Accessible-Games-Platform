@@ -3,8 +3,41 @@ import mongoose, { Types } from 'mongoose';
 import UserModel, { IUser } from '../models/user';
 import GameModel, { IGame } from '../models/game';
 
+/**
+ * Maximum number of games to track in recently viewed history per user.
+ * @constant {number}
+ */
 const MAX_RECENTLY_VIEWED = 50;
 
+/**
+ * Adds a game to the user's recently viewed history.
+ *
+ * @param {Request} req - Express request with gameId in params and authenticated user
+ * @param {Response} res - Express response
+ * @returns {Promise<Response>} JSON response with updated recently viewed array or error
+ *
+ * @description
+ * Tracks when a user views a game by adding it to their recently viewed history.
+ * If the game was previously viewed, it's moved to the front of the list.
+ * Maintains a maximum of 50 most recent games.
+ *
+ * **Data Flow:**
+ * 1. Validates user authentication
+ * 2. Validates game ID format
+ * 3. Removes any existing entry for this game
+ * 4. Adds game to the front of the array with current timestamp
+ * 5. Limits array to MAX_RECENTLY_VIEWED entries
+ *
+ * **Side Effects:**
+ * - Updates user document in database
+ * - Most recently viewed game always appears first
+ *
+ * @security Requires JWT authentication
+ *
+ * @example
+ * POST /api/recently-viewed/:gameId
+ * Response: { recentlyViewed: [{ gameId: '...', viewedAt: '2024-01-01T00:00:00.000Z' }, ...] }
+ */
 export async function addToRecentlyViewed(req: Request, res: Response) {
   try {
     const userId = (req as any).user?.id as string | undefined;
@@ -48,6 +81,38 @@ export async function addToRecentlyViewed(req: Request, res: Response) {
   }
 }
 
+/**
+ * Retrieves the user's recently viewed games with full game details.
+ *
+ * @param {Request} req - Express request with authenticated user
+ * @param {Response} res - Express response
+ * @returns {Promise<Response>} JSON response with games array and metadata
+ *
+ * @description
+ * Fetches the user's recently viewed history and populates it with full game data.
+ * Games are returned in reverse chronological order (most recent first).
+ *
+ * **Data Flow:**
+ * 1. Validates user authentication
+ * 2. Retrieves user's recentlyViewed array
+ * 3. Fetches full game documents for all IDs
+ * 4. Orders games by viewedAt timestamp (newest first)
+ * 5. Maps to DTOs with both 'id' and '_id' fields for compatibility
+ *
+ * **Response Format:**
+ * ```json
+ * {
+ *   "games": [...],
+ *   "total": 15,
+ *   "showing": "1-15 of 15"
+ * }
+ * ```
+ *
+ * @security Requires JWT authentication
+ *
+ * @example
+ * GET /api/recently-viewed
+ */
 export async function getRecentlyViewed(req: Request, res: Response) {
   try {
     const userId = (req as any).user?.id as string | undefined;
@@ -96,6 +161,27 @@ export async function getRecentlyViewed(req: Request, res: Response) {
   }
 }
 
+/**
+ * Clears all games from the user's recently viewed history.
+ *
+ * @param {Request} req - Express request with authenticated user
+ * @param {Response} res - Express response
+ * @returns {Promise<Response>} Success confirmation message
+ *
+ * @description
+ * Permanently removes all entries from the user's recently viewed history.
+ * This action cannot be undone.
+ *
+ * **Side Effects:**
+ * - Sets recentlyViewed array to empty in user document
+ * - Saves updated user document to database
+ *
+ * @security Requires JWT authentication
+ *
+ * @example
+ * DELETE /api/recently-viewed
+ * Response: { message: 'Recently viewed history cleared' }
+ */
 export async function clearRecentlyViewed(req: Request, res: Response) {
   try {
     const userId = (req as any).user?.id as string | undefined;

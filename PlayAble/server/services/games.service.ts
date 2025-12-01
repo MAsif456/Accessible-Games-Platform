@@ -2,6 +2,15 @@ import { FilterQuery, SortOrder } from 'mongoose';
 import { GameModel, IGame } from '../src/models';
 import { GamesFilterQuery } from '../utils/validate';
 
+/**
+ * Represents the result of a paginated games query.
+ * @interface PaginatedGamesResult
+ * @property {IGame[]} games - Array of game documents matching the query
+ * @property {number} currentPage - Current page number (1-indexed)
+ * @property {number} pageSize - Number of items per page
+ * @property {number} totalResults - Total number of games matching the filter
+ * @property {number} totalPages - Total number of pages available
+ */
 export interface PaginatedGamesResult {
   games: IGame[];
   currentPage: number;
@@ -10,6 +19,23 @@ export interface PaginatedGamesResult {
   totalPages: number;
 }
 
+/**
+ * Builds a MongoDB filter query from user-provided search criteria.
+ *
+ * @param {GamesFilterQuery} query - The filter query parameters from the user
+ * @returns {FilterQuery<IGame>} MongoDB filter object for querying games
+ *
+ * @description
+ * Constructs a filter that:
+ * - Only includes published games
+ * - Searches across title, description, genres, and accessibility tags when a search term is provided
+ * - Filters by genres using $all operator (requires all specified genres)
+ * - Filters by accessibility tags using $all operator
+ *
+ * @example
+ * const filter = buildGamesFilter({ search: 'adventure', genres: ['RPG'], tags: ['Visual: Subtitles'] });
+ * // Returns: { isPublished: true, $or: [...], genres: { $all: ['RPG'] }, accessibilityTags: { $all: ['Visual: Subtitles'] } }
+ */
 function buildGamesFilter(query: GamesFilterQuery): FilterQuery<IGame> {
   const filter: FilterQuery<IGame> = { isPublished: true };
 
@@ -34,6 +60,22 @@ function buildGamesFilter(query: GamesFilterQuery): FilterQuery<IGame> {
   return filter;
 }
 
+/**
+ * Builds a MongoDB sort object based on the sort option provided.
+ *
+ * @param {GamesFilterQuery['sort']} sort - Optional sort parameter
+ * @returns {Record<string, SortOrder>} MongoDB sort object
+ *
+ * @description
+ * Supported sort options:
+ * - 'title_desc': Alphabetical descending
+ * - 'newest': Newest release year first, then by title
+ * - 'oldest': Oldest release year first, then by title
+ * - Default: Alphabetical ascending by title
+ *
+ * @example
+ * buildSort('newest') // Returns: { releaseYear: -1, title: 1 }
+ */
 function buildSort(sort?: GamesFilterQuery['sort']): Record<string, SortOrder> {
   switch (sort) {
     case 'title_desc':
@@ -48,6 +90,33 @@ function buildSort(sort?: GamesFilterQuery['sort']): Record<string, SortOrder> {
   }
 }
 
+/**
+ * Retrieves a paginated list of published games with optional filtering and sorting.
+ *
+ * @param {GamesFilterQuery} query - Filter, sort, and pagination parameters
+ * @returns {Promise<PaginatedGamesResult>} Paginated games with metadata
+ *
+ * @description
+ * This function handles all game browsing logic for the public-facing game catalog.
+ * It supports:
+ * - Full-text search across multiple fields
+ * - Genre and accessibility tag filtering
+ * - Multiple sort options
+ * - Pagination with configurable page size
+ *
+ * If the search term is marked as '__MATCH_NOTHING__' (invalid input), returns empty results.
+ *
+ * @example
+ * const result = await getPaginatedGames({
+ *   search: 'adventure',
+ *   genres: ['RPG'],
+ *   sort: 'newest',
+ *   page: 1,
+ *   pageSize: 12
+ * });
+ * console.log(result.games); // Array of game documents
+ * console.log(result.totalPages); // Total pages available
+ */
 export async function getPaginatedGames(query: GamesFilterQuery): Promise<PaginatedGamesResult> {
   const { search, page, pageSize } = query;
 
@@ -87,15 +156,53 @@ export async function getPaginatedGames(query: GamesFilterQuery): Promise<Pagina
   };
 }
 
+/**
+ * Retrieves all games for admin management (includes unpublished games).
+ *
+ * @returns {Promise<IGame[]>} All games sorted alphabetically by title
+ *
+ * @description
+ * Used exclusively by admin dashboard to list all games regardless of publication status.
+ * Games are sorted alphabetically for easy management.
+ *
+ * @security Only accessible to authenticated admin users via protected routes
+ */
 export async function getAllGamesForAdmin() {
   const games = await GameModel.find({}).sort({ title: 1 }).exec();
   return games;
 }
 
+/**
+ * Retrieves a single game by its MongoDB ObjectId.
+ *
+ * @param {string} id - The MongoDB ObjectId of the game
+ * @returns {Promise<IGame | null>} The game document or null if not found
+ *
+ * @description
+ * Used for fetching game details for both public and admin views.
+ * Returns null if the game doesn't exist.
+ *
+ * @example
+ * const game = await getGameById('507f1f77bcf86cd799439011');
+ */
 export async function getGameById(id: string) {
   return GameModel.findById(id).exec();
 }
 
+/**
+ * Input data structure for creating or updating games via admin API.
+ *
+ * @interface AdminGameInput
+ * @property {string} slug - URL-friendly identifier for the game
+ * @property {string} title - Full title of the game
+ * @property {string} studio - Developer or studio name
+ * @property {string} description - Full game description
+ * @property {string} thumbnailUrl - URL or data URI for the cover image
+ * @property {string[]} genres - Array of genre names
+ * @property {string[]} accessibilityTags - Array of formatted accessibility features (e.g., "Visual: Subtitles")
+ * @property {number} [releaseYear] - Optional release year
+ * @property {boolean} [isPublished] - Optional publication status (defaults to true)
+ */
 export interface AdminGameInput {
   slug: string;
   title: string;
@@ -108,6 +215,32 @@ export interface AdminGameInput {
   isPublished?: boolean;
 }
 
+/**
+ * Creates a new game in the database.
+ *
+ * @param {AdminGameInput} input - Game data to create
+ * @returns {Promise<IGame>} The newly created game document
+ *
+ * @description
+ * Creates a new game with the provided data. If isPublished is not specified,
+ * defaults to true. The game is immediately saved to the database.
+ *
+ * @throws {Error} If validation fails or database operation fails
+ *
+ * @security Only accessible to authenticated admin users
+ *
+ * @example
+ * const newGame = await createGame({
+ *   slug: 'celeste',
+ *   title: 'Celeste',
+ *   studio: 'Maddy Makes Games',
+ *   description: 'A challenging platformer about climbing a mountain',
+ *   thumbnailUrl: 'https://example.com/celeste.jpg',
+ *   genres: ['Platformer', 'Indie'],
+ *   accessibilityTags: ['Motor: Assist Mode', 'Visual: High Contrast'],
+ *   releaseYear: 2018
+ * });
+ */
 export async function createGame(input: AdminGameInput): Promise<IGame> {
   const game = new GameModel({
     ...input,
@@ -117,6 +250,27 @@ export async function createGame(input: AdminGameInput): Promise<IGame> {
   return game;
 }
 
+/**
+ * Updates an existing game with partial data.
+ *
+ * @param {string} id - MongoDB ObjectId of the game to update
+ * @param {Partial<AdminGameInput>} input - Partial game data to update
+ * @returns {Promise<IGame | null>} Updated game document or null if not found
+ *
+ * @description
+ * Updates only the fields provided in the input object. Uses MongoDB's $set operator
+ * to perform a partial update. Validators run on the updated fields to ensure data integrity.
+ *
+ * @throws {Error} If validation fails or database operation fails
+ *
+ * @security Only accessible to authenticated admin users
+ *
+ * @example
+ * const updatedGame = await updateGame('507f1f77bcf86cd799439011', {
+ *   title: 'Updated Title',
+ *   description: 'New description'
+ * });
+ */
 export async function updateGame(id: string, input: Partial<AdminGameInput>): Promise<IGame | null> {
   const game = await GameModel.findByIdAndUpdate(
     id,
@@ -126,6 +280,21 @@ export async function updateGame(id: string, input: Partial<AdminGameInput>): Pr
   return game;
 }
 
+/**
+ * Permanently deletes a game from the database.
+ *
+ * @param {string} id - MongoDB ObjectId of the game to delete
+ * @returns {Promise<void>}
+ *
+ * @description
+ * Permanently removes a game from the database. This action cannot be undone.
+ * Consider implementing soft deletes (setting isPublished to false) for production systems.
+ *
+ * @security Only accessible to authenticated admin users
+ *
+ * @example
+ * await deleteGame('507f1f77bcf86cd799439011');
+ */
 export async function deleteGame(id: string): Promise<void> {
   await GameModel.findByIdAndDelete(id).exec();
 }

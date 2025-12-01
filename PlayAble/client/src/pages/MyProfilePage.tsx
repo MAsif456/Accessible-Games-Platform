@@ -2,11 +2,47 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
 
+/**
+ * Props for the MyProfilePage component.
+ * @interface MyProfilePageProps
+ * @property {function} onNavigate - Navigation callback
+ * @property {function} onLogout - Logout handler
+ */
 interface MyProfilePageProps {
   onNavigate: (path: string) => void;
   onLogout: () => Promise<void>;
 }
 
+/**
+ * User profile management page component.
+ *
+ * @component
+ * @param {MyProfilePageProps} props - Component props
+ * @returns {JSX.Element} The profile page
+ *
+ * @description
+ * Displays and allows editing of user profile information including name and bio.
+ * Also provides access to security settings and logout functionality.
+ *
+ * **Features:**
+ * - View profile information
+ * - Edit mode for name and bio
+ * - Displays membership duration (calculated dynamically)
+ * - Link to change email/password
+ * - Logout button
+ *
+ * **State Management:**
+ * - Local editing state (isEditing, editName, editBio)
+ * - Syncs with AuthContext for user data
+ * - Auto-updates when user object changes
+ *
+ * **API Interactions:**
+ * - Calls authService.updateProfile() to save changes
+ * - Updates AuthContext on successful save
+ *
+ * @example
+ * <MyProfilePage onNavigate={navigate} onLogout={handleLogout} />
+ */
 const MyProfilePage: React.FC<MyProfilePageProps> = ({ onNavigate, onLogout }) => {
   const { user, updateUser } = useAuth();
 

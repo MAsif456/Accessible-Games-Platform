@@ -6,11 +6,46 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/ui/Modal';
 import type { AppPath } from '../App';
 
+/**
+ * Props for the RecentlyViewedPage component.
+ * @interface RecentlyViewedPageProps
+ * @property {function} [onNavigate] - Optional navigation callback
+ * @property {function} [onGameClick] - Optional game click handler
+ */
 interface RecentlyViewedPageProps {
   onNavigate?: (path: AppPath) => void;
   onGameClick?: (gameId: string) => void;
 }
 
+/**
+ * Recently Viewed page component displaying user's viewing history.
+ *
+ * @component
+ * @param {RecentlyViewedPageProps} props - Component props
+ * @returns {JSX.Element} The recently viewed page
+ *
+ * @description
+ * Displays a user's recently viewed games in reverse chronological order.
+ * Includes functionality to clear history with confirmation dialog.
+ *
+ * **Features:**
+ * - Auto-fetches history when user is authenticated
+ * - Grid display of game cards with favouriting capability
+ * - Clear history button with confirmation modal
+ * - Empty state with link to browse page
+ * - Game count display
+ *
+ * **State Management:**
+ * - Uses RecentlyViewedContext for games data and operations
+ * - Uses FavouritesContext for favouriting games
+ * - Manages local state for clear confirmation dialog
+ *
+ * @example
+ * <RecentlyViewedPage
+ *   onNavigate={navigate}
+ *   onGameClick={handleGameClick}
+ * />
+ */
 const RecentlyViewedPage: React.FC<RecentlyViewedPageProps> = ({
   onNavigate,
   onGameClick,
