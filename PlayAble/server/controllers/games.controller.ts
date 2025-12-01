@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { getPaginatedGames, getAllGamesForAdmin, getGameById, createGame, updateGame, deleteGame } from '../services/games.service';
+import { getPaginatedGames, getAllGamesForAdmin, getGameById, createGame, updateGame, deleteGame, getGamesMetadata } from '../services/games.service';
 import { parseGamesQuery } from '../utils/validate';
 import { IGame } from '../src/models';
 
@@ -33,6 +33,15 @@ export async function getGamesHandler(req: Request, res: Response, next: NextFun
       totalResults: result.totalResults,
       totalPages: result.totalPages,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getGamesMetadataHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const metadata = await getGamesMetadata();
+    return res.json(metadata);
   } catch (err) {
     next(err);
   }

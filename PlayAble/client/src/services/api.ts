@@ -28,6 +28,12 @@ export interface PaginatedGamesResponse {
   totalPages: number;
 }
 
+export interface GamesMetadata {
+  genres: string[];
+  accessibilityTags: string[];
+  releaseYears: number[];
+}
+
 // Single canonical ReviewDto used by reviews feature
 export interface ReviewDto {
   _id: string;
@@ -94,7 +100,10 @@ function findCachedGame(gameId: string): GameDto | undefined {
   return undefined;
 }
 
-export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGamesResponse> {
+export async function getGames(
+  params: GetGamesParams = {},
+  options?: { signal?: AbortSignal }
+): Promise<PaginatedGamesResponse> {
   const query = new URLSearchParams();
 
   if (params.page) query.set('page', String(params.page));
@@ -108,7 +117,7 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
   if (params.tags && params.tags.length) query.set('tags', params.tags.join(','));
   if (params.sort) query.set('sort', params.sort);
 
-  const res = await fetch(`/api/games?${query.toString()}`);
+  const res = await fetch(`/api/games?${query.toString()}`, { signal: options?.signal });
 
   if (!res.ok) {
     throw new Error(`Failed to fetch games: ${res.status}`);
@@ -119,6 +128,15 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
   // Prime cache for faster lookups
   data.games.forEach(cacheGame);
   return data;
+}
+
+export async function getGamesMetadata(): Promise<GamesMetadata> {
+  const res = await fetch('/api/games/metadata');
+  if (!res.ok) {
+    throw new Error(`Failed to fetch game metadata: ${res.status}`);
+  }
+  const data = await res.json();
+  return data as GamesMetadata;
 }
 
 export async function getGameById(gameId: string): Promise<GameDto> {

@@ -3,7 +3,7 @@ import {
   GameDto,
   getCachedGame,
   getGameById,
-  getGames,
+  // getGames,
   getReviews,
   getUserDisplayName,
   postReview,

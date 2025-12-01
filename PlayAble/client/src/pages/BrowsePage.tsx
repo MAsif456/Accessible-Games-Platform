@@ -1,19 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AppPath } from '../App';
 import GameCard from '../components/GameCard';
 import Pagination from '../components/ui/Pagination';
-import { useBrowseGames } from '../hooks/useBrowseGames.ts';
+import { useBrowseGames } from '../hooks/useBrowseGames';
 import { useFavouritesNav } from '../context/FavouritesContext';
-
-export interface Game {
-  id: string;
-  title: string;
-  studio: string;
-  description: string;
-  thumbnailUrl: string;
-  genres: string[];
-  accessibilityTags: string[];
-}
+import { GameDto } from '../services/api';
 
 export interface BrowsePageProps {
   currentPath: AppPath;
@@ -34,6 +25,11 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
   onSearchChange,
 }) => {
   const [browseSearchInput, setBrowseSearchInput] = useState(searchTerm);
+  const [showAllGenres, setShowAllGenres] = useState(false);
+
+  useEffect(() => {
+    setBrowseSearchInput(searchTerm);
+  }, [searchTerm]);
 
   const { favouriteIds, toggleFavourite, isFavourite } = useFavouritesNav();
 
@@ -41,35 +37,45 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
     games,
     totalPages,
     error,
-    isFiltersOpen,
-    setIsFiltersOpen,
-    selectedGenres,
-    setSelectedGenres,
-    selectedAccessibility,
-    releaseYear,
-    setReleaseYear,
-    sortBy,
-    setSortBy,
-    tempSelectedGenres,
-    setTempSelectedGenres,
-    tempSelectedAccessibility,
-    setTempSelectedAccessibility,
-    tempReleaseYear,
-    setTempReleaseYear,
-    tempSortBy,
-    setTempSortBy,
-    showAllGenres,
-    setShowAllGenres,
-    allGenres,
-    allAccessibility,
-    appliedFilterCount,
-    hasActiveFilters,
     hasNoResults,
-    handleApplyFilters,
-    handleClearAll,
-    removeAccessibility,
-    toggleSelection,
+    filters,
+    metadata,
+    sortOptions,
+    defaultSortId,
+    accessibilityLimit,
   } = useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange });
+
+  const {
+    active,
+    draft,
+    isOpen: isFiltersOpen,
+    hasActiveFilters,
+    appliedFilterCount,
+    open,
+    close,
+    apply,
+    clear,
+    removeGenre,
+    removeAccessibility,
+    toggleDraftGenre,
+    toggleDraftAccessibility,
+    setDraftSort,
+    resetSort,
+  } = filters;
+
+  useEffect(() => {
+    const trimmed = browseSearchInput.trim();
+    if (trimmed === searchTerm) return;
+
+    const handle = window.setTimeout(() => {
+      onSearchChange(trimmed);
+      if (currentPage !== 1) {
+        onPageChange(1);
+      }
+    }, 300);
+
+    return () => window.clearTimeout(handle);
+  }, [browseSearchInput, searchTerm, onSearchChange, onPageChange, currentPage]);
 
   const handleSearchSubmit = () => {
     const term = browseSearchInput.trim();
@@ -78,6 +84,13 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
       onPageChange(1);
     }
   };
+
+  const visibleGenres = showAllGenres ? metadata.genres : metadata.genres.slice(0, 20);
+  const sortLabel = useMemo(
+    () => sortOptions.find(option => option.id === active.sort)?.label ?? 'Sort By',
+    [active.sort, sortOptions]
+  );
+  const showSortChip = active.sort !== defaultSortId;
 
   return (
     <main className="browse-page" aria-label="Browse accessible mobile games">
@@ -92,15 +105,10 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 value={browseSearchInput}
                 onChange={e => {
                   let value = e.target.value;
-
                   if (value.length > 50) {
                     value = value.slice(0, 50);
                   }
                   setBrowseSearchInput(value);
-                  onSearchChange(value.trim());
-                  if (currentPage !== 1) {
-                    onPageChange(1);
-                  }
                 }}
                 placeholder="Search games by name or keyword"
                 onKeyDown={e => {
@@ -121,7 +129,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                   }}
                 >
                   <span aria-hidden="true" className="browse-page__search-clear-icon">
-                    ×
+                    A-
                   </span>
                   <span className="browse-page__search-clear-label">Clear</span>
                 </button>
@@ -131,7 +139,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             <button
               type="button"
               className="browse-page__filters-button browse-page__filters-button--primary"
-              onClick={() => setIsFiltersOpen(true)}
+              onClick={open}
             >
               <span className="browse-page__filters-icon" aria-hidden="true" />
               <span>Filters</span>
@@ -151,26 +159,26 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
           <div className="browse-page__active-filters-inner">
             <div className="browse-page__active-filters-header">
               <p>Active filters:</p>
-              <button type="button" className="browse-page__active-clear" onClick={handleClearAll}>
+              <button type="button" className="browse-page__active-clear" onClick={clear}>
                 Clear all
               </button>
             </div>
             <div className="browse-page__active-filters-chips">
-              {selectedGenres.map((genre: string) => (
+              {active.genres.map((genre: string) => (
                 <button
                   key={`genre-${genre}`}
                   type="button"
                   className="browse-page__active-chip"
-                  onClick={() => setSelectedGenres((prev: string[]) => prev.filter((g: string) => g !== genre))}
+                  onClick={() => removeGenre(genre)}
                 >
                   <span className="browse-page__active-chip-label">Genre: {genre}</span>
                   <span className="browse-page__active-chip-close" aria-hidden="true">
-                    ×
+                    A-
                   </span>
                   <span className="sr-only">Remove genre filter {genre}</span>
                 </button>
               ))}
-              {selectedAccessibility.map((tag: string) => (
+              {active.accessibility.map((tag: string) => (
                 <button
                   key={`access-${tag}`}
                   type="button"
@@ -179,35 +187,20 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 >
                   <span className="browse-page__active-chip-label">Accessibility: {tag}</span>
                   <span className="browse-page__active-chip-close" aria-hidden="true">
-                    ×
+                    A-
                   </span>
                   <span className="sr-only">Remove accessibility filter {tag}</span>
                 </button>
               ))}
-              {releaseYear !== 'Any Year' && (
+              {showSortChip && (
                 <button
                   type="button"
                   className="browse-page__active-chip"
-                  onClick={() => setReleaseYear('Any Year')}
+                  onClick={resetSort}
                 >
-                  <span className="browse-page__active-chip-label">
-                    Release Year: {releaseYear}
-                  </span>
+                  <span className="browse-page__active-chip-label">Sort By: {sortLabel}</span>
                   <span className="browse-page__active-chip-close" aria-hidden="true">
-                    ×
-                  </span>
-                  <span className="sr-only">Remove release year filter</span>
-                </button>
-              )}
-              {sortBy !== 'A-Z' && (
-                <button
-                  type="button"
-                  className="browse-page__active-chip"
-                  onClick={() => setSortBy('A-Z')}
-                >
-                  <span className="browse-page__active-chip-label">Sort By: {sortBy}</span>
-                  <span className="browse-page__active-chip-close" aria-hidden="true">
-                    ×
+                    A-
                   </span>
                   <span className="sr-only">Remove sort by filter</span>
                 </button>
@@ -225,13 +218,13 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
 
       {hasNoResults ? (
         <p role="status" className="browse-page__no-results">
-          Oops! We couldn’t find any games matching your filters. Try tweaking your selections or
-          clearing all filters to explore more games.
+          Oops! We couldn&apos;t find any games matching your filters. Try tweaking your selections
+          or clearing all filters to explore more games.
         </p>
       ) : (
         <>
           <section className="browse-page__grid" aria-label="Game catalogue">
-            {(games || []).map((game: Game) => (
+            {(games || []).map((game: GameDto) => (
               <GameCard
                 key={game.id}
                 game={game}
@@ -259,7 +252,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
         className={`browse-filters ${isFiltersOpen ? 'browse-filters--open' : ''}`}
         aria-hidden={!isFiltersOpen}
       >
-        <div className="browse-filters__overlay" onClick={() => setIsFiltersOpen(false)} />
+        <div className="browse-filters__overlay" onClick={close} />
         <div className="browse-filters__panel" role="dialog" aria-modal="true" aria-label="Filters">
           <header className="browse-filters__header">
             <div>
@@ -272,21 +265,21 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             <button
               type="button"
               className="browse-filters__close"
-              onClick={() => setIsFiltersOpen(false)}
+              onClick={close}
               aria-label="Close filters"
             >
-              ×
+              A-
             </button>
           </header>
 
           <div className="browse-filters__top-actions">
-            <button type="button" className="browse-filters__clear" onClick={handleClearAll}>
+            <button type="button" className="browse-filters__clear" onClick={clear}>
               Clear All
             </button>
             <button
               type="button"
               className="browse-filters__apply browse-filters__apply--primary"
-              onClick={handleApplyFilters}
+              onClick={apply}
             >
               Apply Filters
             </button>
@@ -298,8 +291,8 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 <h3>Genre</h3>
               </header>
               <div className="browse-filters__chips">
-                {(showAllGenres ? allGenres : allGenres.slice(0, 20)).map((genre: string) => {
-                  const isSelected = tempSelectedGenres.includes(genre);
+                {visibleGenres.map((genre: string) => {
+                  const isSelected = draft.genres.includes(genre);
                   return (
                     <button
                       key={genre}
@@ -308,16 +301,14 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                         'browse-filters__chip' +
                         (isSelected ? ' browse-filters__chip--selected' : '')
                       }
-                      onClick={() =>
-                        toggleSelection(genre, tempSelectedGenres, setTempSelectedGenres)
-                      }
+                      onClick={() => toggleDraftGenre(genre)}
                     >
                       {genre}
                     </button>
                   );
                 })}
               </div>
-              {allGenres.length > 20 && (
+              {metadata.genres.length > 20 && (
                 <button
                   type="button"
                   className="browse-filters__show-more"
@@ -332,12 +323,12 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
               <header className="browse-filters__section-header">
                 <h3>Accessibility Categories</h3>
                 <p className="browse-filters__counter">
-                  {tempSelectedAccessibility.length}/5 selected
+                  {draft.accessibility.length}/{accessibilityLimit} selected
                 </p>
               </header>
               <div className="browse-filters__chips">
-                {allAccessibility.map((tag: string) => {
-                  const isSelected = tempSelectedAccessibility.includes(tag);
+                {metadata.accessibility.map((tag: string) => {
+                  const isSelected = draft.accessibility.includes(tag);
                   return (
                     <button
                       key={tag}
@@ -347,12 +338,8 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                         (isSelected ? ' browse-filters__chip--selected' : '')
                       }
                       onClick={() => {
-                        if (!isSelected && tempSelectedAccessibility.length >= 5) return;
-                        toggleSelection(
-                          tag,
-                          tempSelectedAccessibility,
-                          setTempSelectedAccessibility,
-                        );
+                        if (!isSelected && draft.accessibility.length >= accessibilityLimit) return;
+                        toggleDraftAccessibility(tag);
                       }}
                     >
                       {tag}
@@ -364,48 +351,30 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
 
             <section className="browse-filters__section">
               <header className="browse-filters__section-header">
-                <h3>Release Year</h3>
-              </header>
-              <select
-                className="browse-filters__select"
-                value={tempReleaseYear}
-                onChange={e => setTempReleaseYear(e.target.value)}
-              >
-                <option value="Any Year">Any Year</option>
-                {Array.from({ length: new Date().getFullYear() - 2010 }, (_, i) => 2011 + i)
-                  .reverse()
-                  .map(year => (
-                    <option key={year} value={String(year)}>
-                      {year}
-                    </option>
-                  ))}
-              </select>
-            </section>
-
-            <section className="browse-filters__section">
-              <header className="browse-filters__section-header">
                 <h3>Sort By</h3>
               </header>
               <select
                 className="browse-filters__select"
-                value={tempSortBy}
-                onChange={e => setTempSortBy(e.target.value)}
+                value={draft.sort}
+                onChange={e => setDraftSort(e.target.value as (typeof sortOptions)[number]['id'])}
               >
-                <option value="A-Z">A-Z (Alphabetical)</option>
-                <option value="Newest">Newest first</option>
-                <option value="Oldest">Oldest first</option>
+                {sortOptions.map(option => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </section>
           </div>
 
           <footer className="browse-filters__footer">
-            <button type="button" className="browse-filters__clear" onClick={handleClearAll}>
+            <button type="button" className="browse-filters__clear" onClick={clear}>
               Clear All
             </button>
             <button
               type="button"
               className="browse-filters__apply browse-filters__apply--primary"
-              onClick={handleApplyFilters}
+              onClick={apply}
             >
               Apply Filters
             </button>
