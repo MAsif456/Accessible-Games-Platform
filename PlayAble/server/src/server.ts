@@ -33,7 +33,8 @@ import {
 import {
   csrfProtection,
   generateCsrfToken,
-  csrfErrorHandler
+  csrfErrorHandler,
+  csrfDevBypass
 } from './middleware/csrfProtection';
 
 dotenv.config();
@@ -87,9 +88,14 @@ app.get('/api/csrf-token', (req: Request, res: Response) => {
   res.json({ csrfToken: token });
 });
 
-// Apply CSRF protection to all state-changing requests (POST, PUT, PATCH, DELETE)
-// GET requests are automatically excluded as they should be safe/idempotent
-app.use(csrfProtection);
+// Development bypass (optional - allows development without CSRF tokens)
+if (process.env.CSRF_DEV_BYPASS === 'true') {
+  console.log('[DEV] CSRF protection bypassed - development mode');
+} else {
+  // Apply CSRF protection to all state-changing requests (POST, PUT, PATCH, DELETE)
+  // GET requests are automatically excluded as they should be safe/idempotent
+  app.use(csrfProtection);
+}
 
 // Serve static images
 app.use('/images', express.static(path.join(__dirname, '../public/images')));

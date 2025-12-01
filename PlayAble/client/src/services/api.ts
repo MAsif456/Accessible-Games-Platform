@@ -66,6 +66,9 @@ export interface ReviewWithGameResponse {
   review: ReportReviewDto;
 }
 
+// Import CSRF-protected API helpers
+import { apiPost, apiDelete } from '../utils/apiHelper';
+
 // In-memory cache for games to speed up back/forward navigation
 const gameCache = new Map<string, GameDto>();
 
@@ -177,18 +180,17 @@ export async function postReview(
   authorName?: string
 ): Promise<ReviewDto> {
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...getAuthHeaders(),
   };
 
-  const res = await fetch(`/api/games/${gameId}/reviews`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
+  const res = await apiPost(
+    `/api/games/${gameId}/reviews`,
+    {
       body,
       ...(authorName ? { authorName } : {}),
-    }),
-  });
+    },
+    { headers }
+  );
 
   if (!res.ok) {
     throw new Error(`Failed to post review: ${res.status}`);
@@ -199,15 +201,14 @@ export async function postReview(
 
 export async function toggleReviewLike(reviewId: string, liked: boolean): Promise<ReviewDto> {
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...getAuthHeaders(),
   };
 
-  const res = await fetch(`/api/reviews/${reviewId}/like`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ liked }),
-  });
+  const res = await apiPost(
+    `/api/reviews/${reviewId}/like`,
+    { liked },
+    { headers }
+  );
 
   if (!res.ok) {
     throw new Error(`Failed to toggle like: ${res.status}`);
@@ -222,15 +223,14 @@ export async function reportReview(
   voiceTranscript?: string
 ): Promise<void> {
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...getAuthHeaders(),
   };
 
-  const res = await fetch(`/api/reviews/${reviewId}/report`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ reasonText, voiceTranscript }),
-  });
+  const res = await apiPost(
+    `/api/reviews/${reviewId}/report`,
+    { reasonText, voiceTranscript },
+    { headers }
+  );
 
   if (!res.ok) {
     throw new Error(`Failed to submit report: ${res.status}`);
@@ -239,14 +239,10 @@ export async function reportReview(
 
 export async function deleteReview(reviewId: string): Promise<void> {
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...getAuthHeaders(),
   };
 
-  const response = await fetch(`/api/reviews/${reviewId}`, {
-    method: 'DELETE',
-    headers,
-  });
+  const response = await apiDelete(`/api/reviews/${reviewId}`, { headers });
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
@@ -278,10 +274,7 @@ export async function addToRecentlyViewed(gameId: string): Promise<void> {
   const headers: HeadersInit = {
     ...getAuthHeaders(),
   };
-  const res = await fetch(`/api/recently-viewed/${gameId}`, {
-    method: 'POST',
-    headers,
-  });
+  const res = await apiPost(`/api/recently-viewed/${gameId}`, undefined, { headers });
   if (!res.ok) {
     throw new Error(`Failed to add to recently viewed: ${res.status}`);
   }
@@ -302,10 +295,7 @@ export async function clearRecentlyViewed(): Promise<void> {
   const headers: HeadersInit = {
     ...getAuthHeaders(),
   };
-  const res = await fetch('/api/recently-viewed', {
-    method: 'DELETE',
-    headers,
-  });
+  const res = await apiDelete('/api/recently-viewed', { headers });
   if (!res.ok) {
     throw new Error(`Failed to clear recently viewed: ${res.status}`);
   }
