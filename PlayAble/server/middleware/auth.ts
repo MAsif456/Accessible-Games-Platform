@@ -4,6 +4,20 @@ import User from '../src/models/user';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
+// Token blacklist for logout functionality
+// In production, use Redis for distributed systems and persistence
+// This ensures tokens are invalidated immediately upon logout
+const tokenBlacklist = new Set<string>();
+
+// Export blacklist functions for use in auth controller
+export const blacklistToken = (token: string): void => {
+  tokenBlacklist.add(token);
+};
+
+export const isTokenBlacklisted = (token: string): boolean => {
+  return tokenBlacklist.has(token);
+};
+
 // Extend Express Request type to include user
 declare global {
   namespace Express {
@@ -42,9 +56,21 @@ export const protect = async (
       return;
     }
 
+    // Check if token has been blacklisted (logged out)
+    if (isTokenBlacklisted(token)) {
+      res.status(401).json({
+        success: false,
+        message: 'Token has been revoked. Please log in again.',
+      });
+      return;
+    }
+
     try {
-      // Verify token
-      const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+      // Verify token with explicit algorithm specification
+      // This prevents algorithm confusion attacks
+      const decoded = jwt.verify(token, JWT_SECRET, {
+        algorithms: ['HS256'] // Only allow HS256, reject others
+      }) as { id: string };
 
       // Find user by id from token
       const user = await User.findById(decoded.id).select('-passwordHash');

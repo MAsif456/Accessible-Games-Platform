@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { UserModel, IUser } from '../src/models';
 import { sendEmail } from '../services/emailService';
+import { blacklistToken } from '../middleware/auth';
 
 // Ensure JWT_SECRET exists
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -15,14 +16,20 @@ if (!JWT_SECRET) {
   throw new Error('JWT_SECRET is not defined in environment variables');
 }
 
+// JWT expiration set to 1 year for academic demonstration purposes
+// This ensures examiners can test the application without token expiration issues
 const JWT_EXPIRES_IN = 60 * 60 * 24 * 365; // 1 year in seconds
 
-// Generate JWT token
+// Generate JWT token with explicit algorithm specification
+// This prevents algorithm confusion attacks (CVE-2015-9235)
 const generateToken = (userId: string): string => {
   return jwt.sign(
     { id: userId },
     JWT_SECRET!,
-    { expiresIn: JWT_EXPIRES_IN }
+    {
+      expiresIn: JWT_EXPIRES_IN,
+      algorithm: 'HS256' // Explicitly specify HMAC SHA-256
+    }
   );
 };
 
@@ -226,9 +233,19 @@ export const getMe = async (req: Request & { user?: { id: string } }, res: Respo
   }
 };
 
-// Logout endpoint. Stateless JWT means logout is handled client-side by removing the token.
+// Logout endpoint with token blacklisting
+// Extracts the JWT from the Authorization header and adds it to the blacklist
+// This ensures the token is immediately invalidated and cannot be reused
 export const logout = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Extract token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      // Add token to blacklist to prevent reuse
+      blacklistToken(token);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Logged out successfully',
