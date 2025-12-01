@@ -1,6 +1,7 @@
 import { FilterQuery, SortOrder } from 'mongoose';
-import { GameModel, IGame } from '../src/models';
+import { IGame } from '../src/models';
 import { GamesFilterQuery } from '../utils/validate';
+import GamesRepository from '../src/repositories/games.repository';
 
 /**
  * Represents the result of a paginated games query.
@@ -136,13 +137,10 @@ export async function getPaginatedGames(query: GamesFilterQuery): Promise<Pagina
 
   const skip = (page - 1) * pageSize;
 
+  const repository = GamesRepository;
   const [totalResults, games] = await Promise.all([
-    GameModel.countDocuments(filter),
-    GameModel.find(filter)
-      .sort(sort)
-      .skip(skip)
-      .limit(pageSize)
-      .exec(),
+    repository.countDocuments(filter),
+    repository.findAll(filter, sort, skip, pageSize),
   ]);
 
   const totalPages = totalResults === 0 ? 1 : Math.ceil(totalResults / pageSize);
@@ -168,7 +166,8 @@ export async function getPaginatedGames(query: GamesFilterQuery): Promise<Pagina
  * @security Only accessible to authenticated admin users via protected routes
  */
 export async function getAllGamesForAdmin() {
-  const games = await GameModel.find({}).sort({ title: 1 }).exec();
+  const repository = GamesRepository;
+  const games = await repository.findAll({}, { title: 1 });
   return games;
 }
 
@@ -186,7 +185,8 @@ export async function getAllGamesForAdmin() {
  * const game = await getGameById('507f1f77bcf86cd799439011');
  */
 export async function getGameById(id: string) {
-  return GameModel.findById(id).exec();
+  const repository = GamesRepository;
+  return repository.findById(id);
 }
 
 /**
@@ -242,11 +242,11 @@ export interface AdminGameInput {
  * });
  */
 export async function createGame(input: AdminGameInput): Promise<IGame> {
-  const game = new GameModel({
+  const repository = GamesRepository;
+  const game = await repository.create({
     ...input,
     isPublished: input.isPublished ?? true,
   });
-  await game.save();
   return game;
 }
 
@@ -272,11 +272,8 @@ export async function createGame(input: AdminGameInput): Promise<IGame> {
  * });
  */
 export async function updateGame(id: string, input: Partial<AdminGameInput>): Promise<IGame | null> {
-  const game = await GameModel.findByIdAndUpdate(
-    id,
-    { $set: input },
-    { new: true, runValidators: true },
-  ).exec();
+  const repository = GamesRepository;
+  const game = await repository.update(id, { $set: input });
   return game;
 }
 
@@ -296,5 +293,6 @@ export async function updateGame(id: string, input: Partial<AdminGameInput>): Pr
  * await deleteGame('507f1f77bcf86cd799439011');
  */
 export async function deleteGame(id: string): Promise<void> {
-  await GameModel.findByIdAndDelete(id).exec();
+  const repository = GamesRepository;
+  await repository.delete(id);
 }
