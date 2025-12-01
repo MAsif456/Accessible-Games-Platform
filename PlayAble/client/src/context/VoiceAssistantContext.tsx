@@ -27,6 +27,7 @@ type SpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 type ListeningState = 'idle' | 'awaiting' | 'listening' | 'processing' | 'error';
 
 interface VoiceAssistantContextValue {
+  forceStopRecognition?: () => void;
   voiceInputEnabled: boolean;
   microphoneActive: boolean;
   listeningState: ListeningState;
@@ -1148,9 +1149,36 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     setListeningState('idle');
     setIsIndicatorVisible(false);
     safariActivationRef.current = false;
-    recognitionRef.current?.stop();
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+        // Note: abort() may not exist on all browsers
+        if (typeof (recognitionRef.current as any).abort === 'function') {
+          (recognitionRef.current as any).abort();
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
     resetToIdle(500, false);
   }, [resetToIdle]);
+
+  // Expose a method to forcefully stop recognition (for use by voice recording)
+  const forceStopRecognition = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+        // Note: abort() may not exist on all browsers
+        if (typeof (recognitionRef.current as any).abort === 'function') {
+          (recognitionRef.current as any).abort();
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+    setListeningState('idle');
+    safariActivationRef.current = false;
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -1163,6 +1191,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       recognitionSupported,
       activateFromVoiceButton,
       cancelListening,
+      forceStopRecognition,
       applyVoiceInputPreference,
       applyMicrophonePreference,
     }),
@@ -1171,6 +1200,7 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
       applyMicrophonePreference,
       applyVoiceInputPreference,
       cancelListening,
+      forceStopRecognition,
       isIndicatorVisible,
       lastHeardPhrase,
       listeningState,

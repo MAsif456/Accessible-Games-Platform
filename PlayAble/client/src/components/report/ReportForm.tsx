@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ReportType, submitReport } from '../../services/reportApi';
+import { useVoiceRecording } from '../../hooks/useVoiceRecording';
+import { useVoiceAssistant } from '../../context/VoiceAssistantContext';
 
 interface ReportFormProps {
   type: ReportType;
@@ -16,13 +18,87 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
-  const [voiceRecorded, setVoiceRecorded] = useState(false);
+  const baseDescriptionTextRef = React.useRef<string>(''); // Track text before recording started
 
- 
+  const { cancelListening, forceStopRecognition, applyMicrophonePreference, applyVoiceInputPreference, microphoneActive: assistantMicActive, voiceInputEnabled: assistantVoiceEnabled } = useVoiceAssistant();
+  const {
+    transcript: voiceTranscript,
+    isRecording: isVoiceRecording,
+    error: voiceError,
+    startRecording: startVoiceRecording,
+    stopRecording: stopVoiceRecording,
+    clearTranscript: clearVoiceTranscript,
+    hasTranscript: hasVoiceTranscript,
+  } = useVoiceRecording();
+  const wasMicActiveRef = React.useRef<boolean>(true); // Track if mic was active before recording
+  const wasVoiceEnabledRef = React.useRef<boolean>(true); // Track if voice input was enabled before recording
+
+  // Wrapper to stop voice assistant before starting recording
+  const handleStartRecording = async () => {
+    // Save current text as base before starting recording
+    baseDescriptionTextRef.current = description.trim();
+    
+    // Save current state
+    wasMicActiveRef.current = assistantMicActive;
+    wasVoiceEnabledRef.current = assistantVoiceEnabled;
+    
+    // Force stop voice assistant recognition FIRST (most aggressive)
+    if (forceStopRecognition) {
+      forceStopRecognition();
+    }
+    cancelListening();
+    
+    // Temporarily disable BOTH voice input AND microphone to completely prevent restart
+    // This ensures canListen is false, so the voice assistant won't restart
+    if (assistantVoiceEnabled) {
+      applyVoiceInputPreference(false);
+    }
+    if (assistantMicActive) {
+      applyMicrophonePreference(false);
+    }
+    
+    // Longer delay to ensure voice assistant fully stops and all handlers finish
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    await startVoiceRecording();
+  };
+
+  // Restore voice assistant settings when recording stops
+  useEffect(() => {
+    if (!isVoiceRecording && (wasMicActiveRef.current || wasVoiceEnabledRef.current)) {
+      // Small delay to ensure recording is fully stopped
+      const restoreTimer = setTimeout(() => {
+        // Restore in reverse order: microphone first, then voice input
+        if (wasMicActiveRef.current) {
+          applyMicrophonePreference(true);
+        }
+        if (wasVoiceEnabledRef.current) {
+          applyVoiceInputPreference(true);
+        }
+        wasMicActiveRef.current = true;
+        wasVoiceEnabledRef.current = true;
+      }, 400);
+      return () => clearTimeout(restoreTimer);
+    }
+  }, [isVoiceRecording, applyMicrophonePreference, applyVoiceInputPreference]);
+
+  // Sync voice transcript to description textarea in real-time
+  useEffect(() => {
+    if (isVoiceRecording) {
+      // Combine base text (from before recording) with current voice transcript
+      const baseText = baseDescriptionTextRef.current;
+      // Always update, even if transcript is empty (it will update as speech is detected)
+      const combined = baseText && voiceTranscript 
+        ? `${baseText} ${voiceTranscript}`.trim() 
+        : voiceTranscript || baseText || '';
+      setDescription(combined);
+    }
+  }, [voiceTranscript, isVoiceRecording]);
+
   const trimmedDescription = description.trim();
   const hasValidDescription =
     trimmedDescription.length >= MIN_CHARS && trimmedDescription.length <= MAX_CHARS;
-  const canSubmit = hasValidDescription || voiceRecorded;
+  const canSubmit = hasValidDescription || hasVoiceTranscript;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +117,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       return;
     }
 
+    // Stop recording if still active
+    if (isVoiceRecording) {
+      stopVoiceRecording();
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
     setFieldError(null);
@@ -49,14 +130,14 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       await submitReport({
         type,
         description: hasValidDescription ? trimmedDescription : undefined,
-        // transcript support will be wired in later when voice recording is implemented
+        transcript: hasVoiceTranscript && !hasValidDescription ? voiceTranscript.trim() : undefined,
         gameId,
         reviewId,
       });
 
-      
       setDescription('');
-      setVoiceRecorded(false);
+      baseDescriptionTextRef.current = '';
+      clearVoiceTranscript();
 
       
       if (onSuccess) {
@@ -97,22 +178,70 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
         )}
       </div>
 
-      <section className="report-form__voice" aria-label="Voice recording ">
-        <h3 className="report-form__voice-title">Voice Recording </h3>
+      <section className="report-form__voice" aria-label="Voice recording">
+        <h3 className="report-form__voice-title">Voice Recording</h3>
         <p className="report-form__voice-text">
-          Record your report using your voice. The transcript will be added to your report.
+          Record your report using your voice. Your speech will be typed directly into the description field above as you speak.
         </p>
-        <button
-          type="button"
-          className="report-form__voice-button"
-          onClick={() => {
-            // Placeholder hook for teammates to implement voice recording.
-            // For now we simply toggle a flag so that voice-only reports can be submitted.
-            setVoiceRecorded(prev => !prev);
-          }}
-        >
-          <span aria-hidden="true">🎙</span> {voiceRecorded ? 'Voice Recorded' : 'Start Voice Recording'}
-        </button>
+        {voiceError && (
+          <p className="report-form__field-error" role="alert">
+            {voiceError}
+          </p>
+        )}
+        {(hasVoiceTranscript || isVoiceRecording) && (
+          <div className="report-form__voice-transcript">
+            <p className="report-form__voice-transcript-label">
+              {isVoiceRecording ? 'Live Transcript:' : 'Transcript:'}
+            </p>
+            <p className={`report-form__voice-transcript-text ${isVoiceRecording ? 'report-form__voice-transcript-text--live' : ''}`}>
+              {voiceTranscript || (isVoiceRecording ? 'Listening...' : '')}
+            </p>
+          </div>
+        )}
+        <div className="report-form__voice-controls">
+          {!isVoiceRecording ? (
+            <button
+              type="button"
+              className="report-form__voice-button"
+              onClick={handleStartRecording}
+              disabled={isSubmitting}
+            >
+              <span className="report-form__voice-icon" aria-hidden="true" />
+              <span className="report-form__voice-button-text">
+                {hasVoiceTranscript ? 'Record Again' : 'Start Voice Recording'}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="report-form__voice-button report-form__voice-button--recording"
+              onClick={stopVoiceRecording}
+              disabled={isSubmitting}
+            >
+              <span className="report-form__voice-icon report-form__voice-icon--recording" aria-hidden="true" />
+              <span className="report-form__voice-button-text">Stop Recording</span>
+            </button>
+          )}
+          {hasVoiceTranscript && !isVoiceRecording && (
+            <button
+              type="button"
+              className="report-form__voice-button report-form__voice-button--clear"
+              onClick={() => {
+                setDescription(baseDescriptionTextRef.current);
+                clearVoiceTranscript();
+              }}
+              disabled={isSubmitting}
+            >
+              <span className="report-form__voice-button-text">Clear Transcript</span>
+            </button>
+          )}
+        </div>
+        {isVoiceRecording && (
+          <p className="report-form__voice-status">
+            <span className="report-form__voice-status-dot" aria-hidden="true" />
+            Recording... Speak now.
+          </p>
+        )}
       </section>
 
       {errorMessage && (
@@ -122,7 +251,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       )}
 
       <div className="report-form__actions">
-        <button type="submit" className="report-form__submit" disabled={isSubmitting}>
+        <button
+          type="submit"
+          className="report-form__submit"
+          disabled={isSubmitting || isVoiceRecording}
+        >
           {isSubmitting ? 'Submitting...' : 'Submit Report'}
         </button>
       </div>
