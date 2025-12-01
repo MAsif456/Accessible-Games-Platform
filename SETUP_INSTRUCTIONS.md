@@ -173,10 +173,14 @@ You should see:
 ---
 
 ## Running tests
-For tests, you need to install the following:
+For tests, you need to install the following in the client folder:
+
 npm install --save-dev @testing-library/react @testing-library/jest-dom
 
 npm install react-router-dom @types/react-router-dom --save-dev
+
+After this, run npm test
+
 ## Email Setup and Password Reset
 
 - The backend uses Nodemailer and your Gmail account to send password reset codes.

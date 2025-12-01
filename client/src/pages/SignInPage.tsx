@@ -182,7 +182,6 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
       setIsLoading(false);
     }
   };
-
   // Handle password reset request
   // CSRF protection applied automatically via apiPost helper
   const handleRequestReset = async (e: React.FormEvent) => {
@@ -212,7 +211,6 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
       return () => clearTimeout(t);
     }
   }, [resetStep, resetTimer]);
-
   // Handle resend
   // CSRF protection applied automatically via apiPost helper
   const handleResend = async () => {
@@ -233,7 +231,6 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
       setResetLoading(false);
     }
   };
-
   // Handle code and new password submit
   // CSRF protection applied automatically via apiPost helper
   const handleResetPassword = async (e: React.FormEvent) => {

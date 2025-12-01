@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ReportType, submitReport } from '../../services/reportApi';
+import { useAuth } from '../../context/AuthContext';
 
 interface ReportFormProps {
   type: ReportType;
@@ -10,22 +11,32 @@ interface ReportFormProps {
 
 const MIN_CHARS = 10;
 const MAX_CHARS = 1000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSuccess }) => {
+  const { user } = useAuth();
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [voiceRecorded, setVoiceRecorded] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
 
- 
+  const requiresContact = type === 'general';
   const trimmedDescription = description.trim();
   const hasValidDescription =
     trimmedDescription.length >= MIN_CHARS && trimmedDescription.length <= MAX_CHARS;
-  const canSubmit = hasValidDescription || voiceRecorded;
+
+  const contactEmail = (user?.email ?? '').trim();
+  const contactName = (user?.name ?? '').trim();
+
+  const canSubmit =
+    (hasValidDescription || voiceRecorded) &&
+    (!requiresContact || (contactEmail && EMAIL_REGEX.test(contactEmail)));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (trimmedDescription && trimmedDescription.length < MIN_CHARS) {
       setFieldError(`Please provide at least ${MIN_CHARS} characters.`);
       return;
@@ -41,24 +52,36 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       return;
     }
 
+    if (requiresContact) {
+      if (!contactEmail) {
+        setContactError('A valid contact email is required to submit this report.');
+        return;
+      }
+      if (!EMAIL_REGEX.test(contactEmail)) {
+        setContactError('Please update your account email before submitting this report.');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
     setFieldError(null);
+    setContactError(null);
 
     try {
       await submitReport({
         type,
         description: hasValidDescription ? trimmedDescription : undefined,
-        // transcript support will be wired in later when voice recording is implemented
+        reporterEmail: requiresContact ? contactEmail : user?.email,
+        reporterName: contactName || undefined,
+        reporterId: user?.id,
         gameId,
         reviewId,
       });
 
-      
       setDescription('');
       setVoiceRecorded(false);
 
-      
       if (onSuccess) {
         onSuccess();
       }
@@ -97,8 +120,8 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
         )}
       </div>
 
-      <section className="report-form__voice" aria-label="Voice recording ">
-        <h3 className="report-form__voice-title">Voice Recording </h3>
+      <section className="report-form__voice" aria-label="Voice recording">
+        <h3 className="report-form__voice-title">Voice Recording</h3>
         <p className="report-form__voice-text">
           Record your report using your voice. The transcript will be added to your report.
         </p>
@@ -106,8 +129,6 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
           type="button"
           className="report-form__voice-button"
           onClick={() => {
-            // Placeholder hook for teammates to implement voice recording.
-            // For now we simply toggle a flag so that voice-only reports can be submitted.
             setVoiceRecorded(prev => !prev);
           }}
         >
@@ -118,6 +139,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       {errorMessage && (
         <p className="report-form__error" role="alert">
           {errorMessage}
+        </p>
+      )}
+      {contactError && (
+        <p className="report-form__error" role="alert">
+          {contactError}
         </p>
       )}
 

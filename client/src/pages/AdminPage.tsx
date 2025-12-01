@@ -1,6 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { GameDto } from '../services/api';
 import type { AdminResolvedReviewReport } from '../services/adminReviewsService';
+import {
+  AdminGeneralReport,
+  fetchGeneralReports,
+  formatReportCode,
+  replyToGeneralReport,
+} from '../services/adminReportsService';
 import { getAdminGames } from '../services/gamesAdminService';
 import Pagination from '../components/ui/Pagination';
 import Modal from '../components/ui/Modal';
@@ -74,6 +80,21 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [gamesStatsLoading, setGamesStatsLoading] = useState(true);
   const GAMES_PAGE_SIZE = 10;
 
+  // General reports state
+  const [generalReports, setGeneralReports] = useState<AdminGeneralReport[]>([]);
+  const [resolvedGeneralReports, setResolvedGeneralReports] = useState<AdminGeneralReport[]>([]);
+  const [generalReportsLoading, setGeneralReportsLoading] = useState(false);
+  const [resolvedReportsLoading, setResolvedReportsLoading] = useState(false);
+  const [generalReportsError, setGeneralReportsError] = useState<string | null>(null);
+  const [resolvedReportsError, setResolvedReportsError] = useState<string | null>(null);
+  const [generalReportsSearch, setGeneralReportsSearch] = useState('');
+  const [resolvedReportsSearch, setResolvedReportsSearch] = useState('');
+  const [activeReport, setActiveReport] = useState<AdminGeneralReport | null>(null);
+  const [reportModalMode, setReportModalMode] = useState<'reply' | 'view'>('reply');
+  const [reportReplyMessage, setReportReplyMessage] = useState('');
+  const [reportModalError, setReportModalError] = useState<string | null>(null);
+  const [reportModalSubmitting, setReportModalSubmitting] = useState(false);
+
   useEffect(() => {
     let isCancelled = false;
     setGamesStatsLoading(true);
@@ -142,6 +163,39 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     setGamesPage(1);
   }, [gamesSearchTerm]);
 
+  const loadGeneralReports = useCallback(async () => {
+    setGeneralReportsLoading(true);
+    setGeneralReportsError(null);
+    try {
+      const reports = await fetchGeneralReports('open');
+      setGeneralReports(reports);
+    } catch (err) {
+      console.error('Failed to load general reports', err);
+      setGeneralReportsError('Unable to load general reports. Please try again later.');
+    } finally {
+      setGeneralReportsLoading(false);
+    }
+  }, []);
+
+  const loadResolvedReports = useCallback(async () => {
+    setResolvedReportsLoading(true);
+    setResolvedReportsError(null);
+    try {
+      const reports = await fetchGeneralReports('resolved');
+      setResolvedGeneralReports(reports);
+    } catch (err) {
+      console.error('Failed to load resolved reports', err);
+      setResolvedReportsError('Unable to load resolved reports. Please try again later.');
+    } finally {
+      setResolvedReportsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGeneralReports();
+    loadResolvedReports();
+  }, [loadGeneralReports, loadResolvedReports]);
+
   const handleAddNewGame = () => {
     if (onNavigate) {
       onNavigate('/admin/games/new');
@@ -157,8 +211,84 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     }
   };
 
+  const formatReporter = (report: AdminGeneralReport) =>
+    report.reporterName || report.reporterEmail || 'Anonymous user';
+
+  const truncateDescription = (text: string, limit = 90) => {
+    if (!text) return 'No description provided.';
+    return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+  };
+
+  const matchesReport = (report: AdminGeneralReport, term: string) => {
+    const normalized = term.trim().toLowerCase();
+    if (!normalized) return true;
+    return (
+      (report.reportCode || '').toLowerCase().includes(normalized) ||
+      (report.description || '').toLowerCase().includes(normalized) ||
+      (report.reporterEmail || '').toLowerCase().includes(normalized) ||
+      (report.reporterName || '').toLowerCase().includes(normalized) ||
+      report.status.toLowerCase().includes(normalized)
+    );
+  };
+
+  const filteredGeneralReports = useMemo(
+    () => generalReports.filter(report => matchesReport(report, generalReportsSearch)),
+    [generalReports, generalReportsSearch]
+  );
+
+  const filteredResolvedReports = useMemo(
+    () => resolvedGeneralReports.filter(report => matchesReport(report, resolvedReportsSearch)),
+    [resolvedGeneralReports, resolvedReportsSearch]
+  );
+
+  const closeReportModal = () => {
+    setActiveReport(null);
+    setReportReplyMessage('');
+    setReportModalError(null);
+    setReportModalSubmitting(false);
+  };
+
+  const openReportModal = (report: AdminGeneralReport, mode: 'reply' | 'view') => {
+    setActiveReport(report);
+    setReportModalMode(mode);
+    setReportReplyMessage('');
+    setReportModalError(null);
+  };
+
+  const handleReportReplySubmit = async () => {
+    if (!activeReport) return;
+    const trimmed = reportReplyMessage.trim();
+    if (!trimmed) {
+      setReportModalError('Please enter a reply to send to the reporter.');
+      return;
+    }
+    setReportModalSubmitting(true);
+    setReportModalError(null);
+    try {
+      const updated = await replyToGeneralReport(activeReport.id, trimmed);
+      setGeneralReports(prev => prev.filter(report => report.id !== updated.id));
+      setResolvedGeneralReports(prev => [updated, ...prev]);
+      closeReportModal();
+      loadGeneralReports();
+      loadResolvedReports();
+      showPrompt?.('Reply sent and report resolved.', 'success');
+    } catch (err) {
+      console.error('Failed to send reply', err);
+      setReportModalError('Failed to send reply. Please try again.');
+      setReportModalSubmitting(false);
+    }
+  };
+
   const renderGeneralReportsSection = () => {
     const isResolved = generalSubTab === 'resolved';
+    const reports = isResolved ? filteredResolvedReports : filteredGeneralReports;
+    const loading = isResolved ? resolvedReportsLoading : generalReportsLoading;
+    const error = isResolved ? resolvedReportsError : generalReportsError;
+    const searchValue = isResolved ? resolvedReportsSearch : generalReportsSearch;
+    const handleSearch = isResolved ? setResolvedReportsSearch : setGeneralReportsSearch;
+    const searchInputId = isResolved ? 'resolved-reports-search' : 'general-reports-search';
+    const dateLabel = isResolved ? 'Resolved On' : 'Date';
+
     return (
       <section
         className="admin-section-card"
@@ -178,16 +308,24 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
         </header>
 
         <div className="admin-section-card__search-wrapper">
-          <label htmlFor="general-reports-search" className="sr-only">
+          <label htmlFor={searchInputId} className="sr-only">
             Search general reports
           </label>
           <input
-            id="general-reports-search"
+            id={searchInputId}
             type="search"
             className="admin-section-card__search-input"
-            placeholder="Search by description, ID, or status..."
+            placeholder="Search by description, ID, or reporter..."
+            value={searchValue}
+            onChange={e => handleSearch(e.target.value)}
           />
         </div>
+
+        {error && (
+          <div role="alert" className="admin-error-message">
+            {error}
+          </div>
+        )}
 
         <div className="admin-table-wrapper">
           <table className="admin-table" aria-label={isResolved ? 'Resolved reports table' : 'General reports table'}>
@@ -199,18 +337,48 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                 <th scope="col">ID</th>
                 <th scope="col">Description</th>
                 <th scope="col">Reported By</th>
-                <th scope="col">Date</th>
+                <th scope="col">{dateLabel}</th>
                 <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="admin-table__empty-row">
-                <td colSpan={5}>
-                  <p className="admin-table__empty-message">
-                    {isResolved ? 'No resolved reports' : 'No general reports'}
-                  </p>
-                </td>
-              </tr>
+              {loading ? (
+                <tr className="admin-table__empty-row">
+                  <td colSpan={5}>
+                    <p className="admin-table__empty-message">Loading reports...</p>
+                  </td>
+                </tr>
+              ) : reports.length === 0 ? (
+                <tr className="admin-table__empty-row">
+                  <td colSpan={5}>
+                    <p className="admin-table__empty-message">
+                      {isResolved ? 'No resolved reports' : 'No general reports'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                reports.map(report => (
+                  <tr key={report.id}>
+                    <td>{formatReportCode(report)}</td>
+                    <td>{truncateDescription(report.description)}</td>
+                    <td>{formatReporter(report)}</td>
+                    <td>
+                      {new Date(
+                        isResolved && report.resolvedAt ? report.resolvedAt : report.createdAt
+                      ).toLocaleDateString()}
+                    </td>
+                    <td className="admin-table__actions-cell">
+                      <button
+                        type="button"
+                        className="admin-table__action-button"
+                        onClick={() => openReportModal(report, isResolved ? 'view' : 'reply')}
+                      >
+                        {isResolved ? 'View' : 'Reply'}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -1109,6 +1277,126 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     );
   };
 
+  const renderReportModal = () => (
+    <Modal
+      isOpen={!!activeReport}
+      titleId="general-report-modal-title"
+      onClose={closeReportModal}
+      contentClassName="admin-report-modal__container"
+    >
+      {activeReport && (
+        <div className="admin-report-modal">
+          <header className="admin-report-modal__header">
+            <div>
+              <p className="admin-report-modal__eyebrow">
+                {reportModalMode === 'view' ? 'General Report Details' : 'Reply to General Report'}
+              </p>
+              <h2 id="general-report-modal-title" className="admin-report-modal__title">
+                Report {formatReportCode(activeReport)}
+              </h2>
+            </div>
+            <button type="button" className="admin-report-modal__close" onClick={closeReportModal} aria-label="Close">
+              ×
+            </button>
+          </header>
+
+          <section className="admin-report-modal__section" aria-label="Report details">
+            <dl className="admin-report-modal__definition-list">
+              <div>
+                <dt>Status</dt>
+                <dd>
+                  <span
+                    className={
+                      'admin-badge ' +
+                      (activeReport.status === 'resolved' ? 'admin-badge--status' : 'admin-badge--issue')
+                    }
+                  >
+                    {activeReport.status === 'resolved' ? 'Resolved' : 'Open'}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>Reported By</dt>
+                <dd>{formatReporter(activeReport)}</dd>
+              </div>
+              <div>
+                <dt>Report Date</dt>
+                <dd>{new Date(activeReport.createdAt).toLocaleDateString()}</dd>
+              </div>
+              {activeReport.resolvedAt && (
+                <div>
+                  <dt>Resolution Date</dt>
+                  <dd>{new Date(activeReport.resolvedAt).toLocaleDateString()}</dd>
+                </div>
+              )}
+            </dl>
+            <div className="admin-report-modal__description">
+              <h3>Description</h3>
+              <p>{activeReport.description || 'No description provided.'}</p>
+            </div>
+          </section>
+
+          {activeReport.adminReplies.length > 0 && (
+            <section className="admin-report-modal__section" aria-label="Previous admin replies">
+              <h3>Previous Admin Reply</h3>
+              <div className="admin-report-modal__history-entry">
+                <p>{activeReport.adminReplies[activeReport.adminReplies.length - 1].message}</p>
+                <span>
+                  {activeReport.adminReplies[activeReport.adminReplies.length - 1].adminName || 'Admin'} ·{' '}
+                  {new Date(
+                    activeReport.adminReplies[activeReport.adminReplies.length - 1].createdAt
+                  ).toLocaleDateString()}
+                </span>
+              </div>
+            </section>
+          )}
+
+          {reportModalMode === 'reply' && (
+            <section className="admin-report-modal__section" aria-label="Admin reply">
+              <label htmlFor="admin-report-reply" className="admin-report-modal__label">
+                Admin Reply to Reporter
+              </label>
+              <textarea
+                id="admin-report-reply"
+                className="admin-report-modal__textarea"
+                rows={4}
+                value={reportReplyMessage}
+                onChange={e => setReportReplyMessage(e.target.value)}
+                placeholder="Type your reply to the reporter..."
+              />
+            </section>
+          )}
+
+          {reportModalError && (
+            <p className="admin-report-modal__error" role="alert">
+              {reportModalError}
+            </p>
+          )}
+
+          <div className="admin-report-modal__actions">
+            <button type="button" className="admin-report-modal__secondary" onClick={closeReportModal}>
+              Cancel
+            </button>
+            {reportModalMode === 'reply' ? (
+              <button
+                type="button"
+                className="admin-report-modal__primary"
+                onClick={handleReportReplySubmit}
+                disabled={reportModalSubmitting}
+              >
+                {reportModalSubmitting ? 'Sending...' : 'Send Reply & Resolve'}
+              </button>
+            ) : (
+              <button type="button" className="admin-report-modal__primary" onClick={closeReportModal}>
+                Close
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+
   return (
     <main className="admin-page" aria-label="Admin Management dashboard">
       <header className="admin-page__header">
@@ -1143,8 +1431,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             <div className="admin-stat-card__header">
               <h2 className="admin-stat-card__title">General Reports</h2>
             </div>
-            <p className="admin-stat-card__value" aria-label="2 general reports require attention">
-              2
+            <p
+              className={
+                'admin-stat-card__value' +
+                (generalReportsLoading ? ' admin-stat-card__value--skeleton' : '')
+              }
+              aria-label={
+                generalReportsLoading
+                  ? 'Loading general reports count'
+                  : `${generalReports.length} general reports require attention`
+              }
+            >
+              {generalReportsLoading ? '—' : generalReports.length}
             </p>
             <p className="admin-stat-card__meta">Require attention</p>
           </article>
@@ -1344,6 +1642,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
           {renderGamesSection()}
         </section>
       )}
+      {renderReportModal()}
     </main>
   );
 };

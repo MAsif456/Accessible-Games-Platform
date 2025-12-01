@@ -8,6 +8,9 @@ export interface SubmitReportPayload {
   transcript?: string;
   gameId?: string;
   reviewId?: string;
+  reporterEmail?: string;
+  reporterName?: string;
+  reporterId?: string;
 }
 
 export interface SubmitReportResponse {
