@@ -54,7 +54,7 @@ function App() {
     <AuthProvider>
       <FavouritesProvider>
         <RecentlyViewedProvider>
-         <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
+          <AppContent PAGE_SIZE={PAGE_SIZE} protectedPaths={protectedPaths} />
         </RecentlyViewedProvider>
       </FavouritesProvider>
     </AuthProvider>
@@ -285,8 +285,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
             )}
 
             {path === '/settings' && <SettingsPage />}
-            {path === '/admin' && <AdminPage onNavigate={handleNavigate} />}
-
+            {path === '/admin' && <AdminPage onNavigate={handleNavigate} showPrompt={showPrompt} />}
             {path === '/signin' && (
               <SignInPage
                 onNavigate={handleNavigate}

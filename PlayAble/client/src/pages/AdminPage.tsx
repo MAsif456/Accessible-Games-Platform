@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { GameDto } from '../services/api';
+import type { AdminResolvedReviewReport } from '../services/adminReviewsService';
 import { getAdminGames } from '../services/gamesAdminService';
+import Pagination from '../components/ui/Pagination';
+import Modal from '../components/ui/Modal';
+import { useReviewsTable, useReportedReviewsTable, useResolvedReportedReviewsTable } from '../hooks/adminReviews';
+import useAdminReviewActions, { ADMIN_REPLY_MIN_CHARS, ADMIN_REPLY_MAX_CHARS } from '../hooks/useAdminReviewActions';
 
 const PRIMARY_TABS = ['general-reports', 'reviews', 'games'] as const;
 type PrimaryTab = (typeof PRIMARY_TABS)[number];
@@ -15,13 +20,43 @@ type GamesSubTab = (typeof GAMES_SUBTABS)[number];
 
 interface AdminPageProps {
   onNavigate?: (path: string) => void;
+  showPrompt?: (message: string, type?: 'success' | 'error') => void;
 }
 
-const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [primaryTab, setPrimaryTab] = useState<PrimaryTab>('general-reports');
   const [generalSubTab, setGeneralSubTab] = useState<GeneralSubTab>('general');
   const [reviewsSubTab, setReviewsSubTab] = useState<ReviewsSubTab>('reviews');
   const [gamesSubTab, setGamesSubTab] = useState<GamesSubTab>('games');
+
+  // Reviews management state via hooks
+  const reviewsTable = useReviewsTable();
+  const reportedTable = useReportedReviewsTable();
+  const resolvedTable = useResolvedReportedReviewsTable();
+
+  const {
+    deleteReview,
+    sendAdminReply,
+    resolveReportedReview,
+    error: adminActionsError,
+  } = useAdminReviewActions({
+
+    showToast: showPrompt,
+    onRefreshReviews: reviewsTable.refresh,
+    onRefreshReported: reportedTable.refresh,
+    onRefreshResolved: resolvedTable.refresh,
+  });
+
+  // Local modal state
+  const [reviewToDelete, setReviewToDelete] = useState<null | { id: string; displayId?: string; authorName?: string }>(null);
+  const [reviewToReply, setReviewToReply] = useState<null | any>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [reportToResolve, setReportToResolve] = useState<null | any>(null);
+  const [moderatorReply, setModeratorReply] = useState('');
+  const [moderatorReplyError, setModeratorReplyError] = useState<string | null>(null);
+  const [resolveConfirmAction, setResolveConfirmAction] = useState<null | { action: 'complete' | 'delete-review'; report: any }>(null);
+  const [resolvedReportToView, setResolvedReportToView] = useState<AdminResolvedReviewReport | null>(null);
 
   const handlePrimaryKey = (e: React.KeyboardEvent<HTMLButtonElement>, tab: PrimaryTab) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -39,7 +74,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
   const [gamesStatsLoading, setGamesStatsLoading] = useState(true);
   const GAMES_PAGE_SIZE = 10;
 
-  // Load games on initial mount so Total Games is populated immediately
   useEffect(() => {
     let isCancelled = false;
     setGamesStatsLoading(true);
@@ -185,7 +219,60 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
   };
 
   const renderReviewsSection = () => {
+    const confirmResolveModal = (
+      <Modal
+        isOpen={!!resolveConfirmAction}
+        titleId="confirm-resolve-title"
+        onClose={() => setResolveConfirmAction(null)}
+        contentClassName="modal-content--wide"
+      >
+        {resolveConfirmAction && (
+          <div>
+            <h2 id="confirm-resolve-title" className="dialog__title">
+              {resolveConfirmAction.action === 'complete' ? 'Complete Report' : 'Delete Review'}
+            </h2>
+            <p className="dialog__message">
+              {resolveConfirmAction.action === 'complete'
+                ? 'Are you sure you want to complete this report and keep the review live?'
+                : 'Are you sure you want to delete this review as part of resolving the report?'}
+            </p>
+            <div className="dialog__actions dialog__actions--split">
+              <button
+                type="button"
+                className="dialog__button dialog__button--secondary"
+                onClick={() => setResolveConfirmAction(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={
+                  resolveConfirmAction.action === 'complete'
+                    ? 'dialog__button dialog__button--contrast'
+                    : 'dialog__button dialog__button--primary'
+                }
+                onClick={async () => {
+                  const targetReport = resolveConfirmAction.report;
+                  const action = resolveConfirmAction.action;
+                  if (moderatorReply.trim()) {
+                    await sendAdminReply(targetReport.reviewId, moderatorReply.trim());
+                  }
+                  await resolveReportedReview(targetReport._id, action);
+                  setResolveConfirmAction(null);
+                  setReportToResolve(null);
+                  setModeratorReply('');
+                }}
+              >
+                {resolveConfirmAction.action === 'complete' ? 'Complete' : 'Delete Review'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    );
+
     if (reviewsSubTab === 'reviews') {
+      const totalPages = Math.max(1, Math.ceil(reviewsTable.total / reviewsTable.pageSize));
       return (
         <section className="admin-section-card" aria-labelledby="reviews-title">
           <header className="admin-section-card__header">
@@ -198,16 +285,34 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
           </header>
 
           <div className="admin-section-card__search-wrapper">
-            <label htmlFor="reviews-search" className="sr-only">
-              Search reviews
-            </label>
-            <input
-              id="reviews-search"
-              type="search"
-              className="admin-section-card__search-input"
-              placeholder="Search by game, author, comment, or ID..."
-            />
+            <div className="admin-section-card__search-input-wrapper">
+              <input
+                type="search"
+                className="admin-section-card__search-input"
+                value={reviewsTable.searchTerm}
+                onChange={e => reviewsTable.setSearchTerm(e.target.value)}
+                placeholder="Search reviews by ID, game, author, or comment"
+              />
+              {reviewsTable.searchTerm && (
+                <button
+                  type="button"
+                  className="browse-page__search-clear navbar__search-clear--full"
+                  onClick={() => reviewsTable.setSearchTerm('')}
+                >
+                  <span className="browse-page__search-clear-icon" aria-hidden="true">
+                    ×
+                  </span>
+                  <span className="browse-page__search-clear-label">Clear</span>
+                </button>
+              )}
+            </div>
           </div>
+
+          {reviewsTable.error && (
+            <div role="alert" className="admin-error-message">
+              {reviewsTable.error}
+            </div>
+          )}
 
           <div className="admin-table-wrapper">
             <table className="admin-table" aria-label="Reviews management table">
@@ -223,19 +328,202 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                 </tr>
               </thead>
               <tbody>
-                <tr className="admin-table__empty-row">
-                  <td colSpan={6}>
-                    <p className="admin-table__empty-message">No reviews</p>
-                  </td>
-                </tr>
+                {reviewsTable.loading ? (
+                  <tr className="admin-table__empty-row">
+                    <td colSpan={6}>
+                      <p className="admin-table__empty-message">Loading reviews...</p>
+                    </td>
+                  </tr>
+                ) : reviewsTable.items.length === 0 ? (
+                  <tr className="admin-table__empty-row">
+                    <td colSpan={6}>
+                      <p className="admin-table__empty-message">No reviews</p>
+                    </td>
+                  </tr>
+                ) : (
+                  reviewsTable.items.map(review => (
+                    <tr key={review._id}>
+                      <td>{review.publicId ?? review._id}</td>
+                      <td>{review.gameTitle ?? review.gameSlug ?? review.gameId}</td>
+                      <td>{review.authorName}</td>
+                      <td>
+                        <span>{review.body.length > 80 ? `${review.body.slice(0, 80)}…` : review.body}</span>
+                        {/* Placeholder for future voice badge */}
+                      </td>
+                      <td>{new Date(review.createdAt).toLocaleDateString()}</td>
+                      <td className="admin-table__actions-cell admin-table__actions-cell--split">
+                        <button
+                          type="button"
+                          className="admin-table__action-button"
+                          onClick={() => setReviewToReply(review)}
+                        >
+                          Manage
+                        </button>
+                        <div className="admin-table__actions-spacer" aria-hidden="true" />
+                        <button
+                          type="button"
+                          className="admin-table__action-button admin-table__action-button--secondary"
+                          onClick={() =>
+                            setReviewToDelete({
+                              id: review._id,
+                              displayId: review.publicId ?? review._id,
+                              authorName: review.authorName,
+                            })
+                          }
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
+
+          {reviewsTable.total > reviewsTable.pageSize && (
+            <div className="admin-pagination">
+              <Pagination
+                page={reviewsTable.page}
+                totalPages={totalPages}
+                onPageChange={reviewsTable.setPage}
+                ariaLabel="Reviews pagination"
+              />
+            </div>
+          )}
+
+          {/* Delete Review Modal */}
+          <Modal
+            isOpen={!!reviewToDelete}
+            titleId="delete-review-title"
+            onClose={() => setReviewToDelete(null)}
+            contentClassName="modal-content--wide"
+          >
+            <h2 id="delete-review-title" className="dialog__title">
+              Delete Review - Admin Action
+            </h2>
+            {reviewToDelete && (
+              <p className="dialog__meta">
+                <strong>Review ID:</strong> {reviewToDelete.displayId ?? reviewToDelete.id}
+              </p>
+            )}
+            <p className="dialog__message">
+              {`Are you sure you want to delete this review${
+                reviewToDelete?.authorName ? ` from ${reviewToDelete.authorName}` : ''
+              }? This action cannot be undone.`}
+            </p>
+            <div className="dialog__actions">
+              <button type="button" className="dialog__button dialog__button--secondary" onClick={() => setReviewToDelete(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="dialog__button dialog__button--primary"
+                onClick={async () => {
+                  if (reviewToDelete) {
+                    await deleteReview(reviewToDelete.id);
+                    setReviewToDelete(null);
+                  }
+                }}
+              >
+                Delete Review
+              </button>
+            </div>
+          </Modal>
+
+          {/* Reply Modal */}
+          <Modal
+            isOpen={!!reviewToReply}
+            titleId="reply-review-title"
+            onClose={() => {
+              setReviewToReply(null);
+              setReplyText('');
+              setReplyError(null);
+            }}
+            contentClassName="modal-content--wide"
+          >
+            {reviewToReply && (
+              <div>
+                <h2 id="reply-review-title" className="dialog__title">
+                  Reply to Review
+                </h2>
+                <div className="dialog__message">
+                  <p><strong>Review ID:</strong> {reviewToReply.publicId ?? reviewToReply._id}</p>
+                  <p><strong>Game:</strong> {reviewToReply.gameTitle ?? reviewToReply.gameSlug ?? reviewToReply.gameId}</p>
+                  <p><strong>Author:</strong> {reviewToReply.authorName}</p>
+                  <p><strong>Date:</strong> {new Date(reviewToReply.createdAt).toLocaleDateString()}</p>
+                  <p><strong>Comment:</strong> {reviewToReply.body}</p>
+                </div>
+                <label className="form-label" htmlFor="admin-reply-text">
+                  Admin Reply to Author
+                </label>
+                <textarea
+                  id="admin-reply-text"
+                  className="profile-textarea"
+                  value={replyText}
+                  onChange={e => {
+                    const value = e.target.value;
+                    setReplyText(value);
+                    const trimmed = value.trim();
+                    if (!trimmed) {
+                      setReplyError(null);
+                    } else if (trimmed.length < ADMIN_REPLY_MIN_CHARS || trimmed.length > ADMIN_REPLY_MAX_CHARS) {
+                      setReplyError(`Reply must be between ${ADMIN_REPLY_MIN_CHARS} and ${ADMIN_REPLY_MAX_CHARS} characters.`);
+                    } else {
+                      setReplyError(null);
+                    }
+                  }}
+                />
+                {replyError && (
+                  <p className="admin-form-field-error" role="alert">
+                    {replyError}
+                  </p>
+                )}
+                {adminActionsError && !replyError && (
+                  <p className="admin-form-field-error" role="alert">
+                    {adminActionsError}
+                  </p>
+                )}
+                <div className="dialog__actions">
+                  <button
+                    type="button"
+                    className="dialog__button dialog__button--secondary"
+                    onClick={() => {
+                      setReviewToReply(null);
+                      setReplyText('');
+                      setReplyError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="dialog__button dialog__button--primary"
+                    disabled={!replyText.trim() || !!replyError}
+                    onClick={async () => {
+                      const trimmed = replyText.trim();
+                      if (!trimmed || replyError) {
+                        return;
+                      }
+                      await sendAdminReply(reviewToReply._id, trimmed);
+                      setReviewToReply(null);
+                      setReplyText('');
+                      setReplyError(null);
+                    }}
+                  >
+                    Send Reply
+                  </button>
+                </div>
+              </div>
+            )}
+          </Modal>
+          {confirmResolveModal}
         </section>
       );
     }
 
     if (reviewsSubTab === 'reported') {
+      const totalPages = Math.max(1, Math.ceil(reportedTable.total / reportedTable.pageSize));
       return (
         <section className="admin-section-card" aria-labelledby="reported-reviews-title">
           <header className="admin-section-card__header">
@@ -248,16 +536,34 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
           </header>
 
           <div className="admin-section-card__search-wrapper">
-            <label htmlFor="reported-reviews-search" className="sr-only">
-              Search reported reviews
-            </label>
-            <input
-              id="reported-reviews-search"
-              type="search"
-              className="admin-section-card__search-input"
-              placeholder="Search by game, author, or reason..."
-            />
+            <div className="admin-section-card__search-input-wrapper">
+              <input
+                type="search"
+                className="admin-section-card__search-input"
+                value={reportedTable.searchTerm}
+                onChange={e => reportedTable.setSearchTerm(e.target.value)}
+                placeholder="Search reported reviews by ID, game, author, or reason"
+              />
+              {reportedTable.searchTerm && (
+                <button
+                  type="button"
+                  className="browse-page__search-clear navbar__search-clear--full"
+                  onClick={() => reportedTable.setSearchTerm('')}
+                >
+                  <span className="browse-page__search-clear-icon" aria-hidden="true">
+                    ×
+                  </span>
+                  <span className="browse-page__search-clear-label">Clear</span>
+                </button>
+              )}
+            </div>
           </div>
+
+          {reportedTable.error && (
+            <div role="alert" className="admin-error-message">
+              {reportedTable.error}
+            </div>
+          )}
 
           <div className="admin-table-wrapper">
             <table className="admin-table" aria-label="Reported reviews table">
@@ -273,18 +579,162 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                 </tr>
               </thead>
               <tbody>
-                <tr className="admin-table__empty-row">
-                  <td colSpan={6}>
-                    <p className="admin-table__empty-message">No reported reviews</p>
-                  </td>
-                </tr>
+                {reportedTable.loading ? (
+                  <tr className="admin-table__empty-row">
+                    <td colSpan={6}>
+                      <p className="admin-table__empty-message">Loading reported reviews...</p>
+                    </td>
+                  </tr>
+                ) : reportedTable.items.length === 0 ? (
+                  <tr className="admin-table__empty-row">
+                    <td colSpan={6}>
+                      <p className="admin-table__empty-message">No reported reviews</p>
+                    </td>
+                  </tr>
+                ) : (
+                  reportedTable.items.map(report => (
+                    <tr key={report._id}>
+                      <td>{report._id}</td>
+                      <td>{report.gameTitle ?? report.gameSlug ?? report.reviewPublicId ?? report.reviewId}</td>
+                      <td>{report.reviewAuthorName ?? ''}</td>
+                      <td>{report.reportReason}</td>
+                      <td>{new Date(report.createdAt).toLocaleDateString()}</td>
+                      <td className="admin-table__actions-cell">
+                        <button
+                          type="button"
+                          className="admin-table__action-button admin-table__action-button--secondary"
+                          onClick={() => {
+                            setReportToResolve(report);
+                            setModeratorReply('');
+                            setModeratorReplyError(null);
+                          }}
+                        >
+                          Resolve
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
+
+          {reportedTable.total > reportedTable.pageSize && (
+            <div className="admin-pagination">
+              <Pagination
+                page={reportedTable.page}
+                totalPages={totalPages}
+                onPageChange={reportedTable.setPage}
+                ariaLabel="Reported reviews pagination"
+              />
+            </div>
+          )}
+
+          {/* Resolve Modal */}
+          <Modal
+            isOpen={!!reportToResolve}
+            titleId="resolve-report-title"
+            onClose={() => {
+              setReportToResolve(null);
+              setModeratorReply('');
+              setModeratorReplyError(null);
+            }}
+            contentClassName="modal-content--wide"
+          >
+            {reportToResolve && (
+              <div>
+                <h2 id="resolve-report-title" className="dialog__title">
+                  Resolve Reported Review
+                </h2>
+                <div className="report-modal__sections">
+                  <div className="report-modal__section">
+                    <h3>Report Information</h3>
+                    <p><strong>Report ID:</strong> {reportToResolve._id}</p>
+                    <p><strong>Reason:</strong> {reportToResolve.reportReason}</p>
+                    <p><strong>Reported By:</strong> {reportToResolve.reporterEmail ?? 'Unknown'}</p>
+                    <p><strong>Reported Date:</strong> {new Date(reportToResolve.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="report-modal__section">
+                    <h3>Review Content</h3>
+                    <p><strong>Review ID:</strong> {reportToResolve.reviewPublicId ?? reportToResolve.reviewId}</p>
+                    <p><strong>Game:</strong> {reportToResolve.gameTitle ?? reportToResolve.gameSlug ?? ''}</p>
+                    <p><strong>Author:</strong> {reportToResolve.reviewAuthorName ?? ''}</p>
+                    <p><strong>Text:</strong> {reportToResolve.reviewBody ?? 'No content available'}</p>
+                  </div>
+                  <div className="report-modal__section">
+                    <h3>Admin Reply to Author (optional)</h3>
+                    <textarea
+                      className="report-modal__textarea"
+                      placeholder="Explain the decision to the reviewer..."
+                      value={moderatorReply}
+                      onChange={e => {
+                        const value = e.target.value;
+                        setModeratorReply(value);
+                        const trimmed = value.trim();
+                        if (!trimmed) {
+                          setModeratorReplyError(null);
+                        } else if (trimmed.length < ADMIN_REPLY_MIN_CHARS || trimmed.length > ADMIN_REPLY_MAX_CHARS) {
+                          setModeratorReplyError(`Reply must be between ${ADMIN_REPLY_MIN_CHARS} and ${ADMIN_REPLY_MAX_CHARS} characters.`);
+                        } else {
+                          setModeratorReplyError(null);
+                        }
+                      }}
+                    />
+                    {moderatorReplyError && (
+                      <p className="admin-form-field-error" role="alert">
+                        {moderatorReplyError}
+                      </p>
+                    )}
+                    {adminActionsError && !moderatorReplyError && (
+                      <p className="admin-form-field-error" role="alert">
+                        {adminActionsError}
+                      </p>
+                    )}
+                    <p className="admin-form-field-hint">
+                      Any reply entered here will be sent when you choose Complete or Delete Review.
+                    </p>
+                  </div>
+                </div>
+                <div className="dialog__actions dialog__actions--split">
+                  <div className="dialog__actions-group">
+                    <button
+                      type="button"
+                      className="dialog__button dialog__button--secondary"
+                      onClick={() => {
+                        setReportToResolve(null);
+                        setModeratorReply('');
+                        setModeratorReplyError(null);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="dialog__button dialog__button--contrast"
+                      disabled={!!moderatorReplyError}
+                      onClick={() => setResolveConfirmAction({ action: 'complete', report: reportToResolve })}
+                    >
+                      Complete
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="dialog__button dialog__button--primary"
+                    disabled={!!moderatorReplyError}
+                    onClick={() => setResolveConfirmAction({ action: 'delete-review', report: reportToResolve })}
+                  >
+                    Delete Review
+                  </button>
+                </div>
+              </div>
+            )}
+          </Modal>
+          {confirmResolveModal}
         </section>
       );
     }
 
+    const totalPages = Math.max(1, Math.ceil(resolvedTable.total / resolvedTable.pageSize));
     return (
       <section className="admin-section-card" aria-labelledby="resolved-reviews-title">
         <header className="admin-section-card__header">
@@ -300,13 +750,35 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
           <label htmlFor="resolved-reviews-search" className="sr-only">
             Search resolved reported reviews
           </label>
-          <input
-            id="resolved-reviews-search"
-            type="search"
-            className="admin-section-card__search-input"
-            placeholder="Search by game, author, or reason..."
-          />
+          <div className="admin-section-card__search-input-wrapper">
+            <input
+              id="resolved-reviews-search"
+              type="search"
+              className="admin-section-card__search-input"
+              placeholder="Search by game, author, or reason..."
+              value={resolvedTable.searchTerm}
+              onChange={e => resolvedTable.setSearchTerm(e.target.value)}
+            />
+            {resolvedTable.searchTerm && (
+              <button
+                type="button"
+                className="browse-page__search-clear navbar__search-clear--full"
+                onClick={() => resolvedTable.setSearchTerm('')}
+              >
+                <span className="browse-page__search-clear-icon" aria-hidden="true">
+                  A-
+                </span>
+                <span className="browse-page__search-clear-label">Clear</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {resolvedTable.error && (
+          <div role="alert" className="admin-error-message">
+            {resolvedTable.error}
+          </div>
+        )}
 
         <div className="admin-table-wrapper">
           <table className="admin-table" aria-label="Resolved reported reviews table">
@@ -318,18 +790,103 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                 <th scope="col">Review Author</th>
                 <th scope="col">Report Reason</th>
                 <th scope="col">Reported Date</th>
+                <th scope="col">Outcome</th>
                 <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="admin-table__empty-row">
-                <td colSpan={6}>
-                  <p className="admin-table__empty-message">No resolved reported reviews</p>
-                </td>
-              </tr>
+              {resolvedTable.loading ? (
+                <tr className="admin-table__empty-row">
+                  <td colSpan={7}>
+                    <p className="admin-table__empty-message">Loading resolved reported reviews...</p>
+                  </td>
+                </tr>
+              ) : resolvedTable.items.length === 0 ? (
+                <tr className="admin-table__empty-row">
+                  <td colSpan={7}>
+                    <p className="admin-table__empty-message">No resolved reported reviews</p>
+                  </td>
+                </tr>
+              ) : (
+                resolvedTable.items.map(report => {
+                  const reason = report.reportReason || '';
+                  return (
+                    <tr key={report._id}>
+                      <td>{report._id}</td>
+                      <td>{report.gameTitle ?? report.gameSlug ?? report.reviewPublicId ?? report.reviewId}</td>
+                      <td>{report.reviewAuthorName ?? ''}</td>
+                      <td title={reason}>
+                        {reason.length > 60 ? `${reason.slice(0, 60)}…` : reason}
+                      </td>
+                      <td>{new Date(report.createdAt).toLocaleDateString()}</td>
+                      <td>{report.outcome === 'deleted' ? 'Review deleted' : 'Review kept'}</td>
+                      <td className="admin-table__actions-cell admin-table__actions-cell--split">
+                        <button
+                          type="button"
+                          className="admin-table__action-button"
+                          onClick={() => setResolvedReportToView(report)}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
+
+        {resolvedTable.total > resolvedTable.pageSize && (
+          <div className="admin-pagination">
+            <Pagination
+              page={resolvedTable.page}
+              totalPages={totalPages}
+              onPageChange={resolvedTable.setPage}
+              ariaLabel="Resolved reported reviews pagination"
+            />
+          </div>
+        )}
+
+          <Modal
+            isOpen={!!resolvedReportToView}
+            titleId="view-resolved-report-title"
+            onClose={() => setResolvedReportToView(null)}
+            contentClassName="modal-content--wide"
+          >
+            {resolvedReportToView && (
+              <div>
+                <h2 id="view-resolved-report-title" className="dialog__title">
+                  View Resolved Report
+              </h2>
+              <div className="report-modal__sections">
+                <div className="report-modal__section">
+                  <h3>Report Information</h3>
+                  <p><strong>Report ID:</strong> {resolvedReportToView._id}</p>
+                  <p><strong>Reason:</strong> {resolvedReportToView.reportReason}</p>
+                  <p><strong>Reported Date:</strong> {new Date(resolvedReportToView.createdAt).toLocaleDateString()}</p>
+                  <p><strong>Outcome:</strong> {resolvedReportToView.outcome === 'deleted' ? 'Review deleted' : 'Review kept'}</p>
+                </div>
+                <div className="report-modal__section">
+                  <h3>Review Content</h3>
+                  <p><strong>Review ID:</strong> {resolvedReportToView.reviewPublicId ?? resolvedReportToView.reviewId}</p>
+                  <p><strong>Game:</strong> {resolvedReportToView.gameTitle ?? resolvedReportToView.gameSlug ?? ''}</p>
+                  <p><strong>Author:</strong> {resolvedReportToView.reviewAuthorName ?? ''}</p>
+                  <p><strong>Text:</strong> {resolvedReportToView.reportReason ?? 'No content available'}</p>
+                </div>
+              </div>
+              <div className="dialog__actions">
+                <button
+                  type="button"
+                  className="dialog__button dialog__button--secondary"
+                  onClick={() => setResolvedReportToView(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
       </section>
     );
   };
