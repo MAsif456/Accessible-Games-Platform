@@ -30,6 +30,11 @@ import {
   validateSecurityHeaders,
   cspViolationReportHandler
 } from './middleware/securityHeaders';
+import {
+  csrfProtection,
+  generateCsrfToken,
+  csrfErrorHandler
+} from './middleware/csrfProtection';
 
 dotenv.config();
 
@@ -64,12 +69,27 @@ app.use(cors());
 // Enhanced CORS security checks
 app.use(corsSecurityMiddleware);
 
-// Cookie parser middleware (required for secure cookie handling)
-app.use(cookieParser());
+// Cookie parser middleware (required for secure cookie handling and CSRF)
+app.use(cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-change-this'));
 
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ============================================================================
+// CSRF PROTECTION (Applied before routes for state-changing requests)
+// ============================================================================
+
+// CSRF token endpoint - Frontend requests this to get a CSRF token
+// Must be BEFORE csrfProtection middleware to avoid chicken-and-egg problem
+app.get('/api/csrf-token', (req: Request, res: Response) => {
+  const token = generateCsrfToken(req, res);
+  res.json({ csrfToken: token });
+});
+
+// Apply CSRF protection to all state-changing requests (POST, PUT, PATCH, DELETE)
+// GET requests are automatically excluded as they should be safe/idempotent
+app.use(csrfProtection);
 
 // Serve static images
 app.use('/images', express.static(path.join(__dirname, '../public/images')));
@@ -256,6 +276,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/*', (req, res) => {
   res.status(404).json({ success: false, message: 'API route not found' });
 });
+
+// ============================================================================
+// ERROR HANDLERS (Applied last to catch all errors)
+// ============================================================================
+
+// CSRF error handler - Must be before global error handler
+app.use(csrfErrorHandler);
 
 // Global error handler for catching unexpected errors and returning a standard JSON response.
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
