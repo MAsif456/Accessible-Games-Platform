@@ -52,9 +52,15 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
   const [reviewerNames, setReviewerNames] = useState<Record<string, string>>({});
+  const [showVoiceNavError, setShowVoiceNavError] = useState(false);
   const baseReviewTextRef = useRef<string>(''); // Track text before recording started
 
-  const { cancelListening, forceStopRecognition, applyMicrophonePreference, applyVoiceInputPreference, microphoneActive: assistantMicActive, voiceInputEnabled: assistantVoiceEnabled } = useVoiceAssistant();
+  const { 
+    cancelListening, 
+    forceStopRecognition,
+    microphoneActive,
+    voiceInputEnabled
+  } = useVoiceAssistant();
   const {
     transcript: voiceTranscript,
     isRecording: isVoiceRecording,
@@ -64,44 +70,39 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     clearTranscript: clearVoiceTranscript,
     hasTranscript: hasVoiceTranscript,
   } = useVoiceRecording();
-  const wasMicActiveRef = useRef<boolean>(true); // Track if mic was active before recording
-  const wasVoiceEnabledRef = useRef<boolean>(true); // Track if voice input was enabled before recording
 
-  // Wrapper to stop voice assistant before starting recording
+  // Start voice recording - check if voice navigation is active first
   const handleStartRecording = async () => {
     try {
       console.log('Starting voice recording...');
       
+      // Check if voice navigation is active (microphone active AND voice input enabled)
+      // This means voice navigation is ready to use the microphone
+      const isVoiceNavigationActive = microphoneActive && voiceInputEnabled;
+      
+      if (isVoiceNavigationActive) {
+        // Show the inline error message
+        setShowVoiceNavError(true);
+        return;
+      }
+      
+      // Clear any previous errors
+      setShowVoiceNavError(false);
+      
       // Save current text as base before starting recording
       baseReviewTextRef.current = writtenReview.trim();
       
-      // Save current state
-      wasMicActiveRef.current = assistantMicActive;
-      wasVoiceEnabledRef.current = assistantVoiceEnabled;
-      
-      // STEP 1: Disable voice input and microphone FIRST
-      // This ensures canListen becomes false BEFORE we stop recognition
-      // This prevents the onend handler from restarting
-      if (assistantVoiceEnabled) {
-        applyVoiceInputPreference(false);
-      }
-      if (assistantMicActive) {
-        applyMicrophonePreference(false);
-      }
-      
-      // STEP 2: Wait a moment for the settings to take effect
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // STEP 3: Force stop voice assistant recognition (now that canListen is false)
+      // Temporarily pause voice assistant to avoid browser conflicts
+      // (Browsers don't support multiple recognition instances simultaneously)
       if (forceStopRecognition) {
         forceStopRecognition();
       }
       cancelListening();
       
-      // STEP 4: Longer delay to ensure voice assistant fully stops and all handlers finish
-      // The onend handler checks canListen, which is now false, so it won't restart
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Brief delay to ensure voice assistant recognition stops
+      await new Promise(resolve => setTimeout(resolve, 300));
       
+      // Start recording
       console.log('Calling startVoiceRecording...');
       await startVoiceRecording();
       console.log('Voice recording started successfully');
@@ -111,24 +112,14 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     }
   };
 
-  // Restore voice assistant settings when recording stops
+  // Clear error when voice navigation is disabled
   useEffect(() => {
-    if (!isVoiceRecording && (wasMicActiveRef.current || wasVoiceEnabledRef.current)) {
-      // Small delay to ensure recording is fully stopped
-      const restoreTimer = setTimeout(() => {
-        // Restore in reverse order: microphone first, then voice input
-        if (wasMicActiveRef.current) {
-          applyMicrophonePreference(true);
-        }
-        if (wasVoiceEnabledRef.current) {
-          applyVoiceInputPreference(true);
-        }
-        wasMicActiveRef.current = true;
-        wasVoiceEnabledRef.current = true;
-      }, 400);
-      return () => clearTimeout(restoreTimer);
+    const isVoiceNavigationActive = microphoneActive && voiceInputEnabled;
+    
+    if (!isVoiceNavigationActive) {
+      setShowVoiceNavError(false);
     }
-  }, [isVoiceRecording, applyMicrophonePreference, applyVoiceInputPreference]);
+  }, [microphoneActive, voiceInputEnabled]);
 
   // Sync voice transcript to written review textarea in real-time
   useEffect(() => {
@@ -629,6 +620,13 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                       </button>
                     )}
                   </div>
+                  {showVoiceNavError && microphoneActive && voiceInputEnabled && (
+                    <div className="game-details__voice-error-inline" role="alert" aria-live="polite">
+                      <p className="game-details__voice-error-inline-text">
+                        Voice navigation must be turned off for voice recording to work. Please disable voice navigation in Settings or mute the microphone in the navbar, then try again.
+                      </p>
+                    </div>
+                  )}
                   {isVoiceRecording && (
                     <p className="game-details__voice-status">
                       <span className="game-details__voice-status-dot" aria-hidden="true" />

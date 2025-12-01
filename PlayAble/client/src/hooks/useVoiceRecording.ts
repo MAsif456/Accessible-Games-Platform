@@ -78,9 +78,7 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
       return;
     }
 
-    // I stop all other recognition instances first to prevent microphone conflicts
-    stopAllRecognitionInstances();
-
+    // Stop only our own previous recognition instance if it exists
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -92,8 +90,8 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
       recognitionRef.current = null;
     }
 
-    // I wait briefly to ensure previous recognition instances have fully stopped before starting a new one
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Brief delay to ensure our previous instance has stopped
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     setError(null);
     setRecordingState('recording');
@@ -168,7 +166,12 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
           errorMessage = 'Network error. Please check your internet connection.';
           break;
         case 'aborted':
-          console.log('Recognition aborted (user action)');
+          // Recognition was aborted, likely because another recognition instance (voice assistant) is active
+          console.log('Recognition aborted - another recognition instance may be active');
+          errorMessage = 'Unable to start recording. The voice assistant may be active. Please stop the voice assistant or wait a moment and try again.';
+          setError(errorMessage);
+          setRecordingState('error');
+          activeRecognitionInstances.delete(recognition);
           return;
         default:
           errorMessage = `Speech recognition error: ${event.error}`;
@@ -198,23 +201,20 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
       console.error('Error starting recognition:', err);
       activeRecognitionInstances.delete(recognition);
       
-      // I handle the case where recognition is already running by stopping and restarting it, which can happen during rapid user interactions
+      // I handle the case where recognition is already running - this might happen if another recognition instance is active
       if (err?.name === 'InvalidStateError' || err?.message?.includes('already started')) {
-        console.log('Recognition already started, attempting to restart...');
-        try {
-          recognition.stop();
-        } catch {
-        }
+        console.log('Recognition conflict detected - another recognition instance may be active');
+        // Try once more after a brief delay
         setTimeout(() => {
           try {
             recognition.start();
-            console.log('Recognition restarted successfully');
+            console.log('Recognition started successfully after retry');
           } catch (retryErr: any) {
-            console.error('Failed to restart recognition:', retryErr);
-            setError('Failed to start recording. Another voice service may be active. Please try again.');
+            console.error('Failed to start recognition after retry:', retryErr);
+            setError('Unable to start recording. The microphone may be in use by another service. You can try muting the voice assistant temporarily.');
             setRecordingState('error');
           }
-        }, 300);
+        }, 500);
       } else {
         const errorMsg = err?.message || 'Unknown error';
         console.error('Recognition start error:', errorMsg);
