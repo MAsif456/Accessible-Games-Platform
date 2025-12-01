@@ -2,6 +2,9 @@
 // Provides a unified interface for authentication-related API calls from the frontend.
 // Handles token and user data storage in localStorage for session persistence.
 // All methods return JSON responses for consistency with backend API.
+// Now includes automatic CSRF protection for all state-changing requests.
+import { apiPost, apiPut } from '../utils/apiHelper';
+
 const API_URL = '/api';
 
 export interface SignupData {
@@ -39,15 +42,9 @@ export interface AuthResponse {
 
 class AuthService {
   // Registers a new user and stores the token for session management.
+  // CSRF protection applied automatically via apiPost helper
   async signup(data: SignupData): Promise<AuthResponse> {
-    const response = await fetch(`${API_URL}/auth/signup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
+    const response = await apiPost(`${API_URL}/auth/signup`, data);
     const result = await response.json();
 
     if (result.token) {
@@ -59,15 +56,9 @@ class AuthService {
   }
 
   // Logs in a user and stores the token for session management.
+  // CSRF protection applied automatically via apiPost helper
   async login(data: LoginData): Promise<AuthResponse> {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
+    const response = await apiPost(`${API_URL}/auth/login`, data);
     const result = await response.json();
 
     if (result.token) {
@@ -79,13 +70,13 @@ class AuthService {
   }
 
   // Logs out the user by removing session data from localStorage.
+  // CSRF protection applied automatically via apiPost helper
   async logout(): Promise<void> {
     const token = localStorage.getItem('token');
 
     if (token) {
       try {
-        await fetch(`${API_URL}/auth/logout`, {
-          method: 'POST',
+        await apiPost(`${API_URL}/auth/logout`, undefined, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -134,15 +125,13 @@ class AuthService {
   }
 
   // Updates the user's profile and keeps localStorage in sync.
+  // CSRF protection applied automatically via apiPut helper
   async updateProfile(data: { name?: string; bio?: string }): Promise<AuthResponse> {
     const token = this.getToken();
-    const response = await fetch(`${API_URL}/auth/profile`, {
-      method: 'PUT',
+    const response = await apiPut(`${API_URL}/auth/profile`, data, {
       headers: {
-        'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify(data),
     });
     const result = await response.json();
     if (result.success && result.user) {
@@ -152,15 +141,13 @@ class AuthService {
   }
 
   // Updates account details such as email and/or password.
+  // CSRF protection applied automatically via apiPut helper
   async updateAccount(data: { newEmail?: string; currentPassword?: string; newPassword?: string }): Promise<AuthResponse> {
     const token = this.getToken();
-    const response = await fetch(`${API_URL}/auth/account`, {
-      method: 'PUT',
+    const response = await apiPut(`${API_URL}/auth/account`, data, {
       headers: {
-        'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify(data),
     });
     const result = await response.json();
     if (result.success && result.user) {
