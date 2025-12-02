@@ -242,6 +242,19 @@ export const deleteReview = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Retrieves aggregate review statistics used by the admin dashboard.
+ */
+export const getReviewStats = async (req: Request, res: Response) => {
+  try {
+    const totalReviews = await Review.countDocuments({});
+    res.json({ totalReviews });
+  } catch (error) {
+    console.error('Error fetching review stats', error);
+    res.status(500).json({ message: 'Failed to fetch review stats' });
+  }
+};
+
 export const adminListReviews = async (req: Request, res: Response) => {
   try {
     const page = Math.max(parseInt((req.query.page as string) || '1', 10), 1);
@@ -362,7 +375,7 @@ export const adminListReviews = async (req: Request, res: Response) => {
 export const adminDeleteReview = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body as { reason?: string };
+    const { reason } = (req.body as { reason?: string }) || {};
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'Invalid review ID' });
     }
@@ -492,4 +505,3 @@ export const adminReplyToReview = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Failed to send reply' });
   }
 };
-

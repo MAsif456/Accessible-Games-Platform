@@ -56,6 +56,12 @@ export const customSecurityHeaders = (
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '0'); // Disabled as CSP is more effective
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), gyroscope=(), magnetometer=(), payment=()'
+  );
+  res.setHeader('X-API-Version', '1.0');
+  res.setHeader('X-Security-Headers', 'enabled');
 
   next();
 };
@@ -78,8 +84,24 @@ export const corsSecurityMiddleware = (
   // Additional CORS security headers
   const origin = req.headers.origin;
   const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const allowedList = (process.env.ALLOWED_ORIGINS || allowedOrigin)
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
 
-  if (origin === allowedOrigin || process.env.NODE_ENV !== 'production') {
+  const hasCredentials = Boolean(req.headers.cookie);
+
+  if (hasCredentials && origin && !allowedList.includes(origin)) {
+    res
+      .status(403)
+      .json({ message: 'Cross-origin requests with credentials not allowed' });
+    return;
+  }
+
+  if (
+    (origin && (origin === allowedOrigin || allowedList.includes(origin))) ||
+    process.env.NODE_ENV !== 'production'
+  ) {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
@@ -102,9 +124,20 @@ export const securityLoggingMiddleware = (
   next: NextFunction
 ): void => {
   // Log suspicious activity (optional - can be enhanced)
-  if (process.env.NODE_ENV === 'production') {
-    // In production, log to your monitoring system
-    // For now, just pass through
+  const url = `${req.method} ${req.originalUrl}`;
+  const lower = url.toLowerCase();
+  const suspicious =
+    lower.includes('<script') ||
+    lower.includes('javascript:') ||
+    lower.includes('union select') ||
+    lower.includes(' or 1=1');
+
+  if (suspicious) {
+    console.warn('[SECURITY] Suspicious pattern detected', {
+      path: req.originalUrl,
+      method: req.method,
+      ip: req.ip,
+    });
   }
 
   next();
@@ -144,7 +177,16 @@ export const validateSecurityHeaders = (
 export const cspViolationReportHandler = (req: Request, res: Response): void => {
   // Log CSP violations for monitoring
   if (req.body) {
-    console.warn('[CSP Violation]', JSON.stringify(req.body, null, 2));
+    const report = req.body || {};
+    const normalized = {
+      documentUri: report['document-uri'] || report.documentUri,
+      violatedDirective: report['violated-directive'] || report.violatedDirective,
+      blockedUri: report['blocked-uri'] || report.blockedUri,
+      sourceFile: report['source-file'] || report.sourceFile,
+      lineNumber: report['line-number'] || report.lineNumber,
+      columnNumber: report['column-number'] || report.columnNumber,
+    };
+    console.warn('[SECURITY] CSP Violation Report:', normalized);
   }
 
   // Return 204 No Content as per CSP spec

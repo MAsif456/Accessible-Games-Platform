@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { seedAdminUserIfNotExists } from './models/user';
 import { seedGamesIfEmpty, syncSpecificAccessibilityTags } from './models/game';
+import { ensureReviewPublicIds } from './models/review';
 import gamesRouter from './routes/games.routes';
 import authRoutes from './routes/authRoutes';
 import './models/settings';
@@ -68,8 +69,6 @@ if (process.env.NODE_ENV === 'development') {
 // STANDARD MIDDLEWARE
 // ============================================================================
 
-// Enable CORS for cross-origin requests from the frontend (Vite dev server).
-// Must specify origin explicitly when credentials are included (can't use wildcard '*')
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
@@ -124,11 +123,10 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/playab
 mongoose
   .connect(MONGODB_URI)
   .then(async () => {
-    console.log('Connected to MongoDB');    // Seed games collection from JSON if empty
+    console.log('Connected to MongoDB');
     await seedGamesIfEmpty();
     await syncSpecificAccessibilityTags();
-
-    // Seed admin user if it doesn't exist
+    await ensureReviewPublicIds();
     await seedAdminUserIfNotExists();
   })
   .catch(error => {

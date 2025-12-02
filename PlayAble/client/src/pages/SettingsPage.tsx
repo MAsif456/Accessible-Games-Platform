@@ -626,9 +626,9 @@ const SettingsPage = () => {
                             onClick={() => handleHighContrastThemeChange(theme.id)}
                           >
                             <div className="contrast-theme-card__preview" aria-hidden="true">
-                              {theme.swatches.map((swatch) => (
+                              {theme.swatches.map((swatch, idx) => (
                                 <span
-                                  key={swatch}
+                                  key={`${swatch}-${idx}`}
                                   className="contrast-theme-card__swatch"
                                   style={{ backgroundColor: swatch }}
                                 />

@@ -1,3 +1,5 @@
+import { apiPost, apiDelete } from '../utils/apiHelper';
+
 export interface GetGamesParams {
   page?: number;
   pageSize?: number;
@@ -17,6 +19,7 @@ export interface GameDto {
   thumbnailUrl: string;
   genres: string[];
   accessibilityTags: string[];
+  specificAccessibilityTags?: Record<string, string[]>;
   releaseYear?: number;
 }
 
@@ -43,7 +46,32 @@ export interface ReviewDto {
   updatedAt: string;
 }
 
-// --- Recently Viewed (your branch) ---
+export interface ReviewStatsDto {
+  totalReviews: number;
+}
+
+const FALLBACK_GAMES: GameDto[] = [
+  {
+    id: 'fallback-1',
+    _id: 'fallback-1',
+    slug: 'fallback-game',
+    title: 'Fallback Adventure',
+    studio: 'Fallback Studio',
+    description: 'An offline showcase game used when the API is unavailable.',
+    thumbnailUrl: '/images/games/fallback.jpg',
+    genres: ['Adventure'],
+    accessibilityTags: ['Vision', 'Motor'],
+    specificAccessibilityTags: {
+      Vision: ['High Contrast Mode', 'Customisable UI Scale'],
+      Motor: ['Assist Mode', 'Remappable Controls'],
+    },
+    releaseYear: 2024,
+  },
+];
+
+const FALLBACK_REVIEWS: ReviewDto[] = [];
+
+// --- Recently Viewed ---
 export interface RecentlyViewedEntry {
   gameId: string;
   viewedAt: string;
@@ -55,8 +83,7 @@ export interface RecentlyViewedResponse {
   showing: string;
 }
 
-// --- Reporting / cached game helpers (incoming) ---
-// Lightweight shape used by the reporting context hook
+// --- Reporting / cached game helpers ---
 export interface ReportReviewDto {
   id: string;
   author: string;
@@ -68,9 +95,6 @@ export interface ReviewWithGameResponse {
   game: GameDto;
   review: ReportReviewDto;
 }
-
-// Import CSRF-protected API helpers
-import { apiPost, apiDelete } from '../utils/apiHelper';
 
 // In-memory cache for games to speed up back/forward navigation
 const gameCache = new Map<string, GameDto>();
@@ -108,17 +132,29 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
   if (params.tags && params.tags.length) query.set('tags', params.tags.join(','));
   if (params.sort) query.set('sort', params.sort);
 
-  const res = await fetch(`/api/games?${query.toString()}`);
+  try {
+    const res = await fetch(`/api/games?${query.toString()}`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch games: ${res.status}`);
+    }
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch games: ${res.status}`);
+    const data: PaginatedGamesResponse = await res.json();
+    if (Array.isArray(data?.games) && data.games.length) {
+      data.games.forEach(cacheGame);
+      return data;
+    }
+  } catch (error) {
+    console.error('Failed to fetch games, falling back to offline data.', error);
   }
 
-  const data: PaginatedGamesResponse = await res.json();
-
-  // Prime cache for faster lookups
-  data.games.forEach(cacheGame);
-  return data;
+  FALLBACK_GAMES.forEach(cacheGame);
+  return {
+    games: FALLBACK_GAMES,
+    currentPage: 1,
+    pageSize: FALLBACK_GAMES.length,
+    totalResults: FALLBACK_GAMES.length,
+    totalPages: 1,
+  };
 }
 
 export async function getGameById(gameId: string): Promise<GameDto> {
@@ -173,6 +209,22 @@ export async function getReviews(gameId: string): Promise<ReviewDto[]> {
   const res = await fetch(`/api/games/${gameId}/reviews`);
   if (!res.ok) {
     throw new Error(`Failed to fetch reviews: ${res.status}`);
+  }
+  try {
+    const data = await res.json();
+    return Array.isArray(data) ? data : FALLBACK_REVIEWS;
+  } catch {
+    return FALLBACK_REVIEWS;
+  }
+}
+
+/**
+ * Fetches aggregate review statistics for the admin dashboard.
+ */
+export async function getReviewStats(): Promise<ReviewStatsDto> {
+  const res = await fetch('/api/reviews/stats');
+  if (!res.ok) {
+    throw new Error(`Failed to fetch review stats: ${res.status}`);
   }
   return res.json();
 }

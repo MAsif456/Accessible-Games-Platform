@@ -79,10 +79,10 @@ export const apiFetch = async (
 ): Promise<Response> => {
   const { method = 'GET', headers = {}, ...restOptions } = options;
 
-  // Prepare headers
-  const requestHeaders: HeadersInit = {
+  // Prepare headers as a mutable record so we can safely assign custom keys
+  const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...headers,
+    ...(headers as Record<string, string>),
   };
 
   // Add CSRF token for state-changing requests

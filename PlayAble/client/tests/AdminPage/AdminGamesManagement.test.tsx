@@ -1,10 +1,12 @@
 // filepath: client/tests/AdminPage/AdminGamesManagement.test.tsx
-import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
 import * as gamesAdminService from '../../src/services/gamesAdminService';
 import * as api from '../../src/services/api';
+import * as adminReportsService from '../../src/services/adminReportsService';
+import * as adminReviewsHooks from '../../src/hooks/adminReviews';
+import * as adminReviewActionsHook from '../../src/hooks/useAdminReviewActions';
 
 jest.mock('../../src/services/gamesAdminService', () => ({
   __esModule: true,
@@ -21,7 +23,52 @@ jest.mock('../../src/services/adminGameReportsService', () => ({
   replyToGameReport: jest.fn(),
 }));
 
-jest.mock('../../src/services/api');
+jest.mock('../../src/services/adminReportsService', () => ({
+  __esModule: true,
+  fetchGeneralReports: jest.fn().mockResolvedValue([]),
+  replyToGeneralReport: jest.fn(),
+  formatReportCode: jest.fn((report: { reportCode?: string; id: string }) => report.reportCode || report.id),
+}));
+
+jest.mock('../../src/hooks/adminReviews');
+jest.mock('../../src/hooks/useAdminReviewActions');
+
+jest.mock('../../src/services/adminReviewsService', () => ({
+  __esModule: true,
+  getAdminReviews: jest.fn().mockResolvedValue({ reviews: [], total: 0 }),
+  getAdminReportedReviews: jest.fn().mockResolvedValue({ reports: [], total: 0 }),
+  getAdminResolvedReviewReports: jest.fn().mockResolvedValue({ reports: [], total: 0 }),
+  deleteReview: jest.fn(),
+  replyToReviewReport: jest.fn(),
+  resolveReviewReport: jest.fn(),
+}));
+
+jest.mock('../../src/services/api', () => ({
+  __esModule: true,
+  getGames: jest.fn().mockResolvedValue({ games: [], total: 0 }),
+  getReviewStats: jest.fn().mockResolvedValue({ totalReviews: 0 }),
+  getAuthHeaders: jest.fn(() => ({})),
+}));
+
+// Minimal table-state helpers to keep adminReviews hooks quiet in this suite
+const makeTableState = <T,>(overrides: Partial<adminReviewsHooks.UseTableState<T>> = {}) => ({
+  items: [],
+  loading: false,
+  error: null,
+  searchTerm: '',
+  page: 1,
+  pageSize: 7,
+  total: 0,
+  setSearchTerm: jest.fn(),
+  setPage: jest.fn(),
+  refresh: jest.fn(),
+  ...overrides,
+});
+
+const mockReviewsTable = adminReviewsHooks.useReviewsTable as jest.Mock;
+const mockReportedTable = adminReviewsHooks.useReportedReviewsTable as jest.Mock;
+const mockResolvedTable = adminReviewsHooks.useResolvedReportedReviewsTable as jest.Mock;
+const mockActionsHook = adminReviewActionsHook.default as unknown as jest.Mock;
 
 const mockAdminUser = {
   id: 'admin-1',
@@ -44,6 +91,20 @@ function setupAdminApp() {
     games: [],
     total: 0,
   } as any);
+  jest.spyOn(api, 'getReviewStats').mockResolvedValue({ totalReviews: 0 } as any);
+
+  (adminReportsService.fetchGeneralReports as jest.Mock).mockResolvedValue([]);
+
+  // keep admin review hooks quiet
+  mockReviewsTable.mockReturnValue(makeTableState());
+  mockReportedTable.mockReturnValue(makeTableState());
+  mockResolvedTable.mockReturnValue(makeTableState());
+  mockActionsHook.mockReturnValue({
+    deleteReview: jest.fn(),
+    sendAdminReply: jest.fn(),
+    resolveReportedReview: jest.fn(),
+    error: null,
+  });
 
   return render(<App />);
 }

@@ -6,11 +6,6 @@
 import rateLimit from 'express-rate-limit';
 
 /**
- * Check if the current environment is non-production
- */
-const isNonProduction = process.env.NODE_ENV !== 'production';
-
-/**
  * General API rate limiter - 100 requests per 15 minutes
  * Applied to all /api/* routes
  */
@@ -24,7 +19,16 @@ export const generalApiLimiter = rateLimit({
     message: 'Too many requests from this IP, please try again after 15 minutes.',
     code: 'RATE_LIMIT_EXCEEDED',
   },
-  skip: () => isNonProduction, // Skip in non-production environments
+  handler: (req, res, _next, options) => {
+    const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
+    res.setHeader('Retry-After', retryAfterSeconds.toString());
+    res.status(options.statusCode).json({
+      success: false,
+      message: 'Too many requests from this IP, please try again after 15 minutes.',
+      code: 'RATE_LIMIT_EXCEEDED',
+      retryAfter: retryAfterSeconds,
+    });
+  },
 });
 
 /**
@@ -41,7 +45,16 @@ export const adminApiLimiter = rateLimit({
     message: 'Too many admin requests from this IP, please try again after 15 minutes.',
     code: 'ADMIN_RATE_LIMIT_EXCEEDED',
   },
-  skip: () => isNonProduction,
+  handler: (req, res, _next, options) => {
+    const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
+    res.setHeader('Retry-After', retryAfterSeconds.toString());
+    res.status(options.statusCode).json({
+      success: false,
+      message: 'Too many admin requests from this IP, please try again after 15 minutes.',
+      code: 'ADMIN_RATE_LIMIT_EXCEEDED',
+      retryAfter: retryAfterSeconds,
+    });
+  },
 });
 
 /**
@@ -59,7 +72,17 @@ export const loginLimiter = rateLimit({
     message: 'Too many failed login attempts. Please try again after 15 minutes.',
     code: 'LOGIN_RATE_LIMIT_EXCEEDED',
   },
-  skip: () => isNonProduction,
+  handler: (req, res, _next, options) => {
+    const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
+    res.setHeader('Retry-After', retryAfterSeconds.toString());
+    res.status(options.statusCode).json({
+      success: false,
+      message: 'Too many failed login attempts. Please try again after 15 minutes.',
+      code: 'LOGIN_RATE_LIMIT_EXCEEDED',
+      retryAfter: retryAfterSeconds,
+      securityNote: 'Multiple failed login attempts detected',
+    });
+  },
 });
 
 /**
@@ -76,7 +99,6 @@ export const signupLimiter = rateLimit({
     message: 'Too many signup attempts. Please try again after 1 hour.',
     code: 'SIGNUP_RATE_LIMIT_EXCEEDED',
   },
-  skip: () => isNonProduction,
 });
 
 /**
@@ -93,6 +115,5 @@ export const passwordResetLimiter = rateLimit({
     message: 'Too many password reset requests. Please try again after 1 hour.',
     code: 'PASSWORD_RESET_RATE_LIMIT_EXCEEDED',
   },
-  skip: () => isNonProduction,
 });
 

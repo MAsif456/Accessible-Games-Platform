@@ -60,7 +60,7 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
       try {
         setLoading(true);
         setError(null);
-        const { games, totalPages, totalResults } = await getGames({
+        const result = await getGames({
           page: currentPage,
           pageSize,
           search: effectiveSearchTerm || undefined,
@@ -69,9 +69,10 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
           sort: apiSort,
         });
         if (!isCancelled) {
-          setGames(games);
-          setTotalPages(totalPages);
-          setTotalResults(totalResults);
+          const safeGames = Array.isArray(result.games) ? result.games : [];
+          setGames(safeGames);
+          setTotalPages(result.totalPages ?? 1);
+          setTotalResults(result.totalResults ?? safeGames.length);
         }
       } catch (err) {
         if (!isCancelled) {
@@ -93,9 +94,9 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
     let isCancelled = false;
     async function loadAllGamesForFilters() {
       try {
-        const { games } = await getGames({ page: 1, pageSize: 1000, sort: 'title_asc' });
+        const result = await getGames({ page: 1, pageSize: 1000, sort: 'title_asc' });
         if (!isCancelled) {
-          setAllGamesForFilters(games);
+          setAllGamesForFilters(Array.isArray(result.games) ? result.games : []);
         }
       } catch {}
     }

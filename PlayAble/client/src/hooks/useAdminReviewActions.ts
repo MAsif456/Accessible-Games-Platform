@@ -6,13 +6,14 @@ export interface UseAdminReviewActionsOptions {
   onRefreshReviews?: () => void;
   onRefreshReported?: () => void;
   onRefreshResolved?: () => void;
+  onRefreshStats?: () => void;
 }
 
 export const ADMIN_REPLY_MIN_CHARS = 10;
 export const ADMIN_REPLY_MAX_CHARS = 1000;
 
 export function useAdminReviewActions(options: UseAdminReviewActionsOptions = {}) {
-  const { showToast, onRefreshReviews, onRefreshReported, onRefreshResolved } = options;
+  const { showToast, onRefreshReviews, onRefreshReported, onRefreshResolved, onRefreshStats } = options;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +34,7 @@ export function useAdminReviewActions(options: UseAdminReviewActionsOptions = {}
       if (onRefreshReviews) onRefreshReviews();
       if (onRefreshReported) onRefreshReported();
       if (onRefreshResolved) onRefreshResolved();
+      if (onRefreshStats) onRefreshStats();
     } catch (err) {
       console.error('Failed to delete review', err);
       const message = 'Failed to delete review. Please try again.';
@@ -64,6 +66,7 @@ export function useAdminReviewActions(options: UseAdminReviewActionsOptions = {}
       await adminReplyToReview(reviewId, trimmed);
       notifySuccess('Reply sent to review author.');
       if (onRefreshReviews) onRefreshReviews();
+      if (onRefreshStats) onRefreshStats();
     } catch (err) {
       console.error('Failed to send admin reply', err);
       const message = 'Failed to send reply. Please try again.';
@@ -87,6 +90,7 @@ export function useAdminReviewActions(options: UseAdminReviewActionsOptions = {}
       if (onRefreshReported) onRefreshReported();
       if (onRefreshResolved) onRefreshResolved();
       if (onRefreshReviews) onRefreshReviews();
+      if (onRefreshStats) onRefreshStats();
     } catch (err) {
       console.error('Failed to resolve reported review', err);
       const message = 'Failed to resolve reported review. Please try again.';

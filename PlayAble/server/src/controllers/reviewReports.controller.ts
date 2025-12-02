@@ -326,7 +326,12 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
 
     let reviewData: any = null;
     if (shouldDeleteReview && reviewId) {
-      reviewData = await Review.findById(reviewId).populate('gameId', 'title slug').lean();
+      const found = await Review.findById(reviewId);
+      if (found && typeof (found as any).populate === 'function') {
+        reviewData = await (found as any).populate('gameId', 'title slug').lean?.();
+      } else {
+        reviewData = found;
+      }
       await Review.findByIdAndDelete(reviewId);
     }
 
