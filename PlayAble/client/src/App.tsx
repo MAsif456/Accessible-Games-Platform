@@ -310,7 +310,13 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
               <ChangeEmailPasswordPage onNavigate={handleNavigate} />
             )}
 
-            {path === '/inbox' && <InboxPage />}
+            {path === '/inbox' && (
+              <InboxPage
+                onNavigate={handleNavigate}
+                onOpenGameReport={openGameReport}
+                onOpenReviewReport={openReviewReport}
+              />
+            )}
             {path === '/about' && <AboutPage onNavigate={handleNavigate} />}
           </main>
         );
