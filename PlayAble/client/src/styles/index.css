@@ -901,8 +901,41 @@ a:focus,
 /* Game grid */
 .browse-page__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
+}
+
+/* Responsive grid for smaller screens */
+@media (max-width: 1024px) {
+  .browse-page__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .browse-page__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Grid modifier for favourites and recently viewed - prevents stretching with few items */
+.browse-page__grid--compact {
+  grid-template-columns: repeat(auto-fill, 320px);
+  justify-content: start;
+  gap: 1.5rem;
+}
+
+/* Responsive compact grid */
+@media (max-width: 1024px) {
+  .browse-page__grid--compact {
+    grid-template-columns: repeat(auto-fill, 280px);
+  }
+}
+
+@media (max-width: 640px) {
+  .browse-page__grid--compact {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Game card */
@@ -1438,15 +1471,6 @@ a:focus,
 
 .browse-page__results {
   min-height: 300px;
-}
-
-.browse-page__grid {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.25rem;
-  margin: 0;
-  padding: 0;
 }
 
 .browse-page__card {
