@@ -10,7 +10,16 @@ jest.mock('../../services/reportApi', () => ({
   submitReport: jest.fn(),
 }));
 
+jest.mock('../../context/AuthContext', () => {
+  const actual = jest.requireActual('../../context/AuthContext');
+  return {
+    ...actual,
+    useAuth: jest.fn(),
+  };
+});
+
 const mockedSubmitReport = submitReport as jest.Mock;
+const { useAuth } = require('../../context/AuthContext');
 
 // Mock navigator.mediaDevices for voice recording
 Object.defineProperty(navigator, 'mediaDevices', {
@@ -59,6 +68,11 @@ function renderForm() {
 describe('ReportForm validation', () => {
   beforeEach(() => {
     mockedSubmitReport.mockReset();
+    // Mock user with email for general reports
+    useAuth.mockReturnValue({
+      user: { id: 'test-user', name: 'Test User', email: 'test@example.com', role: 'user' },
+      userSettings: null,
+    });
   });
 
   it('shows an error when description is shorter than 10 characters', async () => {
