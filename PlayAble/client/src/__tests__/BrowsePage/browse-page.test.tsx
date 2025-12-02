@@ -11,7 +11,41 @@ jest.mock('src/services/api', () => {
   const actual = jest.requireActual('src/services/api');
   return {
     ...actual,
-    getGames: jest.fn(),
+    // Base mock for getGames; individual tests can override behaviour with mockedApi.getGames.mockImplementation
+    getGames: jest.fn(
+      async ({
+        page,
+        pageSize,
+      }: {
+        page: number;
+        pageSize: number;
+      }) => {
+        const mockGames: GameDto[] = Array.from({ length: 12 }, (_, i) => ({
+          id: `game-${i + 1}`,
+          _id: `game-${i + 1}`,
+          slug: `game-${i + 1}`,
+          title: `Game ${i + 1}`,
+          studio: `Studio ${i + 1}`,
+          description: `Description ${i + 1}`,
+          thumbnailUrl: `/images/games/thumb-${i + 1}.jpg`,
+          genres: ['Action'],
+          accessibilityTags: ['Vision'],
+        }));
+
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize;
+        const pageGames = mockGames.slice(start, end);
+        const totalResults = mockGames.length;
+        const totalPages = Math.ceil(totalResults / pageSize);
+
+        return {
+          games: pageGames,
+          totalResults,
+          totalPages,
+        };
+      }
+    ),
+    // Keep metadata mock simple; tests can override if they need specific metadata
     getGamesMetadata: jest.fn(),
   };
 });

@@ -1,7 +1,16 @@
-// authController.ts
-// Handles all authentication and user account logic, including registration, login, and password reset.
-// Password reset uses a one-time code sent by email for security and accessibility.
-// In-memory store for reset codes is used for demonstration; a persistent store is required for production.
+/**
+ * Authentication Controller
+ *
+ * @module authController
+ * @description
+ * Handles all authentication and user account logic, including registration, login, logout, and password reset.
+ *
+ * **Security Features:**
+ * - Bcrypt password hashing
+ * - JWT-based stateless authentication with explicit HS256 algorithm
+ * - Token blacklisting on logout
+ * - Email-based password reset with time-limited codes
+ */
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -10,22 +19,30 @@ import { UserModel, IUser } from '../src/models';
 import { sendEmail } from '../services/emailService';
 import { blacklistToken } from '../middleware/auth';
 
-// Ensure JWT_SECRET exists
+/**
+ * JWT secret key from environment variables.
+ * @constant {string}
+ */
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET is not defined in environment variables');
 }
 
-// JWT expiration set to 1 year for academic demonstration purposes
-// This ensures examiners can test the application without token expiration issues
+/**
+ * JWT expiration time (1 year for academic demonstration).
+ * @constant {number}
+ */
 const JWT_EXPIRES_IN = 60 * 60 * 24 * 365; // 1 year in seconds
 
-// Generate JWT token with explicit algorithm specification
-// This prevents algorithm confusion attacks (CVE-2015-9235)
+/**
+ * Generates a JWT token with explicit HS256 algorithm to prevent algorithm confusion attacks.
+ *
+ * @param {string} userId - MongoDB ObjectId
+ * @returns {string} Signed JWT token
+ */
 const generateToken = (userId: string): string => {
   return jwt.sign(
-    { id: userId },
-    JWT_SECRET!,
+    { id: userId },    JWT_SECRET!,
     {
       expiresIn: JWT_EXPIRES_IN,
       algorithm: 'HS256' // Explicitly specify HMAC SHA-256
@@ -33,11 +50,15 @@ const generateToken = (userId: string): string => {
   );
 };
 
-// In-memory store for password reset codes. Replace with a database-backed solution for scalability and reliability.
+/**
+ * In-memory store for password reset codes (use Redis in production).
+ * @type {Record<string, { code: string; expires: number }>}
+ */
 const resetCodes: Record<string, { code: string; expires: number }> = {};
 
-// Registration endpoint. Validates uniqueness of email and stores hashed password for security.
-// Sends a JWT for session management.
+/**
+ * User registration endpoint.
+ */
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
     const { fullName, email, password, confirmPassword } = req.body;
@@ -85,11 +106,12 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       success: false,
       message: 'Error creating account. Please try again.',
       error: error.message,
-    });
-  }
+    });  }
 };
 
-// Login endpoint. Validates credentials and issues a JWT for stateless authentication.
+/**
+ * User login endpoint.
+ */
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
@@ -139,11 +161,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       success: false,
       message: 'Error logging in. Please try again.',
       error: error.message,
-    });
-  }
+    });  }
 };
 
-// Handles password reset requests. Sends a one-time code to the user's email for accessibility and security.
+/**
+ * Password reset request endpoint.
+ */
 export const requestPasswordReset = async (req: Request, res: Response): Promise<void> => {
   const { email } = req.body;
   const user = await UserModel.findOne({ email });
@@ -175,17 +198,18 @@ The PlayAble Team
 ---
 This is an automated message, please do not reply to this email.`;
 
-  const emailSent = await sendEmail(email, emailSubject, emailBody);
-
-  if (!emailSent) {
-    console.error(`[authController] Failed to send password reset email to ${email}`);
-    // Still return success to avoid revealing if email exists, but log the error
-    // In production, you might want to queue this for retry
+  try {
+    await sendEmail(email, emailSubject, emailBody);
+  } catch (err) {
+    console.error(`[authController] Failed to send password reset email to ${email}`, err);
   }
 
   res.json({ success: true });
 };
-// Resets the user's password after verifying the one-time code. Ensures the code is valid and not expired.
+
+/**
+ * Password reset completion endpoint.
+ */
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   const { email, code, newPassword } = req.body;
   const entry = resetCodes[email];
@@ -200,11 +224,12 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
   }
   user.passwordHash = newPassword;
   await user.save();
-  delete resetCodes[email];
-  res.json({ success: true });
+  delete resetCodes[email];  res.json({ success: true });
 };
 
-// Returns the authenticated user's profile. Used for session validation and personalisation.
+/**
+ * Get current user profile endpoint.
+ */
 export const getMe = async (req: Request & { user?: { id: string } }, res: Response): Promise<void> => {
   try {
     const user = await UserModel.findById(req.user?.id).select('-passwordHash');
@@ -236,13 +261,12 @@ export const getMe = async (req: Request & { user?: { id: string } }, res: Respo
       success: false,
       message: 'Error fetching user data',
       error: error.message,
-    });
-  }
+    });  }
 };
 
-// Logout endpoint with token blacklisting
-// Extracts the JWT from the Authorization header and adds it to the blacklist
-// This ensures the token is immediately invalidated and cannot be reused
+/**
+ * User logout endpoint with token blacklisting.
+ */
 export const logout = async (req: Request, res: Response): Promise<void> => {
   try {
     // Extract token from Authorization header
@@ -263,10 +287,12 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       success: false,
       message: 'Error logging out',
       error: error.message,
-    });
-  }
+    });  }
 };
 
+/**
+ * Update user profile endpoint (name and bio only).
+ */
 export const updateProfile = async (
   req: Request & { user?: { id: string } },
   res: Response
@@ -306,10 +332,12 @@ export const updateProfile = async (
     console.error('Update profile error:', error);
     res
       .status(500)
-      .json({ success: false, message: 'Error updating profile', error: error.message });
-  }
+      .json({ success: false, message: 'Error updating profile', error: error.message });  }
 };
 
+/**
+ * Update email and/or password endpoint.
+ */
 export const updateEmailAndPassword = async (
   req: Request & { user?: { id: string } },
   res: Response

@@ -2,7 +2,8 @@
 // Main navigation bar for the PlayAble platform, providing access to all key pages and user account actions.
 // Accessibility is prioritised: keyboard navigation, ARIA roles, and high-contrast support are included to meet WCAG 2.1 AA standards.
 // The logout action uses a confirmation dialog to prevent accidental sign-outs, improving user experience for all users.
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useVoiceAssistant } from '../../context/VoiceAssistantContext';
 
 export type UserRole = 'guest' | 'user' | 'admin';
 
@@ -33,7 +34,7 @@ const navItems = [
   { key: 'recently-viewed', label: 'Recently Viewed', path: '/recently-viewed', icon: 'clock' },
   { key: 'favourites', label: 'Favourites', path: '/favourites', icon: 'heart' },
   { key: 'settings', label: 'Settings', path: '/settings', icon: 'cog' },
-  { key: 'voice', label: 'Voice', path: '/voice', icon: 'mic' },
+  { key: 'voice', label: 'Listening', path: '/voice', icon: 'mic' },
 ];
 
 /**
@@ -54,8 +55,23 @@ const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const {
+    voiceInputEnabled,
+    microphoneActive,
+    listeningState,
+    statusMessage,
+    isIndicatorVisible,
+    activateFromVoiceButton,
+    cancelListening,
+    applyMicrophonePreference,
+  } = useVoiceAssistant();
+
+  // Refs for navigation elements
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const holdTimeoutRef = useRef<number | null>(null);
+  const wasMutedBeforeHoldRef = useRef<boolean>(false);
+  const isHoldingRef = useRef<boolean>(false);
 
   /**
    * Handle navigation item click.
@@ -63,8 +79,16 @@ const Navbar: React.FC<NavbarProps> = ({
    */
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
-      // Toggle voice popup instead of navigation
-      setIsVoiceOpen((prev) => !prev);
+      // Toggle listening on/off
+      if (listeningState === 'listening' || listeningState === 'processing') {
+        // If listening, deactivate it
+        cancelListening();
+      } else {
+        // If not listening, activate it
+        if (voiceInputEnabled && microphoneActive) {
+          activateFromVoiceButton();
+        }
+      }
       return;
     }
     if (onNavigate) onNavigate(path);
@@ -74,6 +98,54 @@ const Navbar: React.FC<NavbarProps> = ({
    * Handle search input key down event.
    * @param {React.KeyboardEvent<HTMLInputElement>} event - Keyboard event.
    */
+  const handleVoiceButtonMouseDown = () => {
+    isHoldingRef.current = true;
+    
+    // Start hold timer - mute after 300ms of holding
+    holdTimeoutRef.current = window.setTimeout(() => {
+      if (isHoldingRef.current && microphoneActive) {
+        // Store original mute state
+        wasMutedBeforeHoldRef.current = false;
+        
+        // Temporarily mute the microphone (we'll restore it on mouse up)
+        applyMicrophonePreference(false);
+      }
+    }, 300);
+  };
+
+  const handleVoiceButtonMouseUp = () => {
+    // Clear hold timer if it hasn't fired yet
+    if (holdTimeoutRef.current) {
+      window.clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    
+    const wasHolding = isHoldingRef.current;
+    isHoldingRef.current = false;
+    
+    // If we were holding and muted, restore microphone
+    if (wasHolding && !wasMutedBeforeHoldRef.current && !microphoneActive) {
+      // Restore microphone
+      applyMicrophonePreference(true);
+    }
+  };
+
+  const handleVoiceButtonMouseLeave = () => {
+    // If mouse leaves while holding, treat as mouse up
+    if (holdTimeoutRef.current) {
+      window.clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    
+    // If we muted during hold, restore previous state
+    if (isHoldingRef.current && !wasMutedBeforeHoldRef.current && !microphoneActive) {
+      // Restore microphone
+      applyMicrophonePreference(true);
+    }
+    
+    isHoldingRef.current = false;
+  };
+
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -82,6 +154,23 @@ const Navbar: React.FC<NavbarProps> = ({
   };
 
   // Determine if the user is logged in based on the role
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setIsAccountOpen(false);
+      }
+    };
+
+    if (isAccountOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAccountOpen]);
+
   const isLoggedIn = role === 'user' || role === 'admin';
 
   return (
@@ -127,9 +216,60 @@ const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         <nav className="navbar__nav" aria-label="Primary">
-          <ul className="navbar__nav-list">
+          <ul className="navbar__nav-list" role="menubar">
             {navItems.map((item) => {
               const isActive = currentPath === item.path || (item.key === 'browse' && currentPath === '/');
+              if (item.key === 'voice') {
+                return (
+                  <li key={item.key} className="navbar__voice" role="none">
+                    <div className="navbar__voice-wrapper">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleNavClick('/voice')}
+                        onMouseDown={handleVoiceButtonMouseDown}
+                        onMouseUp={handleVoiceButtonMouseUp}
+                        onMouseLeave={handleVoiceButtonMouseLeave}
+                        className={
+                          'navbar__nav-button navbar__nav-button--voice' +
+                          ((listeningState === 'listening' || listeningState === 'processing') ? ' navbar__nav-button--primary' : '')
+                        }
+                        aria-pressed={listeningState === 'listening' || listeningState === 'processing'}
+                        aria-current={isActive ? 'page' : undefined}
+                      >
+                        <span
+                          className={`navbar__nav-icon navbar__nav-icon--${item.icon}`}
+                          aria-hidden="true"
+                        />
+                        <span>{(listeningState === 'listening' || listeningState === 'processing') ? 'Listening' : 'Voice'}</span>
+                        <span
+                          className={`navbar__voice-status ${
+                            microphoneActive ? 'navbar__voice-status--active' : 'navbar__voice-status--muted'
+                          }`}
+                        >
+                          {microphoneActive ? 'Mic Active' : 'Mic Muted'}
+                        </span>
+                      </button>
+                      {isIndicatorVisible && (
+                        <div
+                          className={`voice-indicator voice-indicator--${listeningState}`}
+                          role="status"
+                          aria-live="assertive"
+                        >
+                          <span className="voice-indicator__dot" aria-hidden="true" />
+                          <span className="voice-indicator__text">
+                            {listeningState === 'listening'
+                              ? 'Listening...'
+                              : listeningState === 'processing'
+                              ? 'Processing'
+                              : statusMessage}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              }
               return (
                 <li key={item.key}>
                   <button
@@ -137,7 +277,6 @@ const Navbar: React.FC<NavbarProps> = ({
                     onClick={() => handleNavClick(item.path)}
                     className={
                       'navbar__nav-button' +
-                      (item.key === 'voice' ? ' navbar__nav-button--voice' : '') +
                       (isActive ? ' navbar__nav-button--primary' : '')
                     }
                     aria-current={isActive ? 'page' : undefined}
@@ -170,7 +309,7 @@ const Navbar: React.FC<NavbarProps> = ({
 
             {isLoggedIn ? (
               <li className="navbar__profile">
-                <div className="navbar__profile-wrapper">
+                <div className="navbar__profile-wrapper" ref={accountMenuRef}>
                   <button
                     type="button"
                     className="navbar__nav-button navbar__nav-button--profile"
@@ -257,11 +396,6 @@ const Navbar: React.FC<NavbarProps> = ({
           </ul>
         </nav>
       </div>
-      {isVoiceOpen && (
-        <div className="voice-popup" aria-label="Voice listening popup">
-          {/* Empty placeholder popup for future implementation */}
-        </div>
-      )}
       {showLogoutConfirm && (
         <div
           role="dialog"

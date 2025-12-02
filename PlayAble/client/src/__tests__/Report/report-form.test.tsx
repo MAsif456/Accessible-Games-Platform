@@ -3,24 +3,80 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ReportForm from '../../components/report/ReportForm';
 import { submitReport } from '../../services/reportApi';
+import { VoiceAssistantProvider } from '../../context/VoiceAssistantContext';
+import { AuthProvider } from '../../context/AuthContext';
 
 jest.mock('../../services/reportApi', () => ({
   submitReport: jest.fn(),
 }));
 
+jest.mock('../../context/AuthContext', () => {
+  const actual = jest.requireActual('../../context/AuthContext');
+  return {
+    ...actual,
+    useAuth: jest.fn(),
+  };
+});
+
 const mockedSubmitReport = submitReport as jest.Mock;
+const { useAuth } = require('../../context/AuthContext');
+
+// Mock navigator.mediaDevices for voice recording
+Object.defineProperty(navigator, 'mediaDevices', {
+  writable: true,
+  value: {
+    getUserMedia: jest.fn(() => Promise.resolve({})),
+  },
+});
+
+// Mock SpeechRecognition
+const mockRecognition = {
+  continuous: false,
+  interimResults: false,
+  lang: 'en-US',
+  onresult: null,
+  onerror: null,
+  onend: null,
+  start: jest.fn(),
+  stop: jest.fn(),
+  abort: jest.fn(),
+};
+
+Object.defineProperty(window, 'SpeechRecognition', {
+  writable: true,
+  value: jest.fn(() => mockRecognition),
+});
+
+Object.defineProperty(window, 'webkitSpeechRecognition', {
+  writable: true,
+  value: jest.fn(() => mockRecognition),
+});
 
 /**
  * Renders a ReportForm component with type set to 'general'.
  * Useful for testing the component's validation and submission logic.
  */
 function renderForm() {
-  render(<ReportForm type="general" />);
+  const mockOnNavigate = jest.fn();
+  const mockSetSearchTerm = jest.fn();
+  
+  render(
+    <AuthProvider>
+      <VoiceAssistantProvider onNavigate={mockOnNavigate} setSearchTerm={mockSetSearchTerm}>
+        <ReportForm type="general" />
+      </VoiceAssistantProvider>
+    </AuthProvider>
+  );
 }
 
 describe('ReportForm validation', () => {
   beforeEach(() => {
     mockedSubmitReport.mockReset();
+    // Mock user with email for general reports
+    useAuth.mockReturnValue({
+      user: { id: 'test-user', name: 'Test User', email: 'test@example.com', role: 'user' },
+      userSettings: null,
+    });
   });
 
   it('shows an error when description is shorter than 10 characters', async () => {

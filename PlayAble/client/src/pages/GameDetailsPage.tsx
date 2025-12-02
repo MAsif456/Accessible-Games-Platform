@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   GameDto,
   getCachedGame,
@@ -16,6 +16,8 @@ import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useFavouritesNav } from '../context/FavouritesContext';
 import type { AppPath } from '../App';
+import { useVoiceRecording } from '../hooks/useVoiceRecording';
+import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 
 interface GameDetailsPageProps {
   gameId: string;
@@ -51,6 +53,87 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
   const [reviewerNames, setReviewerNames] = useState<Record<string, string>>({});
+  const [showVoiceNavError, setShowVoiceNavError] = useState(false);
+  const baseReviewTextRef = useRef<string>(''); // Track text before recording started
+
+  const { 
+    cancelListening, 
+    forceStopRecognition,
+    microphoneActive,
+    voiceInputEnabled
+  } = useVoiceAssistant();
+  const {
+    transcript: voiceTranscript,
+    isRecording: isVoiceRecording,
+    error: voiceError,
+    startRecording: startVoiceRecording,
+    stopRecording: stopVoiceRecording,
+    clearTranscript: clearVoiceTranscript,
+    hasTranscript: hasVoiceTranscript,
+  } = useVoiceRecording();
+
+  // Start voice recording - check if voice navigation is active first
+  const handleStartRecording = async () => {
+    try {
+      console.log('Starting voice recording...');
+      
+      // Check if voice navigation is active (microphone active AND voice input enabled)
+      // This means voice navigation is ready to use the microphone
+      const isVoiceNavigationActive = microphoneActive && voiceInputEnabled;
+      
+      if (isVoiceNavigationActive) {
+        // Show the inline error message
+        setShowVoiceNavError(true);
+        return;
+      }
+      
+      // Clear any previous errors
+      setShowVoiceNavError(false);
+      
+      // Save current text as base before starting recording
+      baseReviewTextRef.current = writtenReview.trim();
+      
+      // Temporarily pause voice assistant to avoid browser conflicts
+      // (Browsers don't support multiple recognition instances simultaneously)
+      if (forceStopRecognition) {
+        forceStopRecognition();
+      }
+      cancelListening();
+      
+      // Brief delay to ensure voice assistant recognition stops
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Start recording
+      console.log('Calling startVoiceRecording...');
+      await startVoiceRecording();
+      console.log('Voice recording started successfully');
+    } catch (error) {
+      console.error('Error starting voice recording:', error);
+      setReviewError('Failed to start voice recording. Please check your microphone permissions and try again.');
+    }
+  };
+
+  // Clear error when voice navigation is disabled
+  useEffect(() => {
+    const isVoiceNavigationActive = microphoneActive && voiceInputEnabled;
+    
+    if (!isVoiceNavigationActive) {
+      setShowVoiceNavError(false);
+    }
+  }, [microphoneActive, voiceInputEnabled]);
+
+  // Sync voice transcript to written review textarea in real-time
+  useEffect(() => {
+    if (isVoiceRecording) {
+      // Combine base text (from before recording) with current voice transcript
+      const baseText = baseReviewTextRef.current;
+      // Always update, even if transcript is empty (it will update as speech is detected)
+      const combined = baseText && voiceTranscript 
+        ? `${baseText} ${voiceTranscript}`.trim() 
+        : voiceTranscript || baseText || '';
+      setWrittenReview(combined);
+    }
+  }, [voiceTranscript, isVoiceRecording]);
 
   const minReviewLength = 10;
 
@@ -167,23 +250,32 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   }, [game]);
 
   const handlePostReview = async () => {
-    const trimmed = writtenReview.trim();
-    if (!game || trimmed.length < minReviewLength) {
-      if (trimmed.length < minReviewLength) {
-        setReviewError(`Review must be at least ${minReviewLength} characters long.`);
+    const reviewText = writtenReview.trim();
+
+    if (!game || (reviewText.length < minReviewLength && !hasVoiceTranscript)) {
+      if (reviewText.length < minReviewLength) {
+        setReviewError(`Review must be at least ${minReviewLength} characters long, or include a voice recording.`);
       }
       return;
     }
+
+    // Stop recording if still active
+    if (isVoiceRecording) {
+      stopVoiceRecording();
+    }
+
     setIsPostingReview(true);
     setReviewError(null);
     try {
-      const created = await postReview(game.id, trimmed, postingName);
+      const created = await postReview(game.id, reviewText, postingName);
       // Ensure the newly created review reflects the same postingName used in the UI, even if backend omits it
       const createdWithDisplayName: ReviewDto = {
         ...created,
         authorName: created.authorName || postingName,
       };
       setWrittenReview('');
+      baseReviewTextRef.current = '';
+      clearVoiceTranscript();
       setReviews(prev => [createdWithDisplayName, ...prev]);
     } catch (err: any) {
       console.error(err);
@@ -474,13 +566,74 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                 <div className="game-details__reviews-field">
                   <h4 className="game-details__reviews-subheading">Voice Review (Optional)</h4>
                   <p className="game-details__reviews-helper">
-                    Record your review using your voice. The transcript will be added to your
-                    review.
+                    Record your review using your voice. Your speech will be typed directly into the review field above as you speak.
                   </p>
-                  <button type="button" className="game-details__voice-button">
-                    <span className="game-details__voice-icon" aria-hidden="true" />
-                    Start Voice Recording
-                  </button>
+                  {voiceError && (
+                    <p className="game-details__reviews-error" role="alert">
+                      {voiceError}
+                    </p>
+                  )}
+                  {(hasVoiceTranscript || isVoiceRecording) && (
+                    <div className="game-details__voice-transcript">
+                      <p className="game-details__voice-transcript-label">
+                        {isVoiceRecording ? 'Live Transcript:' : 'Transcript:'}
+                      </p>
+                      <p className={`game-details__voice-transcript-text ${isVoiceRecording ? 'game-details__voice-transcript-text--live' : ''}`}>
+                        {voiceTranscript || (isVoiceRecording ? 'Listening...' : '')}
+                      </p>
+                    </div>
+                  )}
+                  <div className="game-details__voice-controls">
+                    {!isVoiceRecording ? (
+                      <button
+                        type="button"
+                        className="game-details__voice-button"
+                        onClick={handleStartRecording}
+                        disabled={isPostingReview}
+                      >
+                        <span className="game-details__voice-icon" aria-hidden="true" />
+                        <span className="game-details__voice-button-text">
+                          {hasVoiceTranscript ? 'Record Again' : 'Start Voice Recording'}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="game-details__voice-button game-details__voice-button--recording"
+                        onClick={stopVoiceRecording}
+                        disabled={isPostingReview}
+                      >
+                        <span className="game-details__voice-icon game-details__voice-icon--recording" aria-hidden="true" />
+                        <span className="game-details__voice-button-text">Stop Recording</span>
+                      </button>
+                    )}
+                    {hasVoiceTranscript && !isVoiceRecording && (
+                      <button
+                        type="button"
+                        className="game-details__voice-button game-details__voice-button--clear"
+                        onClick={() => {
+                          setWrittenReview(baseReviewTextRef.current);
+                          clearVoiceTranscript();
+                        }}
+                        disabled={isPostingReview}
+                      >
+                        <span className="game-details__voice-button-text">Clear Transcript</span>
+                      </button>
+                    )}
+                  </div>
+                  {showVoiceNavError && microphoneActive && voiceInputEnabled && (
+                    <div className="game-details__voice-error-inline" role="alert" aria-live="polite">
+                      <p className="game-details__voice-error-inline-text">
+                        Voice navigation must be turned off for voice recording to work. Please disable voice navigation in Settings or mute the microphone in the navbar, then try again.
+                      </p>
+                    </div>
+                  )}
+                  {isVoiceRecording && (
+                    <p className="game-details__voice-status">
+                      <span className="game-details__voice-status-dot" aria-hidden="true" />
+                      Recording... Speak now.
+                    </p>
+                  )}
                 </div>
 
                 <div className="game-details__reviews-actions">
@@ -488,7 +641,11 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                     type="button"
                     className="game-details__primary-btn game-details__primary-btn--submit"
                     onClick={handlePostReview}
-                    disabled={writtenReview.trim().length < minReviewLength || isPostingReview}
+                    disabled={
+                      (writtenReview.trim().length < minReviewLength && !hasVoiceTranscript) ||
+                      isPostingReview ||
+                      isVoiceRecording
+                    }
                   >
                     {isPostingReview ? 'Posting...' : 'Post Review'}
                   </button>

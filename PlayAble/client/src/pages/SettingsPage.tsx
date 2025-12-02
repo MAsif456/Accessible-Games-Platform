@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { settingsApi, UserSettings } from '../services/settingsApi';
 import { useAuth } from '../context/AuthContext';
 import '../styles/index.css';
@@ -8,6 +8,7 @@ import {
   applyAccessibilityPreferences,
   HighContrastThemeId,
 } from '../utils/accessibility';
+import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 
 type SettingsSection = 'voice' | 'keyboard' | 'visual';
 type ToggleableSetting =
@@ -34,17 +35,65 @@ const SettingsPage = () => {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showResetSuccess, setShowResetSuccess] = useState(false);
   const [autoSaveIndicator, setAutoSaveIndicator] = useState(false);
+  const {
+    applyVoiceInputPreference,
+    applyMicrophonePreference,
+    voiceInputEnabled: assistantVoiceEnabled,
+    microphoneActive: assistantMicrophoneActive,
+  } = useVoiceAssistant();
 
+  // I use refs to track state without triggering re-renders, preventing infinite save loops when loading settings
+  const previousSettingsRef = useRef<UserSettings | null>(null);
+  const isInitialLoadRef = useRef(true);
+  const skipNextSaveRef = useRef(false);
+  const lastUserSettingsRef = useRef<UserSettings | null>(null);
+
+  const SESSION_STORAGE_KEY = 'playable_session_settings';
+
+  const loadSessionSettings = (): UserSettings | null => {
+    try {
+      const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          ...parsed,
+          highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+        };
+      }
+    } catch (error) {
+      console.error('Failed to load session settings:', error);
+    }
+    return null;
+  };
+
+  const saveSessionSettings = (settingsToSave: UserSettings) => {
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(settingsToSave));
+    } catch (error) {
+      console.error('Failed to save session settings:', error);
+    }
+  };
+
+  // I check if settings actually changed before updating to avoid unnecessary state updates and save operations
   useEffect(() => {
     if (user?.id && userSettings) {
-      // Logged-in user with saved settings: use them
-      setSettings({
-        ...userSettings,
-        highContrastTheme: userSettings.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
-      });
+      const settingsChanged = !lastUserSettingsRef.current || 
+        JSON.stringify(lastUserSettingsRef.current) !== JSON.stringify(userSettings);
+      
+      if (settingsChanged) {
+        const loadedSettings = {
+          ...userSettings,
+          highContrastTheme: userSettings.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+        };
+        setSettings(loadedSettings);
+        previousSettingsRef.current = loadedSettings;
+        lastUserSettingsRef.current = userSettings;
+        // I skip the next save to prevent saving immediately after loading, which would create an unnecessary API call
+        skipNextSaveRef.current = true;
+        isInitialLoadRef.current = true;
+      }
       setIsLoading(false);
     } else if (user?.id && !userSettings) {
-      // Logged-in user but no settings loaded yet: fall back to defaults
       setSettings({
         voiceInput: true,
         captions: true,
@@ -56,8 +105,8 @@ const SettingsPage = () => {
       });
       setIsLoading(false);
     } else if (!user?.id) {
-      // For non-logged-in users, use default settings
-      setSettings({
+      const sessionSettings = loadSessionSettings();
+      const settingsToUse = sessionSettings || {
         voiceInput: true,
         captions: true,
         microphoneActive: true,
@@ -65,31 +114,74 @@ const SettingsPage = () => {
         highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
         reducedMotion: false,
         darkMode: false,
-      });
+      };
+      setSettings(settingsToUse);
+      previousSettingsRef.current = settingsToUse;
+      isInitialLoadRef.current = true;
       setIsLoading(false);
     }
   }, [user?.id, userSettings]);
 
-  // Auto-save when settings change
+  const settingsChanged = (prev: UserSettings | null, current: UserSettings): boolean => {
+    if (!prev) return true;
+    
+    return (
+      prev.voiceInput !== current.voiceInput ||
+      prev.captions !== current.captions ||
+      prev.microphoneActive !== current.microphoneActive ||
+      prev.highContrastMode !== current.highContrastMode ||
+      prev.highContrastTheme !== current.highContrastTheme ||
+      prev.reducedMotion !== current.reducedMotion ||
+      prev.darkMode !== current.darkMode
+    );
+  };
+
+  // I debounce saves with a 500ms delay to batch rapid changes and avoid excessive API calls
   useEffect(() => {
-    if (!isLoading && user?.id) {
-      const saveTimeout = setTimeout(async () => {
-        setAutoSaveIndicator(true);
-        try {
-          const updated = await settingsApi.updateSettings(user.id, settings);
-          updateUserSettingsState(updated);
-        } catch (error) {
-          console.error('Failed to save settings:', error);
-        } finally {
-          setTimeout(() => setAutoSaveIndicator(false), 2000);
-        }
-      }, 500); // Debounce: save 500ms after last change
-
-      return () => clearTimeout(saveTimeout);
+    // Skip save on initial load or when explicitly skipped
+    if (isInitialLoadRef.current || skipNextSaveRef.current) {
+      isInitialLoadRef.current = false;
+      skipNextSaveRef.current = false;
+      previousSettingsRef.current = settings;
+      return;
     }
-  }, [settings, isLoading, user?.id, updateUserSettingsState]);
 
-  // Apply visual settings immediately
+    // Only save if settings actually changed and we're not loading
+    if (!isLoading && settingsChanged(previousSettingsRef.current, settings)) {
+      if (user?.id) {
+        // I use a timeout to debounce saves, so multiple rapid toggles result in a single API call
+        const saveTimeout = setTimeout(async () => {
+          setAutoSaveIndicator(true);
+          try {
+            const updated = await settingsApi.updateSettings(user.id, settings);
+            updateUserSettingsState(updated);
+            previousSettingsRef.current = updated;
+          } catch (error) {
+            console.error('Failed to save settings:', error);
+            // Don't update previousSettingsRef on error so it will retry on next change
+          } finally {
+            setTimeout(() => setAutoSaveIndicator(false), 2000);
+          }
+        }, 500);
+
+        return () => clearTimeout(saveTimeout);
+      } else {
+        const saveTimeout = setTimeout(() => {
+          saveSessionSettings(settings);
+          previousSettingsRef.current = settings;
+        }, 500);
+
+        return () => clearTimeout(saveTimeout);
+      }
+    } else if (!isLoading && previousSettingsRef.current) {
+      // Settings haven't changed, but sync previousSettingsRef to current settings
+      // This prevents the ref from getting out of sync on re-renders
+      if (!settingsChanged(previousSettingsRef.current, settings)) {
+        previousSettingsRef.current = settings;
+      }
+    }
+  }, [settings, isLoading, user?.id]);
+
   useEffect(() => {
     applyAccessibilityPreferences(settings);
   }, [
@@ -99,11 +191,29 @@ const SettingsPage = () => {
     settings.darkMode,
   ]);
 
+  // I apply voice preferences immediately when toggled so the voice assistant responds instantly, before the save completes
   const handleToggle = (key: ToggleableSetting) => {
-    setSettings((prev) => ({
+    setSettings((prev) => {
+      const nextValue = !prev[key];
+      if (key === 'voiceInput') {
+        applyVoiceInputPreference(nextValue);
+        // When voice input is turned off, also mute the microphone
+        if (!nextValue) {
+          applyMicrophonePreference(false);
+          return {
+            ...prev,
+            [key]: nextValue,
+            microphoneActive: false,
+          };
+        }
+      } else if (key === 'microphoneActive') {
+        applyMicrophonePreference(nextValue);
+      }
+      return {
       ...prev,
-      [key]: !prev[key],
-    }));
+        [key]: nextValue,
+      };
+    });
   };
 
   const handleHighContrastThemeChange = (themeId: HighContrastThemeId) => {
@@ -126,13 +236,16 @@ const SettingsPage = () => {
       };
 
       if (user?.id) {
-        // For logged-in users, reset in backend and update state
         const result = await settingsApi.resetSettings(user.id);
+        skipNextSaveRef.current = true;
         setSettings(result.settings);
+        previousSettingsRef.current = result.settings;
         updateUserSettingsState(result.settings);
       } else {
-        // For non-logged-in users, just reset local state
+        skipNextSaveRef.current = true;
         setSettings(defaultSettings);
+        previousSettingsRef.current = defaultSettings;
+        saveSessionSettings(defaultSettings);
         applyAccessibilityPreferences(defaultSettings);
       }
 
@@ -174,7 +287,7 @@ const SettingsPage = () => {
             color: '#92400e',
             fontSize: '0.875rem'
           }}>
-            ⓘ You're not signed in. Your settings will apply during this session but won't be saved. Sign in to save your preferences permanently.
+            ⓘ You're not signed in. Your settings will be saved for this session and will persist as you navigate the site. Sign in to save your preferences permanently across all devices.
           </p>
         )}
       </div>
@@ -245,7 +358,9 @@ const SettingsPage = () => {
                 <div className="settings-section__item-header">
                   <label className="settings-section__label">
                     Voice Input
-                    <span className="settings-section__default">Default: On</span>
+                      <span className="settings-section__default">
+                        Status: {assistantVoiceEnabled ? 'On' : 'Off'}
+                      </span>
                   </label>
                   <button
                     className={`toggle-switch ${settings.voiceInput ? 'toggle-switch--on' : ''}`}
@@ -269,7 +384,16 @@ const SettingsPage = () => {
                           <span className="settings-section__icon" aria-hidden="true">
                             🎤
                           </span>
-                          Microphone: Active
+                          Microphone:{' '}
+                          <span
+                            className={
+                              assistantMicrophoneActive
+                                ? 'settings-section__badge settings-section__badge--success'
+                                : 'settings-section__badge settings-section__badge--muted'
+                            }
+                          >
+                            {assistantMicrophoneActive ? 'Active' : 'Muted'}
+                          </span>
                         </label>
                         <button
                           className={`toggle-switch ${settings.microphoneActive ? 'toggle-switch--on' : ''}`}
@@ -283,6 +407,13 @@ const SettingsPage = () => {
                       </div>
                       <p className="settings-section__description">
                         Listening for wake word "Hey Assistant".
+                        {assistantVoiceEnabled && assistantMicrophoneActive ? (
+                          <span className="settings-section__inline-hint"> Microphone is ready.</span>
+                        ) : (
+                          <span className="settings-section__inline-hint">
+                            Enable both Voice Input and the Microphone to activate the assistant.
+                          </span>
+                        )}
                       </p>
                     </div>
 

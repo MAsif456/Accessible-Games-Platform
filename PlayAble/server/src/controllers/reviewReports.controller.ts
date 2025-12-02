@@ -81,7 +81,13 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
       { $match: { type: 'review' } },
       {
         $addFields: {
-          resolvedValue: { $ifNull: ['$resolved', false] },
+          resolvedValue: {
+            $cond: [
+              { $ne: ['$status', null] },
+              { $eq: ['$status', 'resolved'] },
+              { $ifNull: ['$resolved', false] },
+            ],
+          },
           reviewRef: {
             $cond: [
               {
@@ -291,19 +297,31 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
 
     const reviewId = (report as any).review ?? (report as any).reviewId;
     const reviewDoc = reviewId ? await Review.findById(reviewId) : null;
-    const adminReplySnapshot = reviewDoc?.adminReply;
+    const adminReplySnapshot = (reviewDoc as any)?.adminReply;
 
     if (shouldDeleteReview && reviewId) {
       await Review.findByIdAndDelete(reviewId);
     }
 
-    (report as any).resolved = true;
-    (report as any).resolvedAt = new Date();
-    (report as any).resolvedBy = user?.id ? new mongoose.Types.ObjectId(user.id) : undefined;
-    (report as any).outcome = shouldDeleteReview ? 'deleted' : 'kept';
-    if (adminReplySnapshot && !(report as any).adminReply) {
-      (report as any).adminReply = adminReplySnapshot;
+    const reportDoc = report as any;
+
+    // Support both new ReportModel (status field) and legacy ReviewReport (resolved boolean)
+    if (typeof reportDoc.status !== 'undefined') {
+      reportDoc.status = 'resolved';
+    } else {
+      reportDoc.resolved = true;
     }
+
+    reportDoc.resolvedAt = new Date();
+    reportDoc.resolvedBy = user?.id ? new mongoose.Types.ObjectId(user.id) : undefined;
+    reportDoc.outcome = shouldDeleteReview ? 'deleted' : 'kept';
+
+    // For legacy ReviewReport docs, preserve any admin reply that may have been
+    // saved on the underlying Review document if the report itself has none.
+    if (adminReplySnapshot && typeof reportDoc.adminReply === 'undefined') {
+      reportDoc.adminReply = adminReplySnapshot;
+    }
+
     await report.save();
 
     return res.status(200).json(report.toObject());
