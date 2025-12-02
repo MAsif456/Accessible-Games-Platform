@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReportForm from '../components/report/ReportForm';
 import { useGameReportDetails, useReviewReportDetails } from '../hooks/useReportDetails';
 import type { ReportType } from '../services/reportApi';
@@ -33,6 +33,7 @@ const REPORT_CONFIG: Record<ReportType, { pageTitle: string }> = {
 const ReportPage: React.FC<ReportPageProps> = ({ onShowToast, initialType, initialGameId, initialReviewId, onBack }) => {
   const rawParams = useParams();
   const params = rawParams as RouteParams;
+  const navigate = useNavigate();
 
   const routeType = (params.reportType as ReportType) || 'general';
   const type: ReportType = initialType || routeType;
@@ -64,18 +65,9 @@ const ReportPage: React.FC<ReportPageProps> = ({ onShowToast, initialType, initi
   const handleBackClick = () => {
     if (onBack) {
       onBack();
-      return;
-    }
-
-    const state = window.history.state as { idx?: number } | null;
-
-    if (state && typeof state.idx === 'number' && state.idx > 0) {
-      window.history.back();
-      return;
-    }
-
-    if (window.location.pathname !== '/') {
-      window.history.pushState(null, '', '/');
+    } else {
+      // Fallback: navigate to home if no back handler
+      navigate('/');
     }
   };
 
