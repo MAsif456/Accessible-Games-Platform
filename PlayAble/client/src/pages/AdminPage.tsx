@@ -18,6 +18,15 @@ import Modal from '../components/ui/Modal';
 import { useReviewsTable, useReportedReviewsTable, useResolvedReportedReviewsTable } from '../hooks/adminReviews';
 import useAdminReviewActions, { ADMIN_REPLY_MIN_CHARS, ADMIN_REPLY_MAX_CHARS } from '../hooks/useAdminReviewActions';
 
+// Consistent date formatting function for tests and display
+const formatDate = (dateString: string | Date): string => {
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 const PRIMARY_TABS = ['general-reports', 'reviews', 'games'] as const;
 type PrimaryTab = (typeof PRIMARY_TABS)[number];
 
@@ -160,9 +169,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   }, [primaryTab]);
 
   const filteredGames = useMemo(() => {
+    const safeGames = games || [];
     const term = gamesSearchTerm.trim().toLowerCase();
-    if (!term) return games;
-    return games.filter(game => {
+    if (!term) return safeGames;
+    return safeGames.filter(game => {
       const id = game.id || game._id || '';
       return (
         game.title.toLowerCase().includes(term) ||
@@ -302,22 +312,22 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   };
 
   const filteredGeneralReports = useMemo(
-    () => generalReports.filter(report => matchesReport(report, generalReportsSearch)),
+    () => (generalReports || []).filter(report => matchesReport(report, generalReportsSearch)),
     [generalReports, generalReportsSearch]
   );
 
   const filteredResolvedReports = useMemo(
-    () => resolvedGeneralReports.filter(report => matchesReport(report, resolvedReportsSearch)),
+    () => (resolvedGeneralReports || []).filter(report => matchesReport(report, resolvedReportsSearch)),
     [resolvedGeneralReports, resolvedReportsSearch]
   );
 
   const filteredGameReports = useMemo(
-    () => gameReports.filter(report => matchesGameReport(report, gameReportsSearch)),
+    () => (gameReports || []).filter(report => matchesGameReport(report, gameReportsSearch)),
     [gameReports, gameReportsSearch]
   );
 
   const filteredResolvedGameReports = useMemo(
-    () => resolvedGameReports.filter(report => matchesGameReport(report, resolvedGameReportsSearch)),
+    () => (resolvedGameReports || []).filter(report => matchesGameReport(report, resolvedGameReportsSearch)),
     [resolvedGameReports, resolvedGameReportsSearch]
   );
 
@@ -481,9 +491,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     <td>{truncateDescription(report.description)}</td>
                     <td>{formatReporter(report)}</td>
                     <td>
-                      {new Date(
+                      {formatDate(
                         isResolved && report.resolvedAt ? report.resolvedAt : report.createdAt
-                      ).toLocaleDateString()}
+                      )}
                     </td>
                     <td className="admin-table__actions-cell">
                       <button
@@ -884,7 +894,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                       <td>{report.gameTitle ?? report.gameSlug ?? report.reviewPublicId ?? report.reviewId}</td>
                       <td>{report.reviewAuthorName ?? ''}</td>
                       <td>{report.reportReason}</td>
-                      <td>{new Date(report.createdAt).toLocaleDateString()}</td>
+                      <td>{formatDate(report.createdAt)}</td>
                       <td className="admin-table__actions-cell">
                         <button
                           type="button"
@@ -1104,7 +1114,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                       <td title={reason}>
                         {reason.length > 60 ? `${reason.slice(0, 60)}…` : reason}
                       </td>
-                      <td>{new Date(report.createdAt).toLocaleDateString()}</td>
+                      <td>{formatDate(report.createdAt)}</td>
                       <td>{report.outcome === 'deleted' ? 'Review deleted' : 'Review kept'}</td>
                       <td className="admin-table__actions-cell admin-table__actions-cell--split">
                         <button
@@ -1365,7 +1375,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                         </span>
                       </td>
                       <td>{truncateDescription(report.description)}</td>
-                      <td>{new Date(report.createdAt).toLocaleDateString()}</td>
+                      <td>{formatDate(report.createdAt)}</td>
                       <td className="admin-table__actions-cell">
                         <button
                           type="button"
@@ -1456,14 +1466,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                       <p>{truncateDescription(report.description)}</p>
                       {report.resolvedAt && (
                         <p className="admin-table__meta">
-                          Resolved {new Date(report.resolvedAt).toLocaleDateString()}
+                          Resolved {formatDate(report.resolvedAt)}
                           {report.resolvedByName ? ` by ${report.resolvedByName}` : ''}
                         </p>
                       )}
                     </td>
                     <td>
                       <div>
-                        <span>{new Date(report.createdAt).toLocaleDateString()}</span>
+                        <span>{formatDate(report.createdAt)}</span>
                       </div>
                     </td>
                     <td className="admin-table__actions-cell">
@@ -1529,12 +1539,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
               </div>
               <div>
                 <dt>Report Date</dt>
-                <dd>{new Date(activeReport.createdAt).toLocaleDateString()}</dd>
+                <dd>{formatDate(activeReport.createdAt)}</dd>
               </div>
               {activeReport.resolvedAt && (
                 <div>
                   <dt>Resolution Date</dt>
-                  <dd>{new Date(activeReport.resolvedAt).toLocaleDateString()}</dd>
+                  <dd>{formatDate(activeReport.resolvedAt)}</dd>
                 </div>
               )}
             </dl>
@@ -1551,9 +1561,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                 <p>{activeReport.adminReplies[activeReport.adminReplies.length - 1].message}</p>
                 <span>
                   {activeReport.adminReplies[activeReport.adminReplies.length - 1].adminName || 'Admin'} ·{' '}
-                  {new Date(
+                  {formatDate(
                     activeReport.adminReplies[activeReport.adminReplies.length - 1].createdAt
-                  ).toLocaleDateString()}
+                  )}
                 </span>
               </div>
             </section>
@@ -1653,13 +1663,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
               </div>
               <div>
                 <dt>Report Date</dt>
-                <dd>{new Date(activeGameReport.createdAt).toLocaleDateString()}</dd>
+                <dd>{formatDate(activeGameReport.createdAt)}</dd>
               </div>
               {activeGameReport.resolvedAt && (
                 <div>
                   <dt>Resolution</dt>
                   <dd>
-                    {new Date(activeGameReport.resolvedAt).toLocaleDateString()}
+                    {formatDate(activeGameReport.resolvedAt)}
                     {activeGameReport.resolvedByName ? ` · ${activeGameReport.resolvedByName}` : ''}
                   </dd>
                 </div>
@@ -1678,9 +1688,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                 <p>{activeGameReport.adminReplies[activeGameReport.adminReplies.length - 1].message}</p>
                 <span>
                   {activeGameReport.adminReplies[activeGameReport.adminReplies.length - 1].adminName || 'Admin'} ·{' '}
-                  {new Date(
+                  {formatDate(
                     activeGameReport.adminReplies[activeGameReport.adminReplies.length - 1].createdAt
-                  ).toLocaleDateString()}
+                  )}
                 </span>
               </div>
             </section>

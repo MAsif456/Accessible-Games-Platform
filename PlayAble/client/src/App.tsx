@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import SkipLink from './components/navigation/SkipLink';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FavouritesProvider } from './context/FavouritesContext';
+import { VoiceAssistantProvider } from './context/VoiceAssistantContext';
 import { RecentlyViewedProvider } from './context/RecentlyViewedContext';
 import Navbar from './components/ui/Navbar';
 import Footer from './components/ui/Footer';
@@ -73,6 +74,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   const [currentPage, setCurrentPage] = useState(1);
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const promptTimeout = useRef<number | null>(null);
+  // Track if last auth event was signup or login
   const lastAuthEvent = useRef<'signup' | 'login' | null>(null);
 
   // Enable global keyboard navigation for the entire app
@@ -316,56 +318,55 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   }
 
   return (
-    <div className="App">
-      <SkipLink href="#main-content">Skip to main content</SkipLink>
+    <VoiceAssistantProvider onNavigate={handleNavigate} setSearchTerm={setSearchTerm}>
+      <div className="App">
+        <SkipLink href="#main-content">Skip to main content</SkipLink>
 
-      {prompt && (
-        <div
-          style={{
-            position: 'fixed',
-            left: 24,
-            bottom: 24,
-            zIndex: 1000,
-            background: '#fff',
-            color: '#111827',
-            borderRadius: 8,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-            padding: '1rem 1.5rem',
-            fontWeight: 500,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            minWidth: 220,
-            borderLeft:
-              prompt.type === 'success'
-                ? '4px solid #22c55e'
-                : '4px solid #ef4444',
-            animation: 'fadeIn 0.2s',
-          }}
-          role="status"
-          aria-live="polite"
-        >
-          <span aria-hidden="true">{prompt.type === 'success' ? '●' : '⚠️'}</span>
-          <span>{prompt.message}</span>
-        </div>
-      )}
+        {prompt && (
+          <div
+            style={{
+              position: 'fixed',
+              left: 24,
+              bottom: 24,
+              zIndex: 1000,
+              background: '#fff',
+              color: '#111827',
+              borderRadius: 8,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              padding: '1rem 1.5rem',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              minWidth: 220,
+              borderLeft: prompt.type === 'success' ? '4px solid #22c55e' : '4px solid #ef4444',
+              animation: 'fadeIn 0.2s',
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <span aria-hidden="true">{prompt.type === 'success' ? '●' : '⚠️'}</span>
+            <span>{prompt.message}</span>
+          </div>
+        )}
 
-      <Navbar
-        role={userRole}
-        searchTerm={searchTerm}
-        onSearchChange={handleSearchChange}
-        onSearchSubmit={handleSearchSubmit}
-        onClearSearch={handleClearSearch}
-        currentPath={path}
-        onNavigate={handleNavigate}
-        onLogout={handleLogout}
-      />
+        <Navbar
+          role={userRole}
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
+          onSearchSubmit={handleSearchSubmit}
+          onClearSearch={handleClearSearch}
+          currentPath={path}
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+        />
 
-      {/* final, merged layout: single content container using central switch */}
-      <div className="App__content">{content}</div>
+        {/* final, merged layout: single content container using central switch */}
+        <div className="App__content">{content}</div>
 
-      <Footer onNavigate={handleNavigate} />
-    </div>
+        <Footer onNavigate={handleNavigate} />
+      </div>
+    </VoiceAssistantProvider>
   );
 }
 

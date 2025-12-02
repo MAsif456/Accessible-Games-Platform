@@ -2,18 +2,49 @@ import mongoose from 'mongoose';
 import FavouriteModel from '../../models/favourite';
 import GameModel from '../../models/game';
 import favouritesRepository from '../../repositories/favourites.repository';
+import dotenv from 'dotenv';
+
+// Load environment variables (same as server)
+dotenv.config();
 
 describe('FavouritesRepository', () => {
   const userId = new mongoose.Types.ObjectId().toHexString();
 
   beforeAll(async () => {
-    await mongoose.connect('mongodb://127.0.0.1:27017/playable_test');
-  });
+    // Disconnect any existing connections first
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+
+    // Connect to test database with timeout
+    // Use the same connection string as the server, but with test database name
+    const serverMongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/playabledb';
+    // Replace database name with test database
+    const mongoUri = serverMongoUri.replace(/\/[^\/]+$/, '/playable_test');
+    try {
+      await mongoose.connect(mongoUri, {
+        serverSelectionTimeoutMS: 10000,
+      });
+    } catch (error) {
+      console.error('Failed to connect to MongoDB:', error);
+      console.error('Make sure MongoDB is running on localhost:27017');
+      console.error('The server uses:', process.env.MONGODB_URI || 'mongodb://localhost:27017/playabledb');
+      throw error;
+    }
+  }, 15000); // 15 second timeout
 
   afterAll(async () => {
-    await mongoose.connection.dropDatabase();
-    await mongoose.connection.close();
-  });
+    // Clean up test database
+    try {
+      await mongoose.connection.dropDatabase();
+      // Only close if we opened the connection in this test
+      if (mongoose.connection.readyState === 1 && mongoose.connection.name === 'playable_test') {
+        await mongoose.connection.close();
+      }
+    } catch (error) {
+      console.error('Error cleaning up test database:', error);
+    }
+  }, 10000);
 
   beforeEach(async () => {
     await FavouriteModel.deleteMany({});

@@ -1,13 +1,10 @@
 # Step-by-Step Guide: Creating PlayAble
-# Step-by-Step Guide: Creating PlayAble
 
 ## Prerequisites
 - Node.js (v18 or higher) installed
 - npm or yarn package manager
 - MongoDB installed locally OR MongoDB Atlas account (for cloud database)
 - Gmail account for sending password reset emails (see Email Setup below)
-- Gmail account for sending password reset emails (see Email Setup below)
-
 ---
 
 ## Step 1: Install Frontend Dependencies
@@ -79,28 +76,10 @@ Or manually create `server/.env` with:
 PORT=5001
 MONGODB_URI=mongodb+srv://<db_username>:<db_password>@cluster0.oyjk8lb.mongodb.net/playable_db?retryWrites=true&w=majority&appName=Cluster0
 NODE_ENV=development
-EMAIL_USER=playablehelp@gmail.com
-EMAIL_PASS=wervjuybyknubdnx
+EMAIL_USER=Your email username 
+EMAIL_PASS=Your email app password
 ```
 - Replace `<db_password>` with the password for the `<db_username>` database user.
-
-**Important:** You must use the following account details for PlayAble's email service:
-```
-EMAIL_USER=playablehelp@gmail.com
-EMAIL_PASS=wervjuybyknubdnx
-```
-These credentials are required for password reset and notification features to work correctly.
-EMAIL_USER=playablehelp@gmail.com
-EMAIL_PASS=wervjuybyknubdnx
-```
-- Replace `<db_password>` with the password for the `<db_username>` database user.
-
-**Important:** You must use the following account details for PlayAble's email service:
-```
-EMAIL_USER=playablehelp@gmail.com
-EMAIL_PASS=wervjuybyknubdnx
-```
-These credentials are required for password reset and notification features to work correctly.
 
 ---
 

@@ -112,7 +112,7 @@ export const generalApiLimiter = rateLimit({
     code: 'RATE_LIMIT_EXCEEDED'
   },
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
-  legacyHeaders: false, // Disable `X-RateLimit-*` headers (use standardHeaders instead)
+  legacyHeaders: true, // Also enable `X-RateLimit-*` headers for compatibility
 
   // Custom handler to add Retry-After header
   handler: buildRateLimitHandler(

@@ -72,8 +72,13 @@ describe('createReportHandler', () => {
       type: 'game',
       description: 'valid description',
       transcript: undefined,
+      issueType: undefined,
       game: 'gid',
       review: undefined,
+      reporterId: undefined,
+      reporterEmail: undefined,
+      reporterName: undefined,
+      status: 'open',
     });
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({

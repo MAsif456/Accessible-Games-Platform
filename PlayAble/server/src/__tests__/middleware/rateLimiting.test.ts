@@ -16,6 +16,11 @@
  * @group ratelimiting
  */
 
+// Set NODE_ENV to production before importing rate limiting middleware
+// This ensures rate limiting is not skipped in tests
+const originalNodeEnv = process.env.NODE_ENV;
+process.env.NODE_ENV = 'production';
+
 import express, { Express } from 'express';
 import request from 'supertest';
 import {
@@ -27,6 +32,15 @@ import {
 
 describe('Rate Limiting - Acceptance Criteria', () => {
   let app: Express;
+
+  afterAll(() => {
+    // Restore original NODE_ENV after all tests
+    if (originalNodeEnv !== undefined) {
+      process.env.NODE_ENV = originalNodeEnv;
+    } else {
+      delete process.env.NODE_ENV;
+    }
+  });
 
   beforeEach(() => {
     // Create fresh Express app for each test
@@ -59,7 +73,9 @@ describe('Rate Limiting - Acceptance Criteria', () => {
         expect(response.status).toBe(200);
         expect(response.body.success).toBe(true);
 
-        // Check rate limit headers are present
+        // Check rate limit headers are present (express-rate-limit uses lowercase for standardHeaders)
+        // Note: express-rate-limit with standardHeaders: true provides RateLimit-* headers
+        // but supertest normalizes headers to lowercase, so we check for lowercase
         expect(response.headers).toHaveProperty('ratelimit-limit');
         expect(response.headers).toHaveProperty('ratelimit-remaining');
         expect(response.headers).toHaveProperty('ratelimit-reset');
