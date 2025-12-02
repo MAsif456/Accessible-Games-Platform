@@ -16,9 +16,10 @@ interface InboxPageProps {
   onNavigate?: (path: AppPath) => void;
   onOpenGameReport?: (gameId: string) => void;
   onOpenReviewReport?: (reviewId: string, gameId: string) => void;
+  onUnreadCountChange?: (count: number) => void;
 }
 
-const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onOpenReviewReport }) => {
+const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onOpenReviewReport, onUnreadCountChange }) => {
   const { user, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,9 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
         // Also update unread count
         const count = await getUnreadNotificationCount();
         setUnreadCount(count);
+        if (onUnreadCountChange) {
+          onUnreadCountChange(count);
+        }
       } catch (err) {
         console.error('Error loading notifications', err);
         setError('Failed to load notifications. Please try again.');
@@ -110,7 +114,11 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
         setNotifications(prev =>
           prev.map(n => (n.id === notification.id ? updated : n))
         );
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        const newCount = Math.max(0, unreadCount - 1);
+        setUnreadCount(newCount);
+        if (onUnreadCountChange) {
+          onUnreadCountChange(newCount);
+        }
         // Update the notification object to reflect read status
         notification = updated;
       } catch (err) {
@@ -161,6 +169,9 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
       setNotifications(updatedNotifications);
       const count = await getUnreadNotificationCount();
       setUnreadCount(count);
+      if (onUnreadCountChange) {
+        onUnreadCountChange(count);
+      }
     } catch (err) {
       console.error('Error marking all as read', err);
       // Fallback: update local state even if API call fails
@@ -228,6 +239,8 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
         return '🗑️';
       case 'review_liked':
         return '❤️';
+      case 'review_created':
+        return '✓';
       default:
         return '📬';
     }
@@ -243,6 +256,8 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
         return 'Review Deleted';
       case 'review_liked':
         return 'Review Liked';
+      case 'review_created':
+        return 'Review Created';
       default:
         return 'Notification';
     }
@@ -309,6 +324,7 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
             <option value="report_resolved">Report Resolved</option>
             <option value="review_deleted">Review Deleted</option>
             <option value="review_liked">Review Liked</option>
+            <option value="review_created">Review Created</option>
           </select>
         </div>
 

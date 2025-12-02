@@ -14,7 +14,7 @@ export interface Notification {
   /** Unique identifier for the notification */
   id: string;
   /** Type of notification */
-  type: 'report_submitted' | 'report_resolved' | 'review_deleted' | 'review_liked';
+  type: 'report_submitted' | 'report_resolved' | 'review_deleted' | 'review_liked' | 'review_created';
   /** Notification title */
   title: string;
   /** Notification message/content */

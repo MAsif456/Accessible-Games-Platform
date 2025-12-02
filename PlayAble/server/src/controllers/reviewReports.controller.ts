@@ -97,6 +97,14 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
       },
       { $unwind: { path: '$reviewDoc', preserveNullAndEmptyArrays: true } },
       {
+        $lookup: {
+          from: 'users',
+          localField: 'reviewDoc.userId',
+          foreignField: '_id',
+          as: 'reviewAuthor',
+        },
+      },
+      {
         $addFields: {
           gameRef: {
             $cond: [
@@ -109,6 +117,20 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
               { $toObjectId: '$game' },
               { $ifNull: ['$game', '$reviewDoc.gameId'] },
             ],
+          },
+          // Get author name from user document, fallback to review authorName, then Anonymous
+          reviewAuthorName: {
+            $ifNull: [
+              { $arrayElemAt: ['$reviewAuthor.name', 0] },
+              {
+                $ifNull: [
+                  { $arrayElemAt: ['$reviewAuthor.email', 0] },
+                  {
+                    $ifNull: ['$reviewDoc.authorName', 'Anonymous']
+                  }
+                ]
+              }
+            ]
           },
         },
       },
@@ -162,6 +184,14 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
       { $unwind: { path: '$review', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
+          from: 'users',
+          localField: 'review.userId',
+          foreignField: '_id',
+          as: 'reviewAuthor',
+        },
+      },
+      {
+        $lookup: {
           from: 'games',
           localField: 'review.gameId',
           foreignField: '_id',
@@ -169,6 +199,24 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
         },
       },
       { $unwind: { path: '$game', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          // Get author name from user document, fallback to review authorName, then Anonymous
+          reviewAuthorName: {
+            $ifNull: [
+              { $arrayElemAt: ['$reviewAuthor.name', 0] },
+              {
+                $ifNull: [
+                  { $arrayElemAt: ['$reviewAuthor.email', 0] },
+                  {
+                    $ifNull: ['$review.authorName', 'Anonymous']
+                  }
+                ]
+              }
+            ]
+          },
+        },
+      },
     ];
 
     if (searchRegex) {
@@ -211,7 +259,7 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           reporterEmail: doc.reporterUser?.email,
           gameTitle: doc.gameDoc?.title,
           gameSlug: doc.gameDoc?.slug,
-          reviewAuthorName: doc.reviewDoc?.authorName,
+          reviewAuthorName: doc.reviewAuthorName || doc.reviewDoc?.authorName || 'Anonymous',
           reviewBody: doc.reviewDoc?.body,
         };
       }),
@@ -232,7 +280,7 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           reporterEmail: undefined,
           gameTitle: doc.game?.title,
           gameSlug: doc.game?.slug,
-          reviewAuthorName: doc.review?.authorName,
+          reviewAuthorName: doc.reviewAuthorName || doc.review?.authorName || 'Anonymous',
           reviewBody: doc.review?.body,
         };
       }),
