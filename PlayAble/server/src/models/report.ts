@@ -8,16 +8,6 @@ import mongoose, { Schema, Document } from 'mongoose';
 /** The type of report submitted by a user */
 export type ReportType = 'general' | 'game' | 'review';
 
-<<<<<<< HEAD
-export interface ReportDocument extends Document {
-  type: ReportType;
-  description?: string;
-  transcript?: string;
-  reporterId?: Schema.Types.ObjectId;
-  game?: Schema.Types.ObjectId;
-  review?: Schema.Types.ObjectId;
-  adminReply?: string;
-=======
 /**
  * Represents an admin's reply to a report.
  * @interface AdminReply
@@ -30,13 +20,9 @@ export interface AdminReply {
   /** Display name of the admin */
   adminName?: string;
   /** Timestamp when the reply was created */
->>>>>>> 9db0d0b43cd08182e37ea7ca5a87b25280c4f3d4
   createdAt: Date;
 }
 
-<<<<<<< HEAD
-// Generic report model for general, game, and review reports (newer pipeline).
-=======
 /**
  * Mongoose document interface for reports.
  * @interface ReportDocument
@@ -61,6 +47,12 @@ export interface ReportDocument extends Document {
   game?: Schema.Types.ObjectId;
   /** Reference to the review being reported (for review reports) */
   review?: Schema.Types.ObjectId;
+
+  /** Legacy single reply text (for backward compatibility) */
+  adminReply?: string;
+  /** Legacy resolved flag (for backward compatibility) */
+  resolved?: boolean;
+
   /** Current status of the report */
   status: 'open' | 'resolved';
   /** Array of admin replies to this report */
@@ -90,7 +82,6 @@ const adminReplySchema = new Schema<AdminReply>(
  * Schema for user-submitted reports.
  * Supports general feedback, game reports, and review reports.
  */
->>>>>>> 9db0d0b43cd08182e37ea7ca5a87b25280c4f3d4
 const reportSchema = new Schema<ReportDocument>(
   {
     type: { type: String, enum: ['general', 'game', 'review'], required: true },
@@ -102,13 +93,12 @@ const reportSchema = new Schema<ReportDocument>(
     reporterEmail: { type: String },
     game: { type: Schema.Types.ObjectId, ref: 'Game' },
     review: { type: Schema.Types.ObjectId, ref: 'Review' },
-<<<<<<< HEAD
+    // Legacy single reply + boolean resolved flag (kept for backward compatibility)
     adminReply: { type: String },
     resolved: { type: Boolean, default: false },
-=======
+    // New status + embedded replies model used by admin general/game report flows
     status: { type: String, enum: ['open', 'resolved'], default: 'open' },
     adminReplies: { type: [adminReplySchema], default: [] },
->>>>>>> 9db0d0b43cd08182e37ea7ca5a87b25280c4f3d4
     resolvedAt: { type: Date },
     resolvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },

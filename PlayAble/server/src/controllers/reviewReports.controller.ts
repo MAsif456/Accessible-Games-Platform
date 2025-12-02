@@ -5,6 +5,46 @@ import ReviewReport from '../models/reviewReport';
 import Review from '../models/review';
 import { ReportModel } from '../models/report';
 
+let legacyReportsMigrated = false;
+
+async function migrateLegacyReviewReports() {
+  if (legacyReportsMigrated) return;
+  try {
+    const legacyDocs = await ReviewReport.find({});
+    if (!legacyDocs.length) {
+      legacyReportsMigrated = true;
+      return;
+    }
+
+    const ops = legacyDocs.map(doc => ({
+      updateOne: {
+        filter: { _id: doc._id },
+        update: {
+          $set: {
+            type: 'review',
+            description: doc.reasonText,
+            transcript: doc.voiceTranscript,
+            reporterId: doc.reporterId,
+            review: doc.reviewId,
+            resolved: doc.resolved ?? false,
+            resolvedAt: doc.resolvedAt,
+            resolvedBy: doc.resolvedBy,
+            outcome: doc.outcome,
+            adminReply: (doc as any).adminReply,
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+    await ReportModel.bulkWrite(ops);
+    await ReviewReport.deleteMany({ _id: { $in: legacyDocs.map(d => d._id) } });
+    legacyReportsMigrated = true;
+  } catch (error) {
+    console.error('Error migrating legacy review reports', error);
+  }
+}
+
 
 /**
  * Creates a new review report.
@@ -64,6 +104,8 @@ export const createReviewReport = async (req: Request, res: Response) => {
  */
 export const adminListReviewReports = async (req: Request, res: Response) => {
   try {
+    await migrateLegacyReviewReports();
+
     const page = Math.max(parseInt((req.query.page as string) || '1', 10), 1);
     const pageSize = Math.min(
       Math.max(parseInt((req.query.pageSize as string) || '10', 10), 1),
@@ -165,51 +207,10 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
 
     reviewReportPipeline.push({ $sort: { createdAt: -1 } });
 
-    const legacyPipeline: any[] = [
-      { $match: { resolved } },
-      {
-        $lookup: {
-          from: 'reviews',
-          localField: 'reviewId',
-          foreignField: '_id',
-          as: 'review',
-        },
-      },
-      { $unwind: { path: '$review', preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: 'games',
-          localField: 'review.gameId',
-          foreignField: '_id',
-          as: 'game',
-        },
-      },
-      { $unwind: { path: '$game', preserveNullAndEmptyArrays: true } },
-    ];
+    const reportModelDocs = await ReportModel.aggregate(reviewReportPipeline);
 
-    if (searchRegex) {
-      legacyPipeline.push({
-        $match: {
-          $or: [
-            { reasonText: { $regex: searchRegex } },
-            { 'review.body': { $regex: searchRegex } },
-            { 'review.authorName': { $regex: searchRegex } },
-            { 'game.title': { $regex: searchRegex } },
-            ...(searchObjectId ? [{ _id: searchObjectId }] : []),
-          ],
-        },
-      });
-    }
-
-    legacyPipeline.push({ $sort: { createdAt: -1 } });
-
-    const [reportModelDocs, legacyDocs] = await Promise.all([
-      ReportModel.aggregate(reviewReportPipeline),
-      ReviewReport.aggregate(legacyPipeline),
-    ]);
-
-    const mappedReports = [
-      ...reportModelDocs.map((doc: any) => {
+    const mappedReports = reportModelDocs
+      .map((doc: any) => {
         const rawReviewId =
           doc.reviewRef?.toString?.() ?? doc.review?.toString?.() ?? doc.reviewDoc?._id?.toString?.();
         const friendlyReviewId =
@@ -231,30 +232,8 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           reviewAuthorName: doc.reviewDoc?.authorName,
           reviewBody: doc.reviewDoc?.body,
         };
-      }),
-      ...legacyDocs.map((doc: any) => {
-        const rawReviewId = doc.reviewId?.toString?.() ?? doc.review?._id?.toString?.();
-        const friendlyReviewId =
-          doc.review?.publicId || (rawReviewId ? `rev_${rawReviewId.slice(0, 8)}` : undefined);
-
-        return {
-          _id: doc._id.toString(),
-          reviewId: rawReviewId,
-          reviewPublicId: friendlyReviewId,
-          reportReason: doc.reasonText,
-          adminReply: doc.adminReply || doc.review?.adminReply,
-          createdAt: doc.createdAt,
-          updatedAt: doc.updatedAt,
-          resolved: !!doc.resolved,
-          outcome: doc.outcome as ReviewReportOutcome | undefined,
-          reporterEmail: undefined,
-          gameTitle: doc.game?.title,
-          gameSlug: doc.game?.slug,
-          reviewAuthorName: doc.review?.authorName,
-          reviewBody: doc.review?.body,
-        };
-      }),
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const total = mappedReports.length;
     const start = (page - 1) * pageSize;
@@ -272,6 +251,8 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
  */
 export const adminResolveReviewReport = async (req: Request, res: Response) => {
   try {
+    await migrateLegacyReviewReports();
+
     const { id } = req.params;
     const { action, deleteReview: deleteReviewFlag } = req.body as {
       action?: 'complete' | 'delete-review';
@@ -285,14 +266,42 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
 
     const shouldDeleteReview = action === 'delete-review' || deleteReviewFlag === true;
 
-    const report =
-      (await ReportModel.findOne({ _id: id, type: 'review' })) || (await ReviewReport.findById(id));
+    let report = await ReportModel.findOne({ _id: id, type: 'review' });
+
+    // If we can't find a new-style report, try to migrate a legacy ReviewReport on the fly.
+    if (!report) {
+      const legacy = await ReviewReport.findById(id);
+      if (legacy) {
+        const reviewObjectId =
+          legacy.reviewId && mongoose.Types.ObjectId.isValid(legacy.reviewId)
+            ? new mongoose.Types.ObjectId(legacy.reviewId)
+            : undefined;
+
+        report = await ReportModel.create({
+          type: 'review',
+          description: legacy.reasonText,
+          transcript: legacy.voiceTranscript,
+          reporterId: legacy.reporterId,
+          review: reviewObjectId,
+          resolved: legacy.resolved ?? false,
+          resolvedAt: legacy.resolvedAt,
+          resolvedBy: legacy.resolvedBy,
+          outcome: legacy.outcome,
+          adminReply: (legacy as any).adminReply,
+        });
+
+        // Clean up the legacy document so we don't keep diverging schemas around.
+        await legacy.deleteOne();
+      }
+    }
+
     if (!report) {
       return res.status(404).json({ message: 'Report not found' });
     }
 
     if ((report as any).resolved) {
-      return res.status(400).json({ message: 'Report is already resolved' });
+      // Idempotent resolve: return current report state instead of erroring
+      return res.status(200).json(report.toObject());
     }
 
     const reviewId = (report as any).review ?? (report as any).reviewId;

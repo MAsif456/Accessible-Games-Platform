@@ -1,5 +1,5 @@
 import { FilterQuery, SortOrder } from 'mongoose';
-import { IGame } from '../src/models';
+import { IGame, GameModel } from '../src/models';
 import { GamesFilterQuery } from '../utils/validate';
 import GamesRepository from '../src/repositories/games.repository';
 
@@ -20,7 +20,6 @@ export interface PaginatedGamesResult {
   totalPages: number;
 }
 
-<<<<<<< HEAD
 export interface GamesMetadata {
   genres: string[];
   accessibilityTags: string[];
@@ -35,7 +34,6 @@ let metadataCache: { value: GamesMetadata | null; expiresAt: number } = {
 
 /**
  * Build Mongo filter for public games listing.
-=======
 /**
  * Builds a MongoDB filter query from user-provided search criteria.
  *
@@ -52,7 +50,6 @@ let metadataCache: { value: GamesMetadata | null; expiresAt: number } = {
  * @example
  * const filter = buildGamesFilter({ search: 'adventure', genres: ['RPG'], tags: ['Visual: Subtitles'] });
  * // Returns: { isPublished: true, $or: [...], genres: { $all: ['RPG'] }, accessibilityTags: { $all: ['Visual: Subtitles'] } }
->>>>>>> 9db0d0b43cd08182e37ea7ca5a87b25280c4f3d4
  */
 function buildGamesFilter(query: GamesFilterQuery): FilterQuery<IGame> {
   const filter: FilterQuery<IGame> = { isPublished: true };
@@ -171,7 +168,6 @@ export async function getPaginatedGames(query: GamesFilterQuery): Promise<Pagina
   };
 }
 
-<<<<<<< HEAD
 export function resetGamesMetadataCache() {
   metadataCache = { value: null, expiresAt: 0 };
 }
@@ -211,7 +207,6 @@ export async function getGamesMetadata(options: { useCache?: boolean } = {}): Pr
   return result;
 }
 
-=======
 /**
  * Retrieves all games for admin management (includes unpublished games).
  *
@@ -223,7 +218,6 @@ export async function getGamesMetadata(options: { useCache?: boolean } = {}): Pr
  *
  * @security Only accessible to authenticated admin users via protected routes
  */
->>>>>>> 9db0d0b43cd08182e37ea7ca5a87b25280c4f3d4
 export async function getAllGamesForAdmin() {
   const repository = GamesRepository;
   const games = await repository.findAll({}, { title: 1 });
