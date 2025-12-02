@@ -4,9 +4,11 @@
 // Password reset uses a one-time code sent by email, supporting both security and users with assistive technology.
 // All validation logic is client-side for immediate feedback, but server-side validation is also enforced for security.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiPost } from '../utils/apiHelper';
+import { useVoiceRecording } from '../hooks/useVoiceRecording';
+import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 import '../styles/SignIn.css';
 
 interface SignInPageProps {
@@ -57,8 +59,201 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
   const [loginErrors, setLoginErrors] = useState<{ email?: string; password?: string }>({});
   const [signupErrors, setSignupErrors] = useState<{ fullName?: string; email?: string; password?: string; confirmPassword?: string }>({});
 
+  // Voice assistant state (to pause during voice recording)
+  const {
+    cancelListening,
+    forceStopRecognition,
+    microphoneActive,
+    voiceInputEnabled,
+  } = useVoiceAssistant();
+
+  // Voice recording state
+  const {
+    transcript: voiceTranscript,
+    isRecording: isVoiceRecording,
+    error: voiceError,
+    startRecording: startVoiceRecording,
+    stopRecording: stopVoiceRecording,
+    clearTranscript: clearVoiceTranscript,
+  } = useVoiceRecording();
+
+  const [showVoiceConfirm, setShowVoiceConfirm] = useState(false);
+  const [voiceParsedData, setVoiceParsedData] = useState<{
+    email?: string;
+    password?: string;
+    fullName?: string;
+    confirmPassword?: string;
+  }>({});
+
   // Email regex for validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Parse voice transcript to extract form fields
+  const parseVoiceTranscript = (transcript: string, isSignUp: boolean) => {
+    const parsed: { email?: string; password?: string; fullName?: string; confirmPassword?: string } = {};
+    const lowerTranscript = transcript.toLowerCase();
+
+    // Extract email - look for email patterns in various formats
+    const emailPatterns = [
+      /(?:my\s+)?email\s+(?:is\s+)?([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i,
+      /email\s*[:=]\s*([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i,
+      /([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/i, // Any email in the transcript
+    ];
+    for (const pattern of emailPatterns) {
+      const match = transcript.match(pattern);
+      if (match && match[1]) {
+        parsed.email = match[1].trim();
+        break;
+      }
+    }
+
+    // Extract password - look for password patterns
+    // Handle cases like "password is mypassword123" or "my password is password123"
+    const passwordPatterns = [
+      /(?:my\s+)?password\s+(?:is\s+)?([a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?\s]+?)(?:\s+(?:and|then|confirm|full|name|email|the|my)|$)/i,
+      /password\s*[:=]\s*([a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?\s]+?)(?:\s+(?:and|then|confirm|full|name|email|the|my)|$)/i,
+      /(?:my\s+)?password\s+(?:is\s+)?([^\s]+(?:\s+[^\s]+){0,10}?)(?:\s+(?:and|then|confirm|full|name|email)|$)/i,
+    ];
+    for (const pattern of passwordPatterns) {
+      const match = transcript.match(pattern);
+      if (match && match[1]) {
+        // Clean up the password - remove all spaces and common trailing words
+        let password = match[1].trim();
+        // Remove all spaces from password
+        password = password.replace(/\s+/g, '');
+        // Remove common trailing words that might have been captured
+        password = password.replace(/(and|then|confirm|full|name|email|the|my)$/i, '');
+        if (password.length >= 8) {
+          parsed.password = password;
+          break;
+        }
+      }
+    }
+
+    // Extract full name for sign up
+    if (isSignUp) {
+      const namePatterns = [
+        /(?:my\s+)?(?:full\s+)?name\s+(?:is\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/,
+        /(?:full\s+)?name\s*[:=]\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/,
+        /^(?:my\s+name\s+is\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)(?:\s+(?:email|password|and|my))/,
+        /(?:i\s+am\s+|i'm\s+)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/,
+      ];
+      for (const pattern of namePatterns) {
+        const match = transcript.match(pattern);
+        if (match && match[1]) {
+          parsed.fullName = match[1].trim();
+          break;
+        }
+      }
+    }
+
+    return parsed;
+  };
+
+  // Handle voice recording start
+  const handleStartVoiceRecording = async () => {
+    try {
+      // Check if voice navigation is active
+      const isVoiceNavigationActive = microphoneActive && voiceInputEnabled;
+      
+      if (isVoiceNavigationActive) {
+        if (showPrompt) {
+          showPrompt('Voice navigation must be turned off for voice login/signup to work. Please disable voice navigation in Settings or mute the microphone in the navbar, then try again.', 'error');
+        }
+        return;
+      }
+
+      // Pause voice assistant to avoid conflicts
+      if (forceStopRecognition) {
+        forceStopRecognition();
+      }
+      cancelListening();
+
+      // Brief delay to ensure voice assistant recognition stops
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      clearVoiceTranscript();
+      await startVoiceRecording();
+    } catch (error) {
+      console.error('Failed to start voice recording:', error);
+      if (showPrompt) {
+        showPrompt('Failed to start voice recording. Please check your microphone permissions.', 'error');
+      }
+    }
+  };
+
+  // Handle voice recording stop and parse
+  const handleStopVoiceRecording = () => {
+    stopVoiceRecording();
+    if (voiceTranscript.trim()) {
+      const parsed = parseVoiceTranscript(voiceTranscript, activeTab === 'signup');
+      setVoiceParsedData(parsed);
+      setShowVoiceConfirm(true);
+    }
+  };
+
+  // Handle voice confirmation and auto-fill
+  const handleVoiceConfirm = () => {
+    if (activeTab === 'signin') {
+      if (voiceParsedData.email) {
+        setLoginData(prev => ({ ...prev, email: voiceParsedData.email || prev.email }));
+      }
+      if (voiceParsedData.password) {
+        setLoginData(prev => ({ ...prev, password: voiceParsedData.password || prev.password }));
+      }
+      // Auto-submit after a brief delay
+      setTimeout(() => {
+        const form = document.querySelector('.signin-form') as HTMLFormElement;
+        if (form) {
+          form.requestSubmit();
+        }
+      }, 500);
+    } else {
+      if (voiceParsedData.fullName) {
+        setSignupData(prev => ({ ...prev, fullName: voiceParsedData.fullName || prev.fullName }));
+      }
+      if (voiceParsedData.email) {
+        setSignupData(prev => ({ ...prev, email: voiceParsedData.email || prev.email }));
+      }
+      if (voiceParsedData.password) {
+        setSignupData(prev => ({ 
+          ...prev, 
+          password: voiceParsedData.password || prev.password,
+          confirmPassword: voiceParsedData.password || prev.confirmPassword,
+        }));
+      }
+      // Auto-submit after a brief delay
+      setTimeout(() => {
+        const form = document.querySelector('.signin-form') as HTMLFormElement;
+        if (form) {
+          form.requestSubmit();
+        }
+      }, 500);
+    }
+    setShowVoiceConfirm(false);
+    clearVoiceTranscript();
+    setVoiceParsedData({});
+  };
+
+  // Handle voice confirmation cancel
+  const handleVoiceCancel = () => {
+    setShowVoiceConfirm(false);
+    clearVoiceTranscript();
+    setVoiceParsedData({});
+  };
+
+  // Auto-process transcript when recording stops and we have a transcript
+  useEffect(() => {
+    if (!isVoiceRecording && voiceTranscript.trim() && !showVoiceConfirm) {
+      const parsed = parseVoiceTranscript(voiceTranscript, activeTab === 'signup');
+      // Only show confirmation if we extracted at least one field
+      if (parsed.email || parsed.password || parsed.fullName) {
+        setVoiceParsedData(parsed);
+        setShowVoiceConfirm(true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVoiceRecording, voiceTranscript, activeTab, showVoiceConfirm]);
 
   // Enhanced password validation for signup
   const passwordHasNumber = (password: string) => /\d/.test(password);
@@ -400,11 +595,29 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                 <button
                   type="button"
                   className="accessible-signin-button"
-                  onClick={() => alert('Voice sign-in feature coming soon')}
+                  onClick={isVoiceRecording ? handleStopVoiceRecording : handleStartVoiceRecording}
+                  disabled={isLoading}
                 >
                   <span className="accessible-signin-icon" aria-hidden="true">🎤</span>
-                  <span>Sign in with Voice</span>
+                  <span>{isVoiceRecording ? 'Stop Recording' : 'Sign in with Voice'}</span>
                 </button>
+                {isVoiceRecording && (
+                  <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f3f4f6', borderRadius: '0.5rem' }}>
+                    <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
+                      <strong>Recording...</strong> Speak your email and password. For example: "My email is user@example.com and my password is mypassword123"
+                    </p>
+                    {voiceTranscript && (
+                      <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#111827' }}>
+                        <strong>Transcript:</strong> {voiceTranscript}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {voiceError && (
+                  <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#fee2e2', borderRadius: '0.5rem', color: '#991b1b' }}>
+                    <p style={{ margin: 0, fontSize: '0.875rem' }}>{voiceError}</p>
+                  </div>
+                )}
 
                 <div className="keyboard-navigation-info">
                   <span className="keyboard-icon" aria-hidden="true">⌨️</span>
@@ -751,11 +964,29 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                 <button
                   type="button"
                   className="accessible-signin-button"
-                  onClick={() => alert('Voice sign-up feature coming soon')}
+                  onClick={isVoiceRecording ? handleStopVoiceRecording : handleStartVoiceRecording}
+                  disabled={isLoading}
                 >
                   <span className="accessible-signin-icon" aria-hidden="true">🎤</span>
-                  <span>Sign up with Voice</span>
+                  <span>{isVoiceRecording ? 'Stop Recording' : 'Sign up with Voice'}</span>
                 </button>
+                {isVoiceRecording && (
+                  <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f3f4f6', borderRadius: '0.5rem' }}>
+                    <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
+                      <strong>Recording...</strong> Speak your full name, email, and password. For example: "My name is John Doe, my email is user@example.com and my password is mypassword123"
+                    </p>
+                    {voiceTranscript && (
+                      <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#111827' }}>
+                        <strong>Transcript:</strong> {voiceTranscript}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {voiceError && (
+                  <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#fee2e2', borderRadius: '0.5rem', color: '#991b1b' }}>
+                    <p style={{ margin: 0, fontSize: '0.875rem' }}>{voiceError}</p>
+                  </div>
+                )}
                 <div className="keyboard-navigation-info">
                   <span className="keyboard-icon" aria-hidden="true">⌨️</span>
                   <div className="keyboard-text">
@@ -765,6 +996,88 @@ const SignInPage: React.FC<SignInPageProps> = ({ onNavigate, showPrompt }) => {
                 </div>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Voice Confirmation Modal */}
+        {showVoiceConfirm && (
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}
+            onClick={handleVoiceCancel}
+          >
+            <div 
+              style={{
+                background: 'white',
+                padding: '2rem',
+                borderRadius: '0.5rem',
+                maxWidth: '500px',
+                width: '90%',
+                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Confirm Voice Input</h2>
+              <p style={{ marginBottom: '1rem', color: '#6b7280' }}>
+                Please confirm the information extracted from your voice input:
+              </p>
+              <div style={{ marginBottom: '1.5rem' }}>
+                {activeTab === 'signup' && voiceParsedData.fullName && (
+                  <p style={{ margin: '0.5rem 0' }}>
+                    <strong>Full Name:</strong> {voiceParsedData.fullName}
+                  </p>
+                )}
+                {voiceParsedData.email && (
+                  <p style={{ margin: '0.5rem 0' }}>
+                    <strong>Email:</strong> {voiceParsedData.email}
+                  </p>
+                )}
+                {voiceParsedData.password && (
+                  <p style={{ margin: '0.5rem 0' }}>
+                    <strong>Password:</strong> {voiceParsedData.password}
+                  </p>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={handleVoiceCancel}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: '1px solid #d1d5db',
+                    background: 'white',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleVoiceConfirm}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: 'none',
+                    background: '#2563eb',
+                    color: 'white',
+                    borderRadius: '0.375rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Confirm & {activeTab === 'signin' ? 'Sign In' : 'Sign Up'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
