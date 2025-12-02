@@ -17,24 +17,23 @@ npm
 
 ### Installation
 
-# Clone repository
+**Clone repository**
 git clone <repo-url>  
 cd accessible-games-website  
 
-# Install server deps
+**Install server deps**
 cd PlayAble/server  
 npm install  
 
-# Install client deps
+**Install client deps**
 cd ../client  
 npm install  
 
 ## Usage
-
-# Start backend (from PlayAble/server)
+**Start backend (from PlayAble/server)**
 npm run dev    # or npm start for compiled build  
 
-# Start frontend (from PlayAble/client)
+**Start frontend (from PlayAble/client)**
 npm run dev  
 
 ## Development
