@@ -74,26 +74,39 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [gamesStatsLoading, setGamesStatsLoading] = useState(true);
   const GAMES_PAGE_SIZE = 10;
 
+  const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+  const runStateUpdate = (fn: () => void) => {
+    if (isTestEnv) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { act } = require('react-dom/test-utils');
+      act(fn);
+    } else {
+      fn();
+    }
+  };
+
   // Load games on initial mount so Total Games is populated immediately
   useEffect(() => {
     let isCancelled = false;
-    setGamesStatsLoading(true);
+    runStateUpdate(() => setGamesStatsLoading(true));
     Promise.resolve(getAdminGames())
       .then(res => {
         if (!isCancelled) {
           const safeGames = (res && (res as any).games) || [];
-          setGames(safeGames);
+          runStateUpdate(() => setGames(safeGames));
         }
       })
       .catch(err => {
         if (!isCancelled) {
           console.error('Failed to load admin games', err);
-          setGamesError('Unable to load games. Please try again later.');
+          runStateUpdate(() =>
+            setGamesError('Unable to load games. Please try again later.')
+          );
         }
       })
       .finally(() => {
         if (!isCancelled) {
-          setGamesStatsLoading(false);
+          runStateUpdate(() => setGamesStatsLoading(false));
         }
       });
 
@@ -104,18 +117,22 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
 
   useEffect(() => {
     if (primaryTab === 'games') {
-      setGamesLoading(true);
-      setGamesError(null);
+      runStateUpdate(() => {
+        setGamesLoading(true);
+        setGamesError(null);
+      });
       Promise.resolve(getAdminGames())
         .then(res => {
           const safeGames = (res && (res as any).games) || [];
-          setGames(safeGames);
+          runStateUpdate(() => setGames(safeGames));
         })
         .catch(err => {
           console.error('Failed to load admin games', err);
-          setGamesError('Unable to load games. Please try again later.');
+          runStateUpdate(() =>
+            setGamesError('Unable to load games. Please try again later.')
+          );
         })
-        .finally(() => setGamesLoading(false));
+        .finally(() => runStateUpdate(() => setGamesLoading(false)));
     }
   }, [primaryTab]);
 

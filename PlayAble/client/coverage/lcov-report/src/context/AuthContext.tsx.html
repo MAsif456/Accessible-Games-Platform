@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">69.39% </span>
+                <span class="strong">69.94% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>127/183</span>
+                <span class='fraction'>128/183</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">66.66% </span>
+                <span class="strong">58.33% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>10/15</span>
+                <span class='fraction'>7/12</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">69.39% </span>
+                <span class="strong">69.94% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>127/183</span>
+                <span class='fraction'>128/183</span>
             </div>
         
             
@@ -288,12 +288,12 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">173x</span>
-<span class="cline-any cline-yes">173x</span>
+<span class="cline-any cline-yes">171x</span>
+<span class="cline-any cline-yes">171x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">173x</span>
-<span class="cline-any cline-yes">173x</span>
+<span class="cline-any cline-yes">171x</span>
+<span class="cline-any cline-yes">171x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -308,12 +308,12 @@
 <span class="cline-any cline-yes">140x</span>
 <span class="cline-any cline-yes">17x</span>
 <span class="cline-any cline-yes">17x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">17x</span>
-<span class="cline-any cline-yes">10x</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">140x</span>
 <span class="cline-any cline-yes">140x</span>
 <span class="cline-any cline-yes">140x</span>
@@ -341,7 +341,7 @@
 <span class="cline-any cline-yes">17x</span>
 <span class="cline-any cline-yes">17x</span>
 <span class="cline-any cline-yes">17x</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">17x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -354,9 +354,9 @@
 <span class="cline-any cline-yes">17x</span>
 <span class="cline-any cline-yes">69x</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">62x</span>
-<span class="cline-any cline-yes">62x</span>
-<span class="cline-any cline-yes">62x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
 <span class="cline-any cline-yes">69x</span>
 <span class="cline-any cline-yes">69x</span>
 <span class="cline-any cline-yes">69x</span>
@@ -490,12 +490,12 @@ export const AuthProvider: React.FC&lt;AuthProviderProps&gt; = ({ children }) =&
   const loadUserSettings = async (userId: string) =&gt; {
     try {
       const loaded = await settingsApi.getSettings(userId);
-<span class="cstat-no" title="statement not covered" ><span class="branch-0 cbranch-no" title="branch not covered" >      if (loaded) {</span></span>
-<span class="cstat-no" title="statement not covered" >        applyAccessibilityPreferences(loaded);</span>
-<span class="cstat-no" title="statement not covered" >      }</span>
-    } catch (error) {
-      console.error('Failed to load accessibility settings:', error);
-    }
+      if (loaded) {
+        applyAccessibilityPreferences(loaded);
+      }
+    } <span class="branch-0 cbranch-no" title="branch not covered" >catch (error) {</span>
+<span class="cstat-no" title="statement not covered" >      console.error('Failed to load accessibility settings:', error);</span>
+<span class="cstat-no" title="statement not covered" >    }</span>
   };
 &nbsp;
   const refreshUserSettings = <span class="fstat-no" title="function not covered" >async () =&gt; {</span>
@@ -616,7 +616,7 @@ export default AuthContext;</pre></td></tr></table></pre>
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-02T12:56:30.310Z
+                at 2025-12-02T13:40:27.242Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

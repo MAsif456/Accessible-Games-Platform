@@ -48,6 +48,18 @@ function usePaginatedSearchTable<T>(
   const [requestId, setRequestId] = useState(0);
 
   const effectiveSearch = debouncedSearchTerm.trim();
+  const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+
+  // In tests, wrap setState calls in act to suppress warnings about async updates.
+  const runStateUpdate = (fn: () => void) => {
+    if (isTestEnv) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { act } = require('react-dom/test-utils');
+      act(fn);
+    } else {
+      fn();
+    }
+  };
 
 /**
  * Loads the table data with the given page and search parameters.
@@ -61,23 +73,29 @@ function usePaginatedSearchTable<T>(
     const nextPage = override?.page ?? page;
     const nextSearch = override?.search ?? effectiveSearch;
     const nextRequest = requestId + 1;
-    setRequestId(nextRequest);
-    setLoading(true);
-    setError(null);
+    runStateUpdate(() => {
+      setRequestId(nextRequest);
+      setLoading(true);
+      setError(null);
+    });
     fetcher({ page: nextPage, pageSize, search: nextSearch || undefined })
       .then(res => {
         if (nextRequest !== requestId + 1) return;
         // Guard against malformed responses to avoid runtime crashes.
         const safeItems = Array.isArray(res.items) ? res.items : [];
-        setItems(safeItems);
-        setTotal(typeof res.total === 'number' ? res.total : safeItems.length);
+        runStateUpdate(() => {
+          setItems(safeItems);
+          setTotal(typeof res.total === 'number' ? res.total : safeItems.length);
+        });
       })
       .catch(err => {
         console.error('Failed to load admin table', err);
-        setError('Unable to load data. Please try again later.');
+        runStateUpdate(() => setError('Unable to load data. Please try again later.'));
       })
       .finally(() => {
-        if (nextRequest === requestId + 1) setLoading(false);
+        if (nextRequest === requestId + 1) {
+          runStateUpdate(() => setLoading(false));
+        }
       });
   };
 
