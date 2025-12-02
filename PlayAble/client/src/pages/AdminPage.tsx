@@ -1795,8 +1795,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             <div className="admin-stat-card__header">
               <h2 className="admin-stat-card__title">Active Reviews</h2>
             </div>
-            <p className="admin-stat-card__value" aria-label="4 published reviews">
-              4
+            <p
+              className={
+                'admin-stat-card__value' +
+                (reviewsTable.loading ? ' admin-stat-card__value--skeleton' : '')
+              }
+              aria-label={
+                reviewsTable.loading
+                  ? 'Loading active reviews count'
+                  : `${reviewsTable.total} published reviews`
+              }
+            >
+              {reviewsTable.loading ? '—' : reviewsTable.total}
             </p>
             <p className="admin-stat-card__meta">Published reviews</p>
           </article>

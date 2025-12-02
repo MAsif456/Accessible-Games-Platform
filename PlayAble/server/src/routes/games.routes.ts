@@ -21,3 +21,4 @@ router.put('/admin/games/:id', protect, authorize('admin'), updateGameHandler);
 router.delete('/admin/games/:id', protect, authorize('admin'), deleteGameHandler);
 
 export default router;
+

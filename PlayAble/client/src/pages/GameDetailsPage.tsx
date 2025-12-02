@@ -568,9 +568,11 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                     Record your review using your voice. Your speech will be typed directly into the review field above as you speak.
                   </p>
                   {voiceError && (
-                    <p className="game-details__reviews-error" role="alert">
-                      {voiceError}
-                    </p>
+                    <div className="game-details__voice-error-inline" role="alert" aria-live="polite">
+                      <p className="game-details__voice-error-inline-text">
+                        {voiceError}
+                      </p>
+                    </div>
                   )}
                   {(hasVoiceTranscript || isVoiceRecording) && (
                     <div className="game-details__voice-transcript">
