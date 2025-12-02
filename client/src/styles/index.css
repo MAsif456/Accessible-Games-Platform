@@ -1373,6 +1373,12 @@ a:focus,
   color: #6b7280;
 }
 
+.admin-table__meta {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
 .admin-table__actions-cell {
   text-align: right;
 }
@@ -1432,8 +1438,8 @@ a:focus,
 }
 
 .admin-badge--status {
-  background-color: #020617;
-  color: #ffffff;
+  background-color: #e5e7eb;
+  color: #111827;
 }
 
 .admin-badge__dot {
@@ -1441,8 +1447,8 @@ a:focus,
 }
 
 .admin-badge--issue {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: #e5e7eb;
+  color: #111827;
 }
 
 .admin-badge--voice {

@@ -9,6 +9,12 @@ jest.mock('../../src/services/gamesAdminService', () => ({
   getAdminGames: jest.fn().mockResolvedValue({ games: [] }),
 }));
 
+jest.mock('../../src/services/adminGameReportsService', () => ({
+  __esModule: true,
+  fetchGameReports: jest.fn().mockResolvedValue([]),
+  replyToGameReport: jest.fn(),
+}));
+
 jest.mock('../../src/hooks/adminReviews');
 jest.mock('../../src/hooks/useAdminReviewActions');
 

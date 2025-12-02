@@ -20,6 +20,7 @@ import reviewsRoutes from './routes/reviews.routes';
 import reviewReportsRoutes from './routes/reviewReports.routes';
 import recentlyViewedRoutes from './routes/recentlyViewed.routes';
 import adminGeneralReportsRoutes from './routes/adminGeneralReports.routes';
+import adminGameReportsRoutes from './routes/adminGameReports.routes';
 
 // Import security middleware
 import cookieParser from 'cookie-parser';
@@ -145,6 +146,7 @@ app.use('/api', reviewsRoutes);
 app.use('/api', reviewReportsRoutes);
 app.use('/api', recentlyViewedRoutes);
 app.use('/api/admin/general-reports', adminGeneralReportsRoutes);
+app.use('/api/admin/game-reports', adminGameReportsRoutes);
 
 // Fix syntax error in `pickFirstString` function
 const pickFirstString = (value: unknown): string | undefined => {

@@ -34,7 +34,17 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  */
 export async function createReportHandler(req: any, res: any) {
   try {
-    const { type, description, transcript, gameId, reviewId, reporterEmail, reporterName, reporterId } = req.body as {
+    const {
+      type,
+      description,
+      transcript,
+      gameId,
+      reviewId,
+      reporterEmail,
+      reporterName,
+      reporterId,
+      issueType,
+    } = req.body as {
       type: 'general' | 'game' | 'review';
       description?: string;
       transcript?: string;
@@ -43,6 +53,7 @@ export async function createReportHandler(req: any, res: any) {
       reporterEmail?: string;
       reporterName?: string;
       reporterId?: string;
+      issueType?: string;
     };
     const authReporterId = (req as any)?.user?.id;
     const authReporterEmail = (req as any)?.user?.email;
@@ -98,6 +109,7 @@ export async function createReportHandler(req: any, res: any) {
       type,
       description: trimmedDescription || undefined,
       transcript,
+      issueType: issueType?.trim() || undefined,
       game: gameId || undefined,
       review: reviewId || undefined,
       reporterId: parsedReporterId,

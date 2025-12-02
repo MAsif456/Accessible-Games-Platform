@@ -16,6 +16,12 @@ jest.mock('../../src/services/gamesAdminService', () => ({
   deleteAdminGame: jest.fn(),
 }));
 
+jest.mock('../../src/services/adminGameReportsService', () => ({
+  __esModule: true,
+  fetchGameReports: jest.fn().mockResolvedValue([]),
+  replyToGameReport: jest.fn(),
+}));
+
 jest.mock('../../src/services/adminReportsService');
 jest.mock('../../src/services/api');
 jest.mock('../../src/hooks/adminReviews');

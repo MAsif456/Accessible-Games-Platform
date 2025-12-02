@@ -35,6 +35,8 @@ export interface ReportDocument extends Document {
   description?: string;
   /** Voice transcript if submitted via voice input */
   transcript?: string;
+  /** Optional categorisation for game reports */
+  issueType?: string;
   /** ObjectId of the user who submitted the report */
   reporterId?: Schema.Types.ObjectId;
   /** Display name of the reporter */
@@ -51,6 +53,8 @@ export interface ReportDocument extends Document {
   adminReplies: AdminReply[];
   /** Timestamp when the report was resolved */
   resolvedAt?: Date;
+  /** Admin who resolved the report */
+  resolvedBy?: Schema.Types.ObjectId;
   /** Timestamp when the report was created */
   createdAt: Date;
 }
@@ -77,6 +81,7 @@ const reportSchema = new Schema<ReportDocument>(
     type: { type: String, enum: ['general', 'game', 'review'], required: true },
     description: { type: String },
     transcript: { type: String },
+    issueType: { type: String },
     reporterId: { type: Schema.Types.ObjectId, ref: 'User' },
     reporterName: { type: String },
     reporterEmail: { type: String },
@@ -85,6 +90,7 @@ const reportSchema = new Schema<ReportDocument>(
     status: { type: String, enum: ['open', 'resolved'], default: 'open' },
     adminReplies: { type: [adminReplySchema], default: [] },
     resolvedAt: { type: Date },
+    resolvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );

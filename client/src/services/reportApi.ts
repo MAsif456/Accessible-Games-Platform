@@ -19,6 +19,8 @@ export interface SubmitReportPayload {
   description?: string;
   /** Voice transcript if submitted via voice input */
   transcript?: string;
+  /** Optional categorisation of the issue (primarily for game reports) */
+  issueType?: string;
   /** ID of the game being reported (for game reports) */
   gameId?: string;
   /** ID of the review being reported (for review reports) */

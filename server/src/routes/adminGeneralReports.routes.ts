@@ -87,7 +87,8 @@ router.post('/:id/reply', protect, authorize('admin'), async (req, res) => {
     const report = await ReportModel.findOne({ _id: id, type: 'general' });
     if (!report) {
       return res.status(404).json({ success: false, message: 'Report not found.' });
-    }    const adminUser = req.user?.id ? await User.findById(req.user.id).select('name') : null;
+    }
+    const adminUser = req.user?.id ? await User.findById(req.user.id).select('name') : null;
     report.adminReplies.push({
       message: trimmed,
       adminId: req.user?.id ? new mongoose.Types.ObjectId(req.user.id) as any : undefined,
@@ -96,6 +97,9 @@ router.post('/:id/reply', protect, authorize('admin'), async (req, res) => {
     });
     report.status = 'resolved';
     report.resolvedAt = new Date();
+    if (req.user?.id) {
+      report.set('resolvedBy', new mongoose.Types.ObjectId(req.user.id));
+    }
 
     await report.save();
     return res.json({ success: true, report: toDto(report) });
