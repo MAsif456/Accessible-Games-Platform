@@ -7,7 +7,7 @@
  */
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import User from '../src/models/user';
+import User from '../models/user';
 
 /**
  * JWT secret key from environment variables.
@@ -43,7 +43,8 @@ declare global {
         id: string;
         role: string;
       };
-    }  }
+    }
+  }
 }
 
 /**
@@ -138,3 +139,4 @@ export const authorize = (...roles: string[]) => {
     next();
   };
 };
+

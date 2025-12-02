@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { getPaginatedGames, getAllGamesForAdmin, getGameById, createGame, updateGame, deleteGame } from '../services/games.service';
-import { parseGamesQuery } from '../utils/validate';
-import { IGame } from '../src/models';
+import { parseGamesQuery } from '../../utils/validate';
+import { IGame } from '../models';
 
 /**
  * Converts a Game model document to a clean DTO for API responses.
@@ -19,7 +19,8 @@ function toGameDto(game: IGame & { createdAt?: Date; updatedAt?: Date }) {
     releaseYear: game.releaseYear ?? null,
     isPublished: game.isPublished,
     createdAt: (game as any).createdAt ?? null,
-    updatedAt: (game as any).updatedAt ?? null,  };
+    updatedAt: (game as any).updatedAt ?? null,
+  };
 }
 
 /**
@@ -38,7 +39,8 @@ export async function getGamesHandler(req: Request, res: Response, next: NextFun
       totalPages: result.totalPages,
     });
   } catch (err) {
-    next(err);  }
+    next(err);
+  }
 }
 
 /**
@@ -49,7 +51,8 @@ export async function getAdminGamesHandler(req: Request, res: Response, next: Ne
     const games = await getAllGamesForAdmin();
     return res.json({ games: games.map(toGameDto) });
   } catch (err) {
-    next(err);  }
+    next(err);
+  }
 }
 
 /**
@@ -63,7 +66,8 @@ export async function getGameByIdHandler(req: Request, res: Response, next: Next
     }
     return res.json({ game: toGameDto(game as any) });
   } catch (err) {
-    next(err);  }
+    next(err);
+  }
 }
 
 /**
@@ -129,3 +133,4 @@ export async function deleteGameHandler(req: Request, res: Response, next: NextF
     next(err);
   }
 }
+
