@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   GameDto,
   getCachedGame,
@@ -39,6 +40,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   onOpenReviewReport,
 }) => {
   const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const { toggleFavourite, isFavourite } = useFavouritesNav();
 
   const [game, setGame] = useState<GameDto | null>(null);
@@ -665,7 +667,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                     if (onNavigate) {
                       onNavigate('/signin');
                     } else {
-                      window.location.href = '/signin';
+                      navigate('/signin');
                     }
                   }}
                 >
