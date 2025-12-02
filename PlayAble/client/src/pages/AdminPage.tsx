@@ -1,6 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { GameDto } from '../services/api';
 import type { AdminResolvedReviewReport } from '../services/adminReviewsService';
+import {
+  AdminGeneralReport,
+  fetchGeneralReports,
+  formatReportCode,
+  replyToGeneralReport,
+} from '../services/adminReportsService';
+import {
+  AdminGameReport,
+  fetchGameReports as fetchAdminGameReports,
+  replyToGameReport,
+} from '../services/adminGameReportsService';
 import { getAdminGames } from '../services/gamesAdminService';
 import Pagination from '../components/ui/Pagination';
 import Modal from '../components/ui/Modal';
@@ -74,6 +85,36 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [gamesStatsLoading, setGamesStatsLoading] = useState(true);
   const GAMES_PAGE_SIZE = 10;
 
+  // General reports state
+  const [generalReports, setGeneralReports] = useState<AdminGeneralReport[]>([]);
+  const [resolvedGeneralReports, setResolvedGeneralReports] = useState<AdminGeneralReport[]>([]);
+  const [generalReportsLoading, setGeneralReportsLoading] = useState(false);
+  const [resolvedReportsLoading, setResolvedReportsLoading] = useState(false);
+  const [generalReportsError, setGeneralReportsError] = useState<string | null>(null);
+  const [resolvedReportsError, setResolvedReportsError] = useState<string | null>(null);
+  const [generalReportsSearch, setGeneralReportsSearch] = useState('');
+  const [resolvedReportsSearch, setResolvedReportsSearch] = useState('');
+  const [activeReport, setActiveReport] = useState<AdminGeneralReport | null>(null);
+  const [reportModalMode, setReportModalMode] = useState<'reply' | 'view'>('reply');
+  const [reportReplyMessage, setReportReplyMessage] = useState('');
+  const [reportModalError, setReportModalError] = useState<string | null>(null);
+  const [reportModalSubmitting, setReportModalSubmitting] = useState(false);
+
+  // Game reports state
+  const [gameReports, setGameReports] = useState<AdminGameReport[]>([]);
+  const [resolvedGameReports, setResolvedGameReports] = useState<AdminGameReport[]>([]);
+  const [gameReportsLoading, setGameReportsLoading] = useState(false);
+  const [resolvedGameReportsLoading, setResolvedGameReportsLoading] = useState(false);
+  const [gameReportsError, setGameReportsError] = useState<string | null>(null);
+  const [resolvedGameReportsError, setResolvedGameReportsError] = useState<string | null>(null);
+  const [gameReportsSearch, setGameReportsSearch] = useState('');
+  const [resolvedGameReportsSearch, setResolvedGameReportsSearch] = useState('');
+  const [activeGameReport, setActiveGameReport] = useState<AdminGameReport | null>(null);
+  const [gameReportModalMode, setGameReportModalMode] = useState<'reply' | 'view'>('reply');
+  const [gameReportReplyMessage, setGameReportReplyMessage] = useState('');
+  const [gameReportModalError, setGameReportModalError] = useState<string | null>(null);
+  const [gameReportModalSubmitting, setGameReportModalSubmitting] = useState(false);
+
   useEffect(() => {
     let isCancelled = false;
     setGamesStatsLoading(true);
@@ -142,6 +183,72 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     setGamesPage(1);
   }, [gamesSearchTerm]);
 
+  const loadGeneralReports = useCallback(async () => {
+    setGeneralReportsLoading(true);
+    setGeneralReportsError(null);
+    try {
+      const reports = await fetchGeneralReports('open');
+      setGeneralReports(reports);
+    } catch (err) {
+      console.error('Failed to load general reports', err);
+      setGeneralReportsError('Unable to load general reports. Please try again later.');
+    } finally {
+      setGeneralReportsLoading(false);
+    }
+  }, []);
+
+  const loadResolvedReports = useCallback(async () => {
+    setResolvedReportsLoading(true);
+    setResolvedReportsError(null);
+    try {
+      const reports = await fetchGeneralReports('resolved');
+      setResolvedGeneralReports(reports);
+    } catch (err) {
+      console.error('Failed to load resolved reports', err);
+      setResolvedReportsError('Unable to load resolved reports. Please try again later.');
+    } finally {
+      setResolvedReportsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGeneralReports();
+    loadResolvedReports();
+  }, [loadGeneralReports, loadResolvedReports]);
+
+  const loadGameReports = useCallback(async () => {
+    setGameReportsLoading(true);
+    setGameReportsError(null);
+    try {
+      const reports = await fetchAdminGameReports('open');
+      setGameReports(reports);
+    } catch (error) {
+      console.error('Failed to load game reports', error);
+      setGameReportsError('Unable to load game reports. Please try again later.');
+    } finally {
+      setGameReportsLoading(false);
+    }
+  }, []);
+
+  const loadResolvedGameReports = useCallback(async () => {
+    setResolvedGameReportsLoading(true);
+    setResolvedGameReportsError(null);
+    try {
+      const reports = await fetchAdminGameReports('resolved');
+      setResolvedGameReports(reports);
+    } catch (error) {
+      console.error('Failed to load resolved game reports', error);
+      setResolvedGameReportsError('Unable to load resolved game reports. Please try again later.');
+    } finally {
+      setResolvedGameReportsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGameReports();
+    loadResolvedGameReports();
+  }, [loadGameReports, loadResolvedGameReports]);
+
   const handleAddNewGame = () => {
     if (onNavigate) {
       onNavigate('/admin/games/new');
@@ -157,8 +264,149 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     }
   };
 
+  const formatReporter = (report: AdminGeneralReport) =>
+    report.reporterName || report.reporterEmail || 'Anonymous user';
+  const formatGameReportReporter = (report: AdminGameReport) =>
+    report.reporterName || report.reporterEmail || 'Anonymous user';
+
+  const truncateDescription = (text: string, limit = 90) => {
+    if (!text) return 'No description provided.';
+    return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+  };
+
+  const matchesReport = (report: AdminGeneralReport, term: string) => {
+    const normalized = term.trim().toLowerCase();
+    if (!normalized) return true;
+    return (
+      (report.reportCode || '').toLowerCase().includes(normalized) ||
+      (report.description || '').toLowerCase().includes(normalized) ||
+      (report.reporterEmail || '').toLowerCase().includes(normalized) ||
+      (report.reporterName || '').toLowerCase().includes(normalized) ||
+      report.status.toLowerCase().includes(normalized)
+    );
+  };
+
+  const formatGameIssueType = (report: AdminGameReport) => report.issueType || 'Accessibility Issue';
+
+  const matchesGameReport = (report: AdminGameReport, term: string) => {
+    const normalized = term.trim().toLowerCase();
+    if (!normalized) return true;
+    return (
+      (report.reportCode || '').toLowerCase().includes(normalized) ||
+      (report.gameTitle || '').toLowerCase().includes(normalized) ||
+      (report.issueType || '').toLowerCase().includes(normalized) ||
+      (report.description || '').toLowerCase().includes(normalized) ||
+      (report.reporterEmail || '').toLowerCase().includes(normalized) ||
+      (report.reporterName || '').toLowerCase().includes(normalized)
+    );
+  };
+
+  const filteredGeneralReports = useMemo(
+    () => generalReports.filter(report => matchesReport(report, generalReportsSearch)),
+    [generalReports, generalReportsSearch]
+  );
+
+  const filteredResolvedReports = useMemo(
+    () => resolvedGeneralReports.filter(report => matchesReport(report, resolvedReportsSearch)),
+    [resolvedGeneralReports, resolvedReportsSearch]
+  );
+
+  const filteredGameReports = useMemo(
+    () => gameReports.filter(report => matchesGameReport(report, gameReportsSearch)),
+    [gameReports, gameReportsSearch]
+  );
+
+  const filteredResolvedGameReports = useMemo(
+    () => resolvedGameReports.filter(report => matchesGameReport(report, resolvedGameReportsSearch)),
+    [resolvedGameReports, resolvedGameReportsSearch]
+  );
+
+  const closeReportModal = () => {
+    setActiveReport(null);
+    setReportReplyMessage('');
+    setReportModalError(null);
+    setReportModalSubmitting(false);
+  };
+
+  const openReportModal = (report: AdminGeneralReport, mode: 'reply' | 'view') => {
+    setActiveReport(report);
+    setReportModalMode(mode);
+    setReportReplyMessage('');
+    setReportModalError(null);
+  };
+
+  const handleReportReplySubmit = async () => {
+    if (!activeReport) return;
+    const trimmed = reportReplyMessage.trim();
+    if (!trimmed) {
+      setReportModalError('Please enter a reply to send to the reporter.');
+      return;
+    }
+    setReportModalSubmitting(true);
+    setReportModalError(null);
+    try {
+      const updated = await replyToGeneralReport(activeReport.id, trimmed);
+      setGeneralReports(prev => prev.filter(report => report.id !== updated.id));
+      setResolvedGeneralReports(prev => [updated, ...prev]);
+      closeReportModal();
+      loadGeneralReports();
+      loadResolvedReports();
+      showPrompt?.('Reply sent and report resolved.', 'success');
+    } catch (err) {
+      console.error('Failed to send reply', err);
+      setReportModalError('Failed to send reply. Please try again.');
+      setReportModalSubmitting(false);
+    }
+  };
+
+  const closeGameReportModal = () => {
+    setActiveGameReport(null);
+    setGameReportReplyMessage('');
+    setGameReportModalError(null);
+    setGameReportModalSubmitting(false);
+  };
+
+  const openGameReportModal = (report: AdminGameReport, mode: 'reply' | 'view') => {
+    setActiveGameReport(report);
+    setGameReportModalMode(mode);
+    setGameReportReplyMessage('');
+    setGameReportModalError(null);
+  };
+
+  const handleGameReportReplySubmit = async () => {
+    if (!activeGameReport) return;
+    const trimmed = gameReportReplyMessage.trim();
+    if (!trimmed) {
+      setGameReportModalError('Please enter a reply to send to the reporter.');
+      return;
+    }
+    setGameReportModalSubmitting(true);
+    setGameReportModalError(null);
+    try {
+      const updated = await replyToGameReport(activeGameReport.id, trimmed);
+      setGameReports(prev => prev.filter(report => report.id !== updated.id));
+      setResolvedGameReports(prev => [updated, ...prev.filter(report => report.id !== updated.id)]);
+      closeGameReportModal();
+      loadGameReports();
+      loadResolvedGameReports();
+      showPrompt?.('Reply sent and game report resolved.', 'success');
+    } catch (error) {
+      console.error('Failed to reply to game report', error);
+      setGameReportModalError('Failed to send reply. Please try again.');
+      setGameReportModalSubmitting(false);
+    }
+  };
+
   const renderGeneralReportsSection = () => {
     const isResolved = generalSubTab === 'resolved';
+    const reports = isResolved ? filteredResolvedReports : filteredGeneralReports;
+    const loading = isResolved ? resolvedReportsLoading : generalReportsLoading;
+    const error = isResolved ? resolvedReportsError : generalReportsError;
+    const searchValue = isResolved ? resolvedReportsSearch : generalReportsSearch;
+    const handleSearch = isResolved ? setResolvedReportsSearch : setGeneralReportsSearch;
+    const searchInputId = isResolved ? 'resolved-reports-search' : 'general-reports-search';
+    const dateLabel = isResolved ? 'Resolved On' : 'Date';
+
     return (
       <section
         className="admin-section-card"
@@ -178,16 +426,24 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
         </header>
 
         <div className="admin-section-card__search-wrapper">
-          <label htmlFor="general-reports-search" className="sr-only">
+          <label htmlFor={searchInputId} className="sr-only">
             Search general reports
           </label>
           <input
-            id="general-reports-search"
+            id={searchInputId}
             type="search"
             className="admin-section-card__search-input"
-            placeholder="Search by description, ID, or status..."
+            placeholder="Search by description, ID, or reporter..."
+            value={searchValue}
+            onChange={e => handleSearch(e.target.value)}
           />
         </div>
+
+        {error && (
+          <div role="alert" className="admin-error-message">
+            {error}
+          </div>
+        )}
 
         <div className="admin-table-wrapper">
           <table className="admin-table" aria-label={isResolved ? 'Resolved reports table' : 'General reports table'}>
@@ -199,18 +455,48 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                 <th scope="col">ID</th>
                 <th scope="col">Description</th>
                 <th scope="col">Reported By</th>
-                <th scope="col">Date</th>
+                <th scope="col">{dateLabel}</th>
                 <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="admin-table__empty-row">
-                <td colSpan={5}>
-                  <p className="admin-table__empty-message">
-                    {isResolved ? 'No resolved reports' : 'No general reports'}
-                  </p>
-                </td>
-              </tr>
+              {loading ? (
+                <tr className="admin-table__empty-row">
+                  <td colSpan={5}>
+                    <p className="admin-table__empty-message">Loading reports...</p>
+                  </td>
+                </tr>
+              ) : reports.length === 0 ? (
+                <tr className="admin-table__empty-row">
+                  <td colSpan={5}>
+                    <p className="admin-table__empty-message">
+                      {isResolved ? 'No resolved reports' : 'No general reports'}
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                reports.map(report => (
+                  <tr key={report.id}>
+                    <td>{formatReportCode(report)}</td>
+                    <td>{truncateDescription(report.description)}</td>
+                    <td>{formatReporter(report)}</td>
+                    <td>
+                      {new Date(
+                        isResolved && report.resolvedAt ? report.resolvedAt : report.createdAt
+                      ).toLocaleDateString()}
+                    </td>
+                    <td className="admin-table__actions-cell">
+                      <button
+                        type="button"
+                        className="admin-table__action-button"
+                        onClick={() => openReportModal(report, isResolved ? 'view' : 'reply')}
+                      >
+                        {isResolved ? 'View' : 'Reply'}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -1031,8 +1317,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
               type="search"
               className="admin-section-card__search-input"
               placeholder="Search by game, issue type, or description..."
+              value={gameReportsSearch}
+              onChange={e => setGameReportsSearch(e.target.value)}
             />
           </div>
+
+          {gameReportsError && (
+            <div role="alert" className="admin-error-message">
+              {gameReportsError}
+            </div>
+          )}
 
           <div className="admin-table-wrapper">
             <table className="admin-table" aria-label="Reported games table">
@@ -1048,11 +1342,42 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                 </tr>
               </thead>
               <tbody>
-                <tr className="admin-table__empty-row">
-                  <td colSpan={6}>
-                    <p className="admin-table__empty-message">No reported games</p>
-                  </td>
-                </tr>
+                {gameReportsLoading ? (
+                  <tr className="admin-table__empty-row">
+                    <td colSpan={6}>
+                      <p className="admin-table__empty-message">Loading reports...</p>
+                    </td>
+                  </tr>
+                ) : filteredGameReports.length === 0 ? (
+                  <tr className="admin-table__empty-row">
+                    <td colSpan={6}>
+                      <p className="admin-table__empty-message">No reported games</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredGameReports.map(report => (
+                    <tr key={report.id}>
+                      <td>{report.reportCode}</td>
+                      <td>{report.gameTitle || 'Unknown game'}</td>
+                      <td>
+                        <span className="admin-badge admin-badge--issue">
+                          {formatGameIssueType(report)}
+                        </span>
+                      </td>
+                      <td>{truncateDescription(report.description)}</td>
+                      <td>{new Date(report.createdAt).toLocaleDateString()}</td>
+                      <td className="admin-table__actions-cell">
+                        <button
+                          type="button"
+                          className="admin-table__action-button"
+                          onClick={() => openGameReportModal(report, 'reply')}
+                        >
+                          Reply
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -1080,8 +1405,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             type="search"
             className="admin-section-card__search-input"
             placeholder="Search by game, issue type, or description..."
+            value={resolvedGameReportsSearch}
+            onChange={e => setResolvedGameReportsSearch(e.target.value)}
           />
         </div>
+
+        {resolvedGameReportsError && (
+          <div role="alert" className="admin-error-message">
+            {resolvedGameReportsError}
+          </div>
+        )}
 
         <div className="admin-table-wrapper">
           <table className="admin-table" aria-label="Resolved reported games table">
@@ -1097,17 +1430,307 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
               </tr>
             </thead>
             <tbody>
-              <tr className="admin-table__empty-row">
-                <td colSpan={6}>
-                  <p className="admin-table__empty-message">No resolved reported games</p>
-                </td>
-              </tr>
+              {resolvedGameReportsLoading ? (
+                <tr className="admin-table__empty-row">
+                  <td colSpan={6}>
+                    <p className="admin-table__empty-message">Loading reports...</p>
+                  </td>
+                </tr>
+              ) : filteredResolvedGameReports.length === 0 ? (
+                <tr className="admin-table__empty-row">
+                  <td colSpan={6}>
+                    <p className="admin-table__empty-message">No resolved reported games</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredResolvedGameReports.map(report => (
+                  <tr key={report.id}>
+                    <td>{report.reportCode}</td>
+                    <td>{report.gameTitle || 'Unknown game'}</td>
+                    <td>
+                      <span className="admin-badge admin-badge--status">
+                        {formatGameIssueType(report)}
+                      </span>
+                    </td>
+                    <td>
+                      <p>{truncateDescription(report.description)}</p>
+                      {report.resolvedAt && (
+                        <p className="admin-table__meta">
+                          Resolved {new Date(report.resolvedAt).toLocaleDateString()}
+                          {report.resolvedByName ? ` by ${report.resolvedByName}` : ''}
+                        </p>
+                      )}
+                    </td>
+                    <td>
+                      <div>
+                        <span>{new Date(report.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </td>
+                    <td className="admin-table__actions-cell">
+                      <button
+                        type="button"
+                        className="admin-table__action-button"
+                        onClick={() => openGameReportModal(report, 'view')}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </section>
     );
   };
+
+  const renderReportModal = () => (
+    <Modal
+      isOpen={!!activeReport}
+      titleId="general-report-modal-title"
+      onClose={closeReportModal}
+      contentClassName="admin-report-modal__container"
+    >
+      {activeReport && (
+        <div className="admin-report-modal">
+          <header className="admin-report-modal__header">
+            <div>
+              <p className="admin-report-modal__eyebrow">
+                {reportModalMode === 'view' ? 'General Report Details' : 'Reply to General Report'}
+              </p>
+              <h2 id="general-report-modal-title" className="admin-report-modal__title">
+                Report {formatReportCode(activeReport)}
+              </h2>
+            </div>
+            <button type="button" className="admin-report-modal__close" onClick={closeReportModal} aria-label="Close">
+              ×
+            </button>
+          </header>
+
+          <section className="admin-report-modal__section" aria-label="Report details">
+            <dl className="admin-report-modal__definition-list">
+              <div>
+                <dt>Status</dt>
+                <dd>
+                  <span
+                    className={
+                      'admin-badge ' +
+                      (activeReport.status === 'resolved' ? 'admin-badge--status' : 'admin-badge--issue')
+                    }
+                  >
+                    {activeReport.status === 'resolved' ? 'Resolved' : 'Open'}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>Reported By</dt>
+                <dd>{formatReporter(activeReport)}</dd>
+              </div>
+              <div>
+                <dt>Report Date</dt>
+                <dd>{new Date(activeReport.createdAt).toLocaleDateString()}</dd>
+              </div>
+              {activeReport.resolvedAt && (
+                <div>
+                  <dt>Resolution Date</dt>
+                  <dd>{new Date(activeReport.resolvedAt).toLocaleDateString()}</dd>
+                </div>
+              )}
+            </dl>
+            <div className="admin-report-modal__description">
+              <h3>Description</h3>
+              <p>{activeReport.description || 'No description provided.'}</p>
+            </div>
+          </section>
+
+          {activeReport.adminReplies.length > 0 && (
+            <section className="admin-report-modal__section" aria-label="Previous admin replies">
+              <h3>Previous Admin Reply</h3>
+              <div className="admin-report-modal__history-entry">
+                <p>{activeReport.adminReplies[activeReport.adminReplies.length - 1].message}</p>
+                <span>
+                  {activeReport.adminReplies[activeReport.adminReplies.length - 1].adminName || 'Admin'} ·{' '}
+                  {new Date(
+                    activeReport.adminReplies[activeReport.adminReplies.length - 1].createdAt
+                  ).toLocaleDateString()}
+                </span>
+              </div>
+            </section>
+          )}
+
+          {reportModalMode === 'reply' && (
+            <section className="admin-report-modal__section" aria-label="Admin reply">
+              <label htmlFor="admin-report-reply" className="admin-report-modal__label">
+                Admin Reply to Reporter
+              </label>
+              <textarea
+                id="admin-report-reply"
+                className="admin-report-modal__textarea"
+                rows={4}
+                value={reportReplyMessage}
+                onChange={e => setReportReplyMessage(e.target.value)}
+                placeholder="Type your reply to the reporter..."
+              />
+            </section>
+          )}
+
+          {reportModalError && (
+            <p className="admin-report-modal__error" role="alert">
+              {reportModalError}
+            </p>
+          )}
+
+          <div className="admin-report-modal__actions">
+            <button type="button" className="admin-report-modal__secondary" onClick={closeReportModal}>
+              Cancel
+            </button>
+            {reportModalMode === 'reply' ? (
+              <button
+                type="button"
+                className="admin-report-modal__primary"
+                onClick={handleReportReplySubmit}
+                disabled={reportModalSubmitting}
+              >
+                {reportModalSubmitting ? 'Sending...' : 'Send Reply & Resolve'}
+              </button>
+            ) : (
+              <button type="button" className="admin-report-modal__primary" onClick={closeReportModal}>
+                Close
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+
+  const renderGameReportModal = () => (
+    <Modal
+      isOpen={!!activeGameReport}
+      titleId="game-report-modal-title"
+      onClose={closeGameReportModal}
+      contentClassName="admin-report-modal__container"
+    >
+      {activeGameReport && (
+        <div className="admin-report-modal">
+          <header className="admin-report-modal__header">
+            <div>
+              <p className="admin-report-modal__eyebrow">
+                {gameReportModalMode === 'view' ? 'Game Report Details' : 'Reply to Game Report'}
+              </p>
+              <h2 id="game-report-modal-title" className="admin-report-modal__title">
+                Report {activeGameReport.reportCode}
+              </h2>
+            </div>
+            <button
+              type="button"
+              className="admin-report-modal__close"
+              onClick={closeGameReportModal}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </header>
+
+          <section className="admin-report-modal__section" aria-label="Game report details">
+            <dl className="admin-report-modal__definition-list">
+              <div>
+                <dt>Game</dt>
+                <dd>{activeGameReport.gameTitle || 'Unknown game'}</dd>
+              </div>
+              <div>
+                <dt>Issue Type</dt>
+                <dd>
+                  <span className="admin-badge admin-badge--issue">
+                    {formatGameIssueType(activeGameReport)}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>Reported By</dt>
+                <dd>{formatGameReportReporter(activeGameReport)}</dd>
+              </div>
+              <div>
+                <dt>Report Date</dt>
+                <dd>{new Date(activeGameReport.createdAt).toLocaleDateString()}</dd>
+              </div>
+              {activeGameReport.resolvedAt && (
+                <div>
+                  <dt>Resolution</dt>
+                  <dd>
+                    {new Date(activeGameReport.resolvedAt).toLocaleDateString()}
+                    {activeGameReport.resolvedByName ? ` · ${activeGameReport.resolvedByName}` : ''}
+                  </dd>
+                </div>
+              )}
+            </dl>
+            <div className="admin-report-modal__description">
+              <h3>Description</h3>
+              <p>{activeGameReport.description || 'No description provided.'}</p>
+            </div>
+          </section>
+
+          {activeGameReport.adminReplies.length > 0 && (
+            <section className="admin-report-modal__section" aria-label="Previous admin replies">
+              <h3>Previous Admin Reply</h3>
+              <div className="admin-report-modal__history-entry">
+                <p>{activeGameReport.adminReplies[activeGameReport.adminReplies.length - 1].message}</p>
+                <span>
+                  {activeGameReport.adminReplies[activeGameReport.adminReplies.length - 1].adminName || 'Admin'} ·{' '}
+                  {new Date(
+                    activeGameReport.adminReplies[activeGameReport.adminReplies.length - 1].createdAt
+                  ).toLocaleDateString()}
+                </span>
+              </div>
+            </section>
+          )}
+
+          {gameReportModalMode === 'reply' && (
+            <section className="admin-report-modal__section" aria-label="Admin reply">
+              <label htmlFor="admin-game-report-reply" className="admin-report-modal__label">
+                Admin Reply to Reporter
+              </label>
+              <textarea
+                id="admin-game-report-reply"
+                className="admin-report-modal__textarea"
+                rows={4}
+                value={gameReportReplyMessage}
+                onChange={e => setGameReportReplyMessage(e.target.value)}
+                placeholder="Type your reply to the reporter..."
+              />
+            </section>
+          )}
+
+          {gameReportModalError && (
+            <p className="admin-report-modal__error" role="alert">
+              {gameReportModalError}
+            </p>
+          )}
+
+          <div className="admin-report-modal__actions">
+            <button type="button" className="admin-report-modal__secondary" onClick={closeGameReportModal}>
+              Cancel
+            </button>
+            {gameReportModalMode === 'reply' ? (
+              <button
+                type="button"
+                className="admin-report-modal__primary"
+                onClick={handleGameReportReplySubmit}
+                disabled={gameReportModalSubmitting}
+              >
+                {gameReportModalSubmitting ? 'Sending...' : 'Send Reply & Resolve'}
+              </button>
+            ) : (
+              <button type="button" className="admin-report-modal__primary" onClick={closeGameReportModal}>
+                Close
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
 
   return (
     <main className="admin-page" aria-label="Admin Management dashboard">
@@ -1143,8 +1766,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             <div className="admin-stat-card__header">
               <h2 className="admin-stat-card__title">General Reports</h2>
             </div>
-            <p className="admin-stat-card__value" aria-label="2 general reports require attention">
-              2
+            <p
+              className={
+                'admin-stat-card__value' +
+                (generalReportsLoading ? ' admin-stat-card__value--skeleton' : '')
+              }
+              aria-label={
+                generalReportsLoading
+                  ? 'Loading general reports count'
+                  : `${generalReports.length} general reports require attention`
+              }
+            >
+              {generalReportsLoading ? '—' : generalReports.length}
             </p>
             <p className="admin-stat-card__meta">Require attention</p>
           </article>
@@ -1344,6 +1977,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
           {renderGamesSection()}
         </section>
       )}
+      {renderReportModal()}
+      {renderGameReportModal()}
     </main>
   );
 };

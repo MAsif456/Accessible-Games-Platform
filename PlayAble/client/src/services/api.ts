@@ -164,7 +164,7 @@ export async function getReviewById(reviewId: string): Promise<ReviewWithGameRes
 }
 
 // ----- Reviews API used by GameDetailsPage -----
-function getAuthHeaders(): Record<string, string> {
+export function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

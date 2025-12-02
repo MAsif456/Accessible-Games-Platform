@@ -64,7 +64,13 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
       { $match: { type: 'review' } },
       {
         $addFields: {
-          resolvedValue: { $ifNull: ['$resolved', false] },
+          resolvedValue: {
+            $cond: [
+              { $ne: ['$status', null] },
+              { $eq: ['$status', 'resolved'] },
+              { $ifNull: ['$resolved', false] },
+            ],
+          },
           reviewRef: {
             $cond: [
               {
@@ -273,10 +279,15 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
       await Review.findByIdAndDelete(reviewId);
     }
 
-    (report as any).resolved = true;
-    (report as any).resolvedAt = new Date();
-    (report as any).resolvedBy = user?.id ? new mongoose.Types.ObjectId(user.id) : undefined;
-    (report as any).outcome = shouldDeleteReview ? 'deleted' : 'kept';
+    const reportDoc = report as any;
+    if (typeof reportDoc.status !== 'undefined') {
+      reportDoc.status = 'resolved';
+    } else {
+      reportDoc.resolved = true;
+    }
+    reportDoc.resolvedAt = new Date();
+    reportDoc.resolvedBy = user?.id ? new mongoose.Types.ObjectId(user.id) : undefined;
+    reportDoc.outcome = shouldDeleteReview ? 'deleted' : 'kept';
     await report.save();
 
     return res.status(200).json(report.toObject());

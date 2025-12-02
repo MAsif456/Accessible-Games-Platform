@@ -23,13 +23,8 @@ import {
 const router = express.Router();
 
 // Public routes with rate limiting
-// Login: 5 attempts per 15 minutes (prevents brute force attacks)
 router.post('/login', loginLimiter, login);
-
-// Signup: 3 attempts per hour (prevents mass account creation)
 router.post('/signup', signupLimiter, signup);
-
-// Password reset: 3 attempts per hour (prevents email flooding)
 router.post('/request-password-reset', passwordResetLimiter, requestPasswordReset);
 router.post('/reset-password', resetPassword);
 

@@ -8,8 +8,8 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import path from 'path';
-import UserModel, { seedAdminUserIfNotExists } from './models/user';
-import GameModel, { seedGamesIfEmpty } from './models/game';
+import { seedAdminUserIfNotExists } from './models/user';
+import { seedGamesIfEmpty, syncSpecificAccessibilityTags } from './models/game';
 import gamesRouter from '../routes/games.routes';
 import authRoutes from '../routes/authRoutes';
 import './models/settings';
@@ -19,6 +19,8 @@ import reportsRoutes from './routes/reports.routes';
 import reviewsRoutes from './routes/reviews.routes';
 import reviewReportsRoutes from './routes/reviewReports.routes';
 import recentlyViewedRoutes from './routes/recentlyViewed.routes';
+import adminGeneralReportsRoutes from './routes/adminGeneralReports.routes';
+import adminGameReportsRoutes from './routes/adminGameReports.routes';
 
 // Import security middleware
 import cookieParser from 'cookie-parser';
@@ -36,7 +38,7 @@ import {
   csrfErrorHandler,
   csrfDevBypass
 } from './middleware/csrfProtection';
-import { generalApiLimiter } from './middleware/rateLimiting';
+import { adminApiLimiter, generalApiLimiter } from './middleware/rateLimiting';
 
 dotenv.config();
 
@@ -88,8 +90,8 @@ app.use(express.urlencoded({ extended: true }));
 // RATE LIMITING (Applied early to protect all endpoints)
 // ============================================================================
 
-// Apply general rate limiting to all API routes
-// Limits: 100 requests per 15 minutes per IP
+// Apply rate limiting (admin endpoints get their own generous bucket)
+app.use('/api/admin', adminApiLimiter);
 app.use('/api', generalApiLimiter);
 
 // ============================================================================
@@ -121,11 +123,10 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/playab
 mongoose
   .connect(MONGODB_URI)
   .then(async () => {
-    console.log('Connected to MongoDB');
-
-    // Seed games collection from JSON if empty
+    console.log('Connected to MongoDB');    // Seed games collection from JSON if empty
     await seedGamesIfEmpty();
-    
+    await syncSpecificAccessibilityTags();
+
     // Seed admin user if it doesn't exist
     await seedAdminUserIfNotExists();
   })
@@ -150,6 +151,8 @@ app.use(reportsRoutes);
 app.use('/api', reviewsRoutes);
 app.use('/api', reviewReportsRoutes);
 app.use('/api', recentlyViewedRoutes);
+app.use('/api/admin/general-reports', adminGeneralReportsRoutes);
+app.use('/api/admin/game-reports', adminGameReportsRoutes);
 
 // Fix syntax error in `pickFirstString` function
 const pickFirstString = (value: unknown): string | undefined => {
