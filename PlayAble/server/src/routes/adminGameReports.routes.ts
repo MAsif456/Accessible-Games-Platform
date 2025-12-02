@@ -105,14 +105,14 @@ router.post('/:id/reply', protect, authorize('admin'), async (req, res) => {
 
     report.adminReplies.push({
       message: trimmed,
-      adminId: req.user?.id ? new mongoose.Types.ObjectId(req.user.id) : undefined,
+      adminId: req.user?.id as any,
       adminName: adminUser?.name || 'Admin',
       createdAt: new Date(),
     });
     report.status = 'resolved';
     report.resolvedAt = new Date();
     if (req.user?.id) {
-      report.resolvedBy = new mongoose.Types.ObjectId(req.user.id);
+      report.resolvedBy = req.user.id as any;
     }
 
     await report.save();
