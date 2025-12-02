@@ -26,7 +26,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 import jwt from 'jsonwebtoken';
 import { Request, Response } from 'express';
-import { protect, blacklistToken, isTokenBlacklisted } from '../../../middleware/auth';
+import { protect, blacklistToken, isTokenBlacklisted } from '../../middleware/auth';
 
 // Mock user model
 jest.mock('../../models/user', () => ({

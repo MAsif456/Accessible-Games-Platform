@@ -20,6 +20,7 @@ import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
 import AdminGameFormPage from './pages/AdminGameFormPage';
 import GameDetailsPage from './pages/GameDetailsPage';
 import ReportPage from './pages/ReportPage';
+import { getUnreadNotificationCount } from './services/notificationsApi';
 
 /// ok
 export type AppPath =
@@ -76,6 +77,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   const promptTimeout = useRef<number | null>(null);
   // Track if last auth event was signup or login
   const lastAuthEvent = useRef<'signup' | 'login' | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   // Enable global keyboard navigation for the entire app
   useGlobalKeyboardNavigation();
@@ -312,7 +314,14 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
               <ChangeEmailPasswordPage onNavigate={handleNavigate} />
             )}
 
-            {path === '/inbox' && <InboxPage />}
+            {path === '/inbox' && (
+              <InboxPage
+                onNavigate={handleNavigate}
+                onOpenGameReport={openGameReport}
+                onOpenReviewReport={openReviewReport}
+                onUnreadCountChange={setUnreadNotificationCount}
+              />
+            )}
             {path === '/about' && <AboutPage onNavigate={handleNavigate} />}
           </main>
         );
@@ -358,6 +367,7 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
           onSearchChange={handleSearchChange}
           onSearchSubmit={handleSearchSubmit}
           onClearSearch={handleClearSearch}
+          unreadNotificationCount={unreadNotificationCount}
           currentPath={path}
           onNavigate={handleNavigate}
           onLogout={handleLogout}

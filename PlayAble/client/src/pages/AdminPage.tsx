@@ -1961,8 +1961,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             <div className="admin-stat-card__header">
               <h2 className="admin-stat-card__title">Active Reviews</h2>
             </div>
-            <p className="admin-stat-card__value" aria-live="polite" aria-label={activeReviewsAriaLabel}>
-              {loadingActiveReviews ? '...' : activeReviewsCount ?? '--'}
+            <p
+              className={
+                'admin-stat-card__value' +
+                (loadingActiveReviews ? ' admin-stat-card__value--skeleton' : '')
+              }
+              aria-label={
+                loadingActiveReviews
+                  ? 'Loading active reviews count'
+                  : activeReviewsAriaLabel
+              }
+            >
+              {loadingActiveReviews ? '—' : activeReviewsCount ?? '--'}
             </p>
             <p className="admin-stat-card__meta">
               {activeReviewsError ? activeReviewsError : 'Published reviews'}

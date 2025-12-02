@@ -143,6 +143,21 @@ export const apiPut = async (
 };
 
 /**
+ * Helper for PATCH requests (CSRF protected)
+ */
+export const apiPatch = async (
+  url: string,
+  data?: any,
+  options: RequestInit = {}
+): Promise<Response> => {
+  return apiFetch(url, {
+    ...options,
+    method: 'PATCH',
+    body: data ? JSON.stringify(data) : undefined,
+  });
+};
+
+/**
  * Helper for DELETE requests (CSRF protected)
  */
 export const apiDelete = async (url: string, options: RequestInit = {}): Promise<Response> => {

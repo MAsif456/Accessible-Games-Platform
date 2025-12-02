@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Review from '../models/review';
 import User from '../models/user';
 import Game from '../models/game';
+import { createNotification } from '../services/notificationService';
 
 type AuthedRequest = Request & {
   user?: {
@@ -21,19 +22,19 @@ export const listReviews = async (req: Request, res: Response) => {
 
     const reviews = await Review.find({ gameId: id }).sort({ createdAt: -1 }).lean();
 
-    // Backfill author names for any legacy reviews that were stored as "Anonymous" or blank.
-    const missingNameUserIds = Array.from(
+    // Get all unique user IDs from reviews
+    const allUserIds = Array.from(
       new Set(
         reviews
-          .filter(r => !r.authorName?.trim() || r.authorName.toLowerCase() === 'anonymous')
           .map(r => r.userId?.toString())
           .filter(Boolean) as string[]
       )
     );
 
+    // Fetch all users from database to get their actual names
     let userNameMap: Record<string, string> = {};
-    if (missingNameUserIds.length) {
-      const users = await User.find({ _id: { $in: missingNameUserIds } })
+    if (allUserIds.length > 0) {
+      const users = await User.find({ _id: { $in: allUserIds } })
         .select('name email')
         .lean();
 
@@ -47,14 +48,15 @@ export const listReviews = async (req: Request, res: Response) => {
       }, {} as Record<string, string>);
     }
 
+    // Always use the name from the database, overriding any stored authorName
     const hydrated = reviews.map(review => {
-      if (!review.authorName?.trim() || review.authorName.toLowerCase() === 'anonymous') {
-        const resolved = userNameMap[review.userId?.toString()];
-        if (resolved) {
-          return { ...review, authorName: resolved };
-        }
-      }
-      return review;
+      const userIdStr = review.userId?.toString();
+      const dbAuthorName = userIdStr ? userNameMap[userIdStr] : null;
+      
+      // Use database name if available, otherwise keep existing authorName, fallback to Anonymous
+      const finalAuthorName = dbAuthorName || review.authorName?.trim() || 'Anonymous';
+      
+      return { ...review, authorName: finalAuthorName };
     });
 
     res.json(hydrated);
@@ -87,9 +89,19 @@ export const createReview = async (req: AuthedRequest, res: Response) => {
 
     const trimmedBody = body.trim();
 
-    // Prefer a meaningful author display name from the user model, only falling back
-    // to 'Anonymous' if there is genuinely no name or email available.
-    const authorName = user.name?.trim() || user.email?.trim() || 'Anonymous';
+    // Fetch the actual user from the database to get their name
+    const dbUser = await User.findById(user.id).select('name email').lean();
+    if (!dbUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get author name from database, fallback to email, then Anonymous
+    const authorName = (dbUser as any).name?.trim() || (dbUser as any).email?.trim() || 'Anonymous';
+
+    // Fetch game details for notification
+    const game = await Game.findById(gameId).select('title slug').lean();
+    const gameTitle = (game as any)?.title || 'the game';
+    const gameSlug = (game as any)?.slug;
 
     const review = await Review.create({
       gameId,
@@ -98,6 +110,28 @@ export const createReview = async (req: AuthedRequest, res: Response) => {
       body: trimmedBody,
       likes: 0,
     });
+
+    // Create notification for the user confirming their review was created
+    try {
+      await createNotification(
+        user.id,
+        'review_created',
+        'Review Posted Successfully',
+        `Your review for "${gameTitle}" has been posted successfully.`,
+        {
+          reviewId: review._id.toString(),
+          gameId: gameId,
+          metadata: {
+            reviewContent: trimmedBody.substring(0, 100),
+            gameTitle,
+            gameSlug,
+          },
+        }
+      );
+    } catch (notifError) {
+      // Don't fail review creation if notification creation fails
+      console.error('Error creating notification for review creation', notifError);
+    }
 
     return res.status(201).json(review);
   } catch (error) {
@@ -118,6 +152,17 @@ export const getReviewById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Review not found' });
     }
 
+    // Fetch the user from database to get their actual name
+    let authorName = 'Anonymous';
+    if (review.userId) {
+      const user = await User.findById(review.userId).select('name email').lean();
+      if (user) {
+        const name = (user as any).name?.trim();
+        const email = (user as any).email?.trim();
+        authorName = name || email || 'Anonymous';
+      }
+    }
+
     // Fetching the associated game so the reporting UI can show full context
     const game = await Game.findById(review.gameId).lean();
     if (!game) {
@@ -128,7 +173,7 @@ export const getReviewById = async (req: Request, res: Response) => {
       game,
       review: {
         id: (review as any).publicId || review._id.toString(),
-        author: review.authorName,
+        author: authorName,
         createdAt: review.createdAt,
         content: review.body,
       },
@@ -234,6 +279,14 @@ export const adminListReviews = async (req: Request, res: Response) => {
       },
       { $unwind: '$game' },
       {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
         $addFields: {
           friendlyId: {
             $ifNull: [
@@ -242,6 +295,20 @@ export const adminListReviews = async (req: Request, res: Response) => {
                 $concat: ['rev_', { $substrCP: [{ $toString: '$_id' }, 0, 8] }],
               },
             ],
+          },
+          // Get author name from user document, fallback to stored authorName, then Anonymous
+          authorName: {
+            $ifNull: [
+              { $arrayElemAt: ['$user.name', 0] },
+              {
+                $ifNull: [
+                  { $arrayElemAt: ['$user.email', 0] },
+                  {
+                    $ifNull: ['$authorName', 'Anonymous']
+                  }
+                ]
+              }
+            ]
           },
         },
       },
@@ -308,16 +375,86 @@ export const adminListReviews = async (req: Request, res: Response) => {
 export const adminDeleteReview = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { reason } = (req.body as { reason?: string }) || {};
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'Invalid review ID' });
     }
 
-    const review = await Review.findById(id);
+    const review = await Review.findById(id).populate('gameId', 'title slug').lean();
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
 
-    await review.deleteOne();
+    // Extract userId - handle both ObjectId and string formats
+    let reviewUserId: string | null = null;
+    if (review.userId) {
+      if (typeof review.userId === 'string') {
+        reviewUserId = review.userId;
+      } else if (review.userId instanceof mongoose.Types.ObjectId) {
+        reviewUserId = review.userId.toString();
+      } else if ((review.userId as any).toString) {
+        reviewUserId = (review.userId as any).toString();
+      }
+    }
+
+    const reviewContent = review.body?.substring(0, 100) || 'your review';
+    const gameTitle = (review.gameId as any)?.title || 'the game';
+    const gameSlug = (review.gameId as any)?.slug;
+    let gameId: string | null = null;
+    if (review.gameId) {
+      if (typeof review.gameId === 'string') {
+        gameId = review.gameId;
+      } else if (review.gameId instanceof mongoose.Types.ObjectId) {
+        gameId = review.gameId.toString();
+      } else if ((review.gameId as any).toString) {
+        gameId = (review.gameId as any).toString();
+      }
+    }
+
+    // Create notification for the review author BEFORE deleting
+    // This ensures we have all the data we need
+    if (reviewUserId) {
+      try {
+        await createNotification(
+          reviewUserId,
+          'review_deleted',
+          'Your Review Has Been Deleted',
+          `Your review for "${gameTitle}" has been deleted by an administrator.${reason ? ` Reason: ${reason}` : ''}`,
+          {
+            reviewId: id,
+            gameId: gameId ? new mongoose.Types.ObjectId(gameId) : undefined,
+            metadata: {
+              reviewContent,
+              deletionReason: reason || undefined,
+              adminName: 'Administrator',
+              gameTitle,
+              gameSlug,
+            },
+          }
+        );
+        console.log(`[adminDeleteReview] Notification created successfully: userId=${reviewUserId}, reviewId=${id}, gameTitle=${gameTitle}`);
+      } catch (notifError) {
+        // Log the error but don't fail the deletion
+        console.error('[adminDeleteReview] Error creating notification:', notifError);
+        console.error('[adminDeleteReview] Error details:', {
+          reviewUserId,
+          reviewId: id,
+          gameId,
+          error: notifError instanceof Error ? notifError.message : String(notifError),
+        });
+      }
+    } else {
+      console.warn(`[adminDeleteReview] No userId found for review ${id}, skipping notification creation`);
+      console.warn(`[adminDeleteReview] Review data:`, { 
+        reviewId: id, 
+        userId: review.userId, 
+        userIdType: typeof review.userId 
+      });
+    }
+
+    // Delete the review after notification is created
+    await Review.findByIdAndDelete(id);
+
     return res.status(204).send();
   } catch (error) {
     console.error('Error deleting review (admin)', error);
