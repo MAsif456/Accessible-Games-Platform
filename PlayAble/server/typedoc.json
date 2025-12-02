@@ -1,0 +1,58 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./src"],
+  "entryPointStrategy": "expand",
+  "out": "../docs/server",
+  "exclude": [
+    "**/node_modules/**",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/dist/**"
+  ],
+  "plugin": [],
+  "name": "PlayAble Server API Documentation",
+  "includeVersion": true,
+  "readme": "none",
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Authentication",
+    "Security",
+    "Controllers",
+    "Middleware",
+    "Services",
+    "Models",
+    "Routes",
+    "Repositories",
+    "Utilities",
+    "*"
+  ],
+  "sort": ["source-order", "required-first", "alphabetical"],
+  "visibilityFilters": {
+    "protected": false,
+    "private": false,
+    "inherited": true,
+    "external": false
+  },
+  "searchInComments": true,
+  "searchInDocuments": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "treatWarningsAsErrors": false,
+  "intentionallyNotExported": [],
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "excludeExternals": true,
+  "excludeInternal": false,
+  "hideGenerator": false,
+  "githubPages": false,
+  "lightHighlightTheme": "light-plus",
+  "darkHighlightTheme": "dark-plus"
+}

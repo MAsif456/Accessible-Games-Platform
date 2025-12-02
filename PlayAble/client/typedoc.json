@@ -1,0 +1,64 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./src"],
+  "entryPointStrategy": "expand",
+  "out": "../docs/client",
+  "exclude": [
+    "**/node_modules/**",
+    "**/__tests__/**",
+    "**/*.test.tsx",
+    "**/*.test.ts",
+    "**/tests/**",
+    "**/setupTests.ts",
+    "**/vite-env.d.ts"
+  ],
+  "plugin": [],
+  "name": "PlayAble Client Documentation",
+  "includeVersion": true,
+  "readme": "none",
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Pages",
+    "Components",
+    "Context",
+    "Hooks",
+    "Services",
+    "Utilities",
+    "Navigation",
+    "Accessibility",
+    "*"
+  ],
+  "sort": ["source-order", "required-first", "alphabetical"],
+  "visibilityFilters": {
+    "protected": false,
+    "private": false,
+    "inherited": true,
+    "external": false
+  },
+  "searchInComments": true,
+  "searchInDocuments": true,
+  "validation": {
+    "notExported": false,
+    "invalidLink": false,
+    "notDocumented": false
+  },
+  "treatWarningsAsErrors": false,
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "intentionallyNotExported": [],
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "excludeExternals": true,
+  "excludeInternal": false,
+  "hideGenerator": false,
+  "githubPages": false,
+  "lightHighlightTheme": "light-plus",
+  "darkHighlightTheme": "dark-plus"
+}

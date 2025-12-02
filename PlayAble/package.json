@@ -1,4 +1,14 @@
 {
+  "name": "playable-workspace",
+  "private": true,
+  "scripts": {
+    "docs": "npm run docs:clean && npm run docs:server && npm run docs:client && npm run docs:index",
+    "docs:clean": "node -e \"const fs=require('fs'); if(fs.existsSync('./docs')) fs.rmSync('./docs',{recursive:true})\"",
+    "docs:server": "cd server && npm run docs",
+    "docs:client": "cd client && npm run docs",
+    "docs:index": "node scripts/generate-docs-index.js",
+    "test": "cd server && npm test && cd ../client && npm test"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",

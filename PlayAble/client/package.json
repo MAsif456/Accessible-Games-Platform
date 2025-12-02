@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "jest --config jest.config.cjs",
     "test:watch": "jest --watch",
-    "docs": "jsdoc -c jsdoc.json",
+    "docs": "typedoc",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -39,6 +39,7 @@
     "prettier": "^3.6.2",
     "react-router-dom": "^7.9.6",
     "ts-jest": "^29.4.5",
+    "typedoc": "^0.28.15",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
     "whatwg-fetch": "^3.6.20"
