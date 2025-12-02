@@ -6,9 +6,10 @@ import Modal from '../components/ui/Modal';
 
 interface FavouritesPageProps {
   onNavigate?: (path: string) => void;
+  onGameClick?: (gameId: string) => void;
 }
 
-const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate }) => {
+const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate, onGameClick }) => {
   const { favourites, isLoading, fetchFavourites, removeFavourite, total, page, pageSize } =
     useFavourites();
   const [gameIdToRemove, setGameIdToRemove] = useState<string | null>(null);
@@ -92,8 +93,8 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate }) => {
                 <GameCard
                   key={game.id}
                   game={game as any}
-                  onClick={() => {}}
-                  favouriteLabel="Remove Favourite"
+                  onClick={() => onGameClick?.(game.id)}
+                  favouriteLabel="Remove favourite"
                   onFavouriteClick={openConfirm}
                   isFavourite
                 />

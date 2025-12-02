@@ -1,11 +1,12 @@
-// emailService.ts
-// Provides a single point for sending emails via Gmail using Nodemailer.
-// This service is used for password resets and other user notifications.
-// Credentials are loaded from environment variables for security.
+/**
+ * Email Service - Provides email sending functionality via Gmail SMTP using Nodemailer.
+ */
 import nodemailer from "nodemailer";
 
-export const sendEmail = async (to: string, subject: string, text: string) => {
-  // Using Gmail's SMTP service for reliable delivery.
+/**
+ * Sends an email via Gmail SMTP.
+ */
+export const sendEmail = async (to: string, subject: string, text: string): Promise<void> => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {

@@ -14,13 +14,18 @@ import {
   updateEmailAndPassword,
 } from '../controllers/authController';
 import { protect } from '../middleware/auth';
+import {
+  loginLimiter,
+  signupLimiter,
+  passwordResetLimiter
+} from '../src/middleware/rateLimiting';
 
 const router = express.Router();
 
-// Public routes
-router.post('/signup', signup);
-router.post('/login', login);
-router.post('/request-password-reset', requestPasswordReset);
+// Public routes with rate limiting
+router.post('/login', loginLimiter, login);
+router.post('/signup', signupLimiter, signup);
+router.post('/request-password-reset', passwordResetLimiter, requestPasswordReset);
 router.post('/reset-password', resetPassword);
 
 // Protected routes

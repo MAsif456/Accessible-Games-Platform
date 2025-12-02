@@ -5,7 +5,7 @@ export interface AccessibilitySection {
   tags: string[];
 }
 
-export type HighContrastThemeId = 'classic' | 'dusk' | 'pastel' | 'bold';
+export type HighContrastThemeId = 'classic' | 'dusk' | 'pastel' | 'bold' | 'sunset';
 
 export interface HighContrastTheme {
   id: HighContrastThemeId;
@@ -26,6 +26,12 @@ export const HIGH_CONTRAST_THEMES: HighContrastTheme[] = [
     name: 'Dusk',
     description: 'Dark navy base with soft yellow accents.',
     swatches: ['#0f172a', '#fbbf24', '#1e293b', '#fef9c3'],
+  },
+  {
+    id: 'sunset',
+    name: 'Sunset Ember',
+    description: 'Warm orange accents on dark charcoal.',
+    swatches: ['#111827', '#f97316', '#0f172a', '#fde68a'],
   },
   {
     id: 'pastel',

@@ -21,6 +21,7 @@ const NavbarAccountMenu: React.FC<AccountMenuProps> = ({
         className="navbar__nav-button navbar__nav-button--profile"
         aria-haspopup="menu"
         aria-expanded={isOpen}
+        aria-label="My Account"
         onClick={onToggle}
       >
         <span className="navbar__nav-icon navbar__nav-icon--user" aria-hidden="true" />

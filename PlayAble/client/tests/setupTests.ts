@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import 'whatwg-fetch';
 import { TextEncoder, TextDecoder } from 'util';
 
 if (!(global as any).TextEncoder) {
@@ -51,15 +52,13 @@ const sampleReviews = [
   },
 ];
 
-const defaultFetch = (global.fetch ||
-  ((jest.fn(() =>
-    Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({}),
-    })
-  )) as any)) as jest.Mock;
+const defaultFetch = (input?: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({}),
+  } as Response);
 
-global.fetch = jest.fn((input: RequestInfo | URL) => {
+global.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.toString();
 
   if (url.startsWith('/api/games')) {
@@ -90,5 +89,33 @@ global.fetch = jest.fn((input: RequestInfo | URL) => {
     } as Response);
   }
 
-  return defaultFetch(input);
-});
+  if (url.includes('/api/settings')) {
+    return Promise.resolve({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          voiceInput: true,
+          captions: true,
+          microphoneActive: true,
+          highContrastMode: false,
+          highContrastTheme: 'tidepool',
+          reducedMotion: false,
+          darkMode: false,
+        }),
+    } as Response);
+  }
+
+  return defaultFetch(input as any, init as any);
+};
+
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'scrollTo', {
+    value: jest.fn(),
+    writable: true,
+  });
+
+  Object.defineProperty(window, 'alert', {
+    value: jest.fn(),
+    writable: true,
+  });
+}

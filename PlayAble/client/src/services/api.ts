@@ -1,3 +1,5 @@
+import { apiPost, apiDelete } from '../utils/apiHelper';
+
 export interface GetGamesParams {
   page?: number;
   pageSize?: number;
@@ -29,9 +31,12 @@ export interface PaginatedGamesResponse {
   totalPages: number;
 }
 
+// Single canonical ReviewDto used by reviews feature
 export interface ReviewDto {
   _id: string;
   publicId?: string;
+  gameSlug?: string;
+  gameTitle?: string;
   gameId: string;
   userId: string;
   authorName: string;
@@ -64,26 +69,60 @@ const FALLBACK_GAMES: GameDto[] = [
   },
 ];
 
-const FALLBACK_REVIEWS: ReviewDto[] = [
-  {
-    _id: 'fallback-review-1',
-    publicId: 'REV-FALLBACK',
-    gameId: 'fallback-1',
-    userId: 'fallback-user-1',
-    authorName: 'Offline Tester',
-    body: 'This review is shown when the API cannot be reached.',
-    likes: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+const FALLBACK_REVIEWS: ReviewDto[] = [];
+
+// --- Recently Viewed ---
+export interface RecentlyViewedEntry {
+  gameId: string;
+  viewedAt: string;
+}
+
+export interface RecentlyViewedResponse {
+  games: GameDto[];
+  total: number;
+  showing: string;
+}
+
+// --- Reporting / cached game helpers ---
+export interface ReportReviewDto {
+  id: string;
+  author: string;
+  createdAt: string;
+  content: string;
+}
+
+export interface ReviewWithGameResponse {
+  game: GameDto;
+  review: ReportReviewDto;
+}
+
+// In-memory cache for games to speed up back/forward navigation
+const gameCache = new Map<string, GameDto>();
+
+function cacheGame(game: GameDto) {
+  gameCache.set(game.id, game);
+  if (game._id) {
+    gameCache.set(game._id, game);
+  }
+}
+
+function findCachedGame(gameId: string): GameDto | undefined {
+  const direct = gameCache.get(gameId);
+  if (direct) return direct;
+
+  for (const cached of gameCache.values()) {
+    if (cached.id === gameId || cached._id === gameId) {
+      return cached;
+    }
+  }
+  return undefined;
+}
 
 export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGamesResponse> {
   const query = new URLSearchParams();
 
   if (params.page) query.set('page', String(params.page));
   if (params.pageSize) query.set('pageSize', String(params.pageSize));
-
 
   if (params.search && params.search.trim()) {
     query.set('search', params.search.trim());
@@ -93,21 +132,22 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
   if (params.tags && params.tags.length) query.set('tags', params.tags.join(','));
   if (params.sort) query.set('sort', params.sort);
 
-  const res = await fetch(`/api/games?${query.toString()}`);
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch games: ${res.status}`);
-  }
-
   try {
+    const res = await fetch(`/api/games?${query.toString()}`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch games: ${res.status}`);
+    }
+
     const data: PaginatedGamesResponse = await res.json();
     if (Array.isArray(data?.games) && data.games.length) {
+      data.games.forEach(cacheGame);
       return data;
     }
-  } catch {
-    // Swallow parsing errors and fall through to fallback payload.
+  } catch (error) {
+    console.error('Failed to fetch games, falling back to offline data.', error);
   }
 
+  FALLBACK_GAMES.forEach(cacheGame);
   return {
     games: FALLBACK_GAMES,
     currentPage: 1,
@@ -117,7 +157,50 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
   };
 }
 
-function getAuthHeaders(): Record<string, string> {
+export async function getGameById(gameId: string): Promise<GameDto> {
+  const cached = findCachedGame(gameId);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const byIdRes = await fetch(`/api/games/${encodeURIComponent(gameId)}`);
+    if (byIdRes.ok) {
+      const game = (await byIdRes.json()) as GameDto;
+      cacheGame(game);
+      return game;
+    }
+  } catch {
+    // fall through to list fetch
+  }
+
+  const list = await getGames({ page: 1, pageSize: 200 });
+  const match = list.games.find(g => g.id === gameId || g._id === gameId);
+  if (!match) {
+    throw new Error('Game not found');
+  }
+  cacheGame(match);
+  return match;
+}
+
+export function getCachedGame(gameId: string): GameDto | undefined {
+  return findCachedGame(gameId);
+}
+
+// Fetch a single review by ID, along with its game context, for the reporting page
+export async function getReviewById(reviewId: string): Promise<ReviewWithGameResponse> {
+  const res = await fetch(`/api/reviews/${encodeURIComponent(reviewId)}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch review: ${res.status}`);
+  }
+
+  // Expect backend to return { game, review } where review has fields matching ReportReviewDto
+  const data = await res.json();
+  return data as ReviewWithGameResponse;
+}
+
+// ----- Reviews API used by GameDetailsPage -----
+export function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -129,7 +212,7 @@ export async function getReviews(gameId: string): Promise<ReviewDto[]> {
   }
   try {
     const data = await res.json();
-    return Array.isArray(data) && data.length ? data : FALLBACK_REVIEWS;
+    return Array.isArray(data) ? data : FALLBACK_REVIEWS;
   } catch {
     return FALLBACK_REVIEWS;
   }
@@ -146,53 +229,46 @@ export async function getReviewStats(): Promise<ReviewStatsDto> {
   return res.json();
 }
 
-export async function getReviewById(reviewId: string): Promise<ReviewDto> {
-  const res = await fetch(`/api/reviews/${reviewId}`);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch review: ${res.status}`);
-  }
-  return res.json();
-}
-
 export async function postReview(
   gameId: string,
   body: string,
   authorName?: string
 ): Promise<ReviewDto> {
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...getAuthHeaders(),
   };
 
-  const res = await fetch(`/api/games/${gameId}/reviews`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
+  const res = await apiPost(
+    `/api/games/${gameId}/reviews`,
+    {
       body,
-      // Include authorName so the backend can persist the reviewer display name for all viewers
       ...(authorName ? { authorName } : {}),
-    }),
-  });
+    },
+    { headers }
+  );
+
   if (!res.ok) {
     throw new Error(`Failed to post review: ${res.status}`);
   }
+
   return res.json();
 }
 
 export async function toggleReviewLike(reviewId: string, liked: boolean): Promise<ReviewDto> {
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...getAuthHeaders(),
   };
 
-  const res = await fetch(`/api/reviews/${reviewId}/like`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ liked }),
-  });
+  const res = await apiPost(
+    `/api/reviews/${reviewId}/like`,
+    { liked },
+    { headers }
+  );
+
   if (!res.ok) {
     throw new Error(`Failed to toggle like: ${res.status}`);
   }
+
   return res.json();
 }
 
@@ -202,15 +278,15 @@ export async function reportReview(
   voiceTranscript?: string
 ): Promise<void> {
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...getAuthHeaders(),
   };
 
-  const res = await fetch(`/api/reviews/${reviewId}/report`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ reasonText, voiceTranscript }),
-  });
+  const res = await apiPost(
+    `/api/reviews/${reviewId}/report`,
+    { reasonText, voiceTranscript },
+    { headers }
+  );
+
   if (!res.ok) {
     throw new Error(`Failed to submit report: ${res.status}`);
   }
@@ -218,14 +294,10 @@ export async function reportReview(
 
 export async function deleteReview(reviewId: string): Promise<void> {
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...getAuthHeaders(),
   };
 
-  const response = await fetch(`/api/reviews/${reviewId}`, {
-    method: 'DELETE',
-    headers,
-  });
+  const response = await apiDelete(`/api/reviews/${reviewId}`, { headers });
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
@@ -233,10 +305,6 @@ export async function deleteReview(reviewId: string): Promise<void> {
   }
 }
 
-/**
- * Fetch the display name for a given user. Returns null if unavailable.
- * This helps fill in missing author names on reviews for all viewers.
- */
 export async function getUserDisplayName(userId: string): Promise<string | null> {
   const headers: HeadersInit = {
     ...getAuthHeaders(),
@@ -250,10 +318,40 @@ export async function getUserDisplayName(userId: string): Promise<string | null>
   const data = await res.json().catch(() => null);
   if (!data) return null;
 
-  // Support common response shapes { name } or { fullName } or nested { user: { name } }
   const topLevelName = (data.name || data.fullName || data.username) as string | undefined;
   const nestedName =
     (data.user?.name || data.user?.fullName || data.user?.username) as string | undefined;
 
   return topLevelName?.trim() || nestedName?.trim() || null;
+}
+
+export async function addToRecentlyViewed(gameId: string): Promise<void> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+  const res = await apiPost(`/api/recently-viewed/${gameId}`, undefined, { headers });
+  if (!res.ok) {
+    throw new Error(`Failed to add to recently viewed: ${res.status}`);
+  }
+}
+
+export async function getRecentlyViewed(): Promise<RecentlyViewedResponse> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+  const res = await fetch('/api/recently-viewed', { headers });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch recently viewed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function clearRecentlyViewed(): Promise<void> {
+  const headers: HeadersInit = {
+    ...getAuthHeaders(),
+  };
+  const res = await apiDelete('/api/recently-viewed', { headers });
+  if (!res.ok) {
+    throw new Error(`Failed to clear recently viewed: ${res.status}`);
+  }
 }

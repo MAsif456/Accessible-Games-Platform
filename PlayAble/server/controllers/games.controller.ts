@@ -1,5 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import { getPaginatedGames } from '../services/games.service';
+import {
+  getPaginatedGames,
+  getAllGamesForAdmin,
+  getGameById,
+  createGame,
+  updateGame,
+  deleteGame,
+} from '../services/games.service';
 import { parseGamesQuery } from '../utils/validate';
 import { IGame } from '../src/models';
 
@@ -25,7 +32,9 @@ function normalizeSpecificAccessibilityTags(
   return Object.keys(normalized).length ? normalized : null;
 }
 
-// Adapter/DTO to shape the Game document for API responses
+/**
+ * Converts a Game model document to a clean DTO for API responses.
+ */
 function toGameDto(game: IGame & { createdAt?: Date; updatedAt?: Date }) {
   return {
     id: (game as any)._id?.toString?.() ?? undefined,
@@ -44,6 +53,9 @@ function toGameDto(game: IGame & { createdAt?: Date; updatedAt?: Date }) {
   };
 }
 
+/**
+ * HTTP handler for retrieving paginated games with filtering and sorting.
+ */
 export async function getGamesHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const parsed = parseGamesQuery(req.query);
@@ -56,6 +68,97 @@ export async function getGamesHandler(req: Request, res: Response, next: NextFun
       totalResults: result.totalResults,
       totalPages: result.totalPages,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * HTTP handler for retrieving all games for admin management.
+ */
+export async function getAdminGamesHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const games = await getAllGamesForAdmin();
+    return res.json({ games: games.map(toGameDto) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * HTTP handler for retrieving a single game by ID.
+ */
+export async function getGameByIdHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const game = await getGameById(req.params.id);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+    return res.json({ game: toGameDto(game as any) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * HTTP handler for creating a new game.
+ */
+export async function createGameHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const {
+      slug,
+      title,
+      studio,
+      description,
+      thumbnailUrl,
+      genres,
+      accessibilityTags,
+      releaseYear,
+      isPublished,
+    } = req.body;
+
+    const game = await createGame({
+      slug,
+      title,
+      studio,
+      description,
+      thumbnailUrl,
+      genres,
+      accessibilityTags,
+      releaseYear,
+      isPublished,
+    });
+
+    return res.status(201).json({ game: toGameDto(game as any) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * HTTP handler for updating an existing game.
+ */
+export async function updateGameHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = req.params.id;
+    const game = await updateGame(id, req.body);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+    return res.json({ game: toGameDto(game as any) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * HTTP handler for deleting a game.
+ */
+export async function deleteGameHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = req.params.id;
+    await deleteGame(id);
+    return res.status(204).send();
   } catch (err) {
     next(err);
   }

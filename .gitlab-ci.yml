@@ -1,0 +1,42 @@
+stages:
+  - test
+  - build
+  - mirror
+
+variables:
+  NODE_ENV: test
+  CI: "true"
+
+cache:
+  paths:
+    - node_modules/
+
+test_backend:
+  stage: test
+  image: node:18
+  script:
+    - cd PlayAble/server
+    - npm install
+    - npm test
+  only:
+    - main
+    - merge_requests
+
+test_frontend:
+  stage: test
+  image: node:18
+  script:
+    - cd PlayAble/client
+    - npm install
+    - npm run build
+  only:
+    - main
+    - merge_requests
+
+# 🟢 This step triggers GitHub mirroring
+trigger_mirror:
+  stage: mirror
+  script:
+    - echo "GitLab mirroring will push to GitHub automatically."
+  only:
+    - main

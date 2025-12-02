@@ -61,8 +61,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const loadUserSettings = async (userId: string) => {
     try {
       const loaded = await settingsApi.getSettings(userId);
-      setUserSettings(loaded);
-      applyAccessibilityPreferences(loaded);
+      if (loaded) {
+        setUserSettings(loaded);
+        applyAccessibilityPreferences(loaded);
+      }
     } catch (error) {
       console.error('Failed to load accessibility settings:', error);
     }
@@ -79,9 +81,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     applyAccessibilityPreferences(settings);
   };
 
-  // Initialises authentication by checking for stored user and verifying token validity.
   useEffect(() => {
-    const initAuth = async () => {
+    const initialiseAuth = async () => {
       try {
         const storedUser = authService.getStoredUser();
         const token = authService.getToken();
@@ -114,7 +115,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
 
-    initAuth();
+    initialiseAuth();
   }, []);
 
   const signup = async (data: SignupData): Promise<AuthResponse> => {
@@ -181,3 +182,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+export default AuthContext;

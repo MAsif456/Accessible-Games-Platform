@@ -8,32 +8,110 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import path from 'path';
-import './models/user';
-import GameModel, { seedGamesIfEmpty, syncSpecificAccessibilityTags } from './models/game';
+import { seedAdminUserIfNotExists } from './models/user';
+import { seedGamesIfEmpty, syncSpecificAccessibilityTags } from './models/game';
 import { ensureReviewPublicIds } from './models/review';
 import gamesRouter from '../routes/games.routes';
 import authRoutes from '../routes/authRoutes';
 import './models/settings';
 import UserSettings from './models/settings';
 import favouritesRoutes from './routes/favourites.routes';
+import reportsRoutes from './routes/reports.routes';
 import reviewsRoutes from './routes/reviews.routes';
 import reviewReportsRoutes from './routes/reviewReports.routes';
+import recentlyViewedRoutes from './routes/recentlyViewed.routes';
+import adminGeneralReportsRoutes from './routes/adminGeneralReports.routes';
+import adminGameReportsRoutes from './routes/adminGameReports.routes';
+
+// Import security middleware
+import cookieParser from 'cookie-parser';
+import {
+  securityHeadersMiddleware,
+  customSecurityHeaders,
+  corsSecurityMiddleware,
+  securityLoggingMiddleware,
+  validateSecurityHeaders,
+  cspViolationReportHandler
+} from './middleware/securityHeaders';
+import {
+  csrfProtection,
+  generateCsrfToken,
+  csrfErrorHandler,
+  csrfDevBypass
+} from './middleware/csrfProtection';
+import { adminApiLimiter, generalApiLimiter } from './middleware/rateLimiting';
 
 dotenv.config();
 
 const app: Express = express();
-app.use(
-  cors({
-    origin: "https://playable-frontend.onrender.com",
-    credentials: true,
-  })
-);
 const PORT = process.env.PORT || 5001;
 
-// Enable CORS for cross-origin requests from the frontend (Vite dev server).
-app.use(cors());
+// ============================================================================
+// SECURITY MIDDLEWARE (Applied first for maximum protection)
+// ============================================================================
+
+// Apply Helmet security headers (CSP, HSTS, X-Frame-Options, etc.)
+app.use(securityHeadersMiddleware);
+
+// Apply custom security headers
+app.use(customSecurityHeaders);
+
+// Security logging for monitoring suspicious activity
+app.use(securityLoggingMiddleware);
+
+// Validate security headers in development mode
+if (process.env.NODE_ENV === 'development') {
+  app.use(validateSecurityHeaders);
+}
+
+// ============================================================================
+// STANDARD MIDDLEWARE
+// ============================================================================
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-User-Id', 'x-user-id'],
+}));
+
+// Enhanced CORS security checks
+app.use(corsSecurityMiddleware);
+
+// Cookie parser middleware (required for secure cookie handling and CSRF)
+app.use(cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-change-this'));
+
+// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ============================================================================
+// RATE LIMITING (Applied early to protect all endpoints)
+// ============================================================================
+
+// Apply rate limiting (admin endpoints get their own generous bucket)
+app.use('/api/admin', adminApiLimiter);
+app.use('/api', generalApiLimiter);
+
+// ============================================================================
+// CSRF PROTECTION (Applied before routes for state-changing requests)
+// ============================================================================
+
+// CSRF token endpoint - Frontend requests this to get a CSRF token
+// Must be BEFORE csrfProtection middleware to avoid chicken-and-egg problem
+app.get('/api/csrf-token', (req: Request, res: Response) => {
+  const token = generateCsrfToken(req, res);
+  res.json({ csrfToken: token });
+});
+
+// Development bypass (optional - allows development without CSRF tokens)
+if (process.env.CSRF_DEV_BYPASS === 'true') {
+  console.log('[DEV] CSRF protection bypassed - development mode');
+} else {
+  // Apply CSRF protection to all state-changing requests (POST, PUT, PATCH, DELETE)
+  // GET requests are automatically excluded as they should be safe/idempotent
+  app.use(csrfProtection);
+}
 
 // Serve static images
 app.use('/images', express.static(path.join(__dirname, '../public/images')));
@@ -45,11 +123,10 @@ mongoose
   .connect(MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
-
-    // Seed games collection from JSON if empty
     await seedGamesIfEmpty();
     await syncSpecificAccessibilityTags();
     await ensureReviewPublicIds();
+    await seedAdminUserIfNotExists();
   })
   .catch(error => {
     console.error('MongoDB connection error:', error);
@@ -60,12 +137,20 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
+// CSP Violation Report endpoint
+// Receives reports from browsers when Content Security Policy is violated
+app.post('/api/csp-violation-report', cspViolationReportHandler);
+
 // Games API routes
 app.use('/api', gamesRouter);
 app.use('/api/auth', authRoutes);
 app.use('/api/favourites', favouritesRoutes);
+app.use(reportsRoutes);
 app.use('/api', reviewsRoutes);
 app.use('/api', reviewReportsRoutes);
+app.use('/api', recentlyViewedRoutes);
+app.use('/api/admin/general-reports', adminGeneralReportsRoutes);
+app.use('/api/admin/game-reports', adminGameReportsRoutes);
 
 // Fix syntax error in `pickFirstString` function
 const pickFirstString = (value: unknown): string | undefined => {
@@ -206,13 +291,17 @@ app.post('/api/settings/reset', async (req: Request, res: Response) => {
   }
 });
 
-// Main authentication and user account routes.
-app.use('/api/auth', authRoutes);
-
 // 404 handler for unknown API routes. Ensures all errors are returned as JSON for frontend consistency.
 app.use('/api/*', (req, res) => {
   res.status(404).json({ success: false, message: 'API route not found' });
 });
+
+// ============================================================================
+// ERROR HANDLERS (Applied last to catch all errors)
+// ============================================================================
+
+// CSRF error handler - Must be before global error handler
+app.use(csrfErrorHandler);
 
 // Global error handler for catching unexpected errors and returning a standard JSON response.
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

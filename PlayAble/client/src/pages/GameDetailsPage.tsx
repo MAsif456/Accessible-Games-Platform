@@ -1,18 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GameDto,
-  getGames,
+  getCachedGame,
+  getGameById,
   getReviews,
   getUserDisplayName,
   postReview,
   ReviewDto,
   toggleReviewLike,
   deleteReview,
+  addToRecentlyViewed,
 } from '../services/api';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useFavouritesNav } from '../context/FavouritesContext';
 import type { AppPath } from '../App';
 import { buildAccessibilitySections } from '../utils/accessibility';
+import { useVoiceRecording } from '../hooks/useVoiceRecording';
+import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 
 const BASE_REVIEW_COUNT = 2;
 const LOAD_MORE_REVIEWS_STEP = 5;
@@ -21,13 +26,8 @@ interface GameDetailsPageProps {
   gameId: string;
   onBack: () => void;
   onNavigate?: (path: AppPath) => void;
-}
-
-// Simple model fetch using existing getGames API (no new backend needed)
-async function fetchGameById(gameId: string): Promise<GameDto | null> {
-  const pageSize = 100;
-  const data = await getGames({ page: 1, pageSize });
-  return data.games.find(g => g.id === gameId) ?? null;
+  onOpenGameReport?: (gameId: string) => void;
+  onOpenReviewReport?: (reviewId: string, gameId: string) => void;
 }
 
 interface ExternalTarget {
@@ -39,8 +39,11 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   gameId,
   onBack,
   onNavigate,
+  onOpenGameReport,
+  onOpenReviewReport,
 }) => {
   const { user, isAuthenticated } = useAuth();
+  const { toggleFavourite, isFavourite } = useFavouritesNav();
 
   const [game, setGame] = useState<GameDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,21 +58,93 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   const [reviewerNames, setReviewerNames] = useState<Record<string, string>>({});
   const [visibleReviewCount, setVisibleReviewCount] = useState(BASE_REVIEW_COUNT);
   const reviewsListRef = useRef<HTMLDivElement | null>(null);
+  const [showVoiceNavError, setShowVoiceNavError] = useState(false);
+  const baseReviewTextRef = useRef<string>(''); // Track text before recording started
+
+  const { cancelListening, forceStopRecognition, microphoneActive, voiceInputEnabled } = useVoiceAssistant();
+  const {
+    transcript: voiceTranscript,
+    isRecording: isVoiceRecording,
+    error: voiceError,
+    startRecording: startVoiceRecording,
+    stopRecording: stopVoiceRecording,
+    clearTranscript: clearVoiceTranscript,
+    hasTranscript: hasVoiceTranscript,
+  } = useVoiceRecording();
+
+  // Start voice recording - check if voice navigation is active first
+  const handleStartRecording = async () => {
+    try {
+      console.log('Starting voice recording...');
+      
+      const isVoiceNavigationActive = microphoneActive && voiceInputEnabled;
+
+      if (isVoiceNavigationActive) {
+        setShowVoiceNavError(true);
+        return;
+      }
+
+      setShowVoiceNavError(false);
+      baseReviewTextRef.current = writtenReview.trim();
+
+      if (forceStopRecognition) {
+        forceStopRecognition();
+      }
+      cancelListening();
+
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('Calling startVoiceRecording...');
+      await startVoiceRecording();
+      console.log('Voice recording started successfully');
+    } catch (error) {
+      console.error('Error starting voice recording:', error);
+      setReviewError('Failed to start voice recording. Please check your microphone permissions and try again.');
+    }
+  };
+
+  // Clear error when voice navigation is disabled
+  useEffect(() => {
+    const isVoiceNavigationActive = microphoneActive && voiceInputEnabled;
+    
+    if (!isVoiceNavigationActive) {
+      setShowVoiceNavError(false);
+    }
+  }, [microphoneActive, voiceInputEnabled]);
+
+  // Sync voice transcript to written review textarea in real-time
+  useEffect(() => {
+    if (isVoiceRecording) {
+      // Combine base text (from before recording) with current voice transcript
+      const baseText = baseReviewTextRef.current;
+      // Always update, even if transcript is empty (it will update as speech is detected)
+      const combined = baseText && voiceTranscript 
+        ? `${baseText} ${voiceTranscript}`.trim() 
+        : voiceTranscript || baseText || '';
+      setWrittenReview(combined);
+    }
+  }, [voiceTranscript, isVoiceRecording]);
 
   const minReviewLength = 10;
 
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
+    const cached = getCachedGame(gameId);
+    if (cached) {
+      setGame(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
-    fetchGameById(gameId)
+    getGameById(gameId)
       .then(result => {
         if (!isMounted) return;
         if (!result) {
           setError('Game not found.');
+        } else {
+          setGame(result);
         }
-        setGame(result);
       })
       .catch(() => {
         if (!isMounted) return;
@@ -84,6 +159,13 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
       isMounted = false;
     };
   }, [gameId]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !gameId) return;
+    addToRecentlyViewed(gameId).catch(err => {
+      console.error('Failed to track recently viewed game', err);
+    });
+  }, [gameId, isAuthenticated]);
 
   useEffect(() => {
     if (!game?.id) return;
@@ -201,23 +283,32 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   };
 
   const handlePostReview = async () => {
-    const trimmed = writtenReview.trim();
-    if (!game || trimmed.length < minReviewLength) {
-      if (trimmed.length < minReviewLength) {
-        setReviewError(`Review must be at least ${minReviewLength} characters long.`);
+    const reviewText = writtenReview.trim();
+
+    if (!game || (reviewText.length < minReviewLength && !hasVoiceTranscript)) {
+      if (reviewText.length < minReviewLength) {
+        setReviewError(`Review must be at least ${minReviewLength} characters long, or include a voice recording.`);
       }
       return;
     }
+
+    // Stop recording if still active
+    if (isVoiceRecording) {
+      stopVoiceRecording();
+    }
+
     setIsPostingReview(true);
     setReviewError(null);
     try {
-      const created = await postReview(game.id, trimmed, postingName);
+      const created = await postReview(game.id, reviewText, postingName);
       // Ensure the newly created review reflects the same postingName used in the UI, even if backend omits it
       const createdWithDisplayName: ReviewDto = {
         ...created,
         authorName: created.authorName || postingName,
       };
       setWrittenReview('');
+      baseReviewTextRef.current = '';
+      clearVoiceTranscript();
       setReviews(prev => [createdWithDisplayName, ...prev]);
     } catch (err: any) {
       console.error(err);
@@ -279,6 +370,37 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     return game.accessibilityTags?.length ?? 0;
   }, [game]);
 
+  const handleReportGame = () => {
+    if (!game) return;
+    const dbId = (game as any)._id ?? game.id;
+    if (onOpenGameReport) {
+      onOpenGameReport(dbId);
+    } else if (onNavigate) {
+      onNavigate('/report/game');
+    }
+  };
+
+  const handleReportReview = (reviewId: string) => {
+    if (!reviewId) return;
+    if (onOpenReviewReport && game) {
+      const dbId = (game as any)._id ?? game.id;
+      onOpenReviewReport(reviewId, dbId);
+    } else if (onNavigate) {
+      onNavigate('/report/review');
+    }
+  };
+
+  const handleToggleFavourite = async () => {
+    if (!game) return;
+    try {
+      await toggleFavourite(game.id);
+    } catch (err) {
+      console.error('Failed to toggle favourite from GameDetailsPage', err);
+    }
+  };
+
+  const isGameFavourite = game ? isFavourite(game.id) : false;
+
   if (loading) {
     return (
       <main className="game-details" aria-busy="true">
@@ -324,10 +446,23 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
               className="game-details__hero-image"
             />
             <div className="game-details__hero-actions">
-              <button type="button" className="game-details__primary-btn">
-                Add to Favourites
+              <button
+                type="button"
+                className="game-details__secondary-btn game-details__secondary-btn--favourite"
+                onClick={handleToggleFavourite}
+                aria-pressed={isGameFavourite}
+              >
+                <span
+                  className={`game-details__favourite-icon${isGameFavourite ? ' game-details__favourite-icon--active' : ''}`}
+                  aria-hidden="true"
+                />
+                <span>{isGameFavourite ? 'Unfavourite' : 'Add to favourites'}</span>
               </button>
-              <button type="button" className="game-details__secondary-btn">
+              <button
+                type="button"
+                className="game-details__secondary-btn"
+                onClick={handleReportGame}
+              >
                 Report Game
               </button>
             </div>
@@ -471,13 +606,74 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                 <div className="game-details__reviews-field">
                   <h4 className="game-details__reviews-subheading">Voice Review (Optional)</h4>
                   <p className="game-details__reviews-helper">
-                    Record your review using your voice. The transcript will be added to your
-                    review.
+                    Record your review using your voice. Your speech will be typed directly into the review field above as you speak.
                   </p>
-                  <button type="button" className="game-details__voice-button">
-                    <span className="game-details__voice-icon" aria-hidden="true" />
-                    Start Voice Recording
-                  </button>
+                  {voiceError && (
+                    <p className="game-details__reviews-error" role="alert">
+                      {voiceError}
+                    </p>
+                  )}
+                  {(hasVoiceTranscript || isVoiceRecording) && (
+                    <div className="game-details__voice-transcript">
+                      <p className="game-details__voice-transcript-label">
+                        {isVoiceRecording ? 'Live Transcript:' : 'Transcript:'}
+                      </p>
+                      <p className={`game-details__voice-transcript-text ${isVoiceRecording ? 'game-details__voice-transcript-text--live' : ''}`}>
+                        {voiceTranscript || (isVoiceRecording ? 'Listening...' : '')}
+                      </p>
+                    </div>
+                  )}
+                  <div className="game-details__voice-controls">
+                    {!isVoiceRecording ? (
+                      <button
+                        type="button"
+                        className="game-details__voice-button"
+                        onClick={handleStartRecording}
+                        disabled={isPostingReview}
+                      >
+                        <span className="game-details__voice-icon" aria-hidden="true" />
+                        <span className="game-details__voice-button-text">
+                          {hasVoiceTranscript ? 'Record Again' : 'Start Voice Recording'}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="game-details__voice-button game-details__voice-button--recording"
+                        onClick={stopVoiceRecording}
+                        disabled={isPostingReview}
+                      >
+                        <span className="game-details__voice-icon game-details__voice-icon--recording" aria-hidden="true" />
+                        <span className="game-details__voice-button-text">Stop Recording</span>
+                      </button>
+                    )}
+                    {hasVoiceTranscript && !isVoiceRecording && (
+                      <button
+                        type="button"
+                        className="game-details__voice-button game-details__voice-button--clear"
+                        onClick={() => {
+                          setWrittenReview(baseReviewTextRef.current);
+                          clearVoiceTranscript();
+                        }}
+                        disabled={isPostingReview}
+                      >
+                        <span className="game-details__voice-button-text">Clear Transcript</span>
+                      </button>
+                    )}
+                  </div>
+                  {showVoiceNavError && microphoneActive && voiceInputEnabled && (
+                    <div className="game-details__voice-error-inline" role="alert" aria-live="polite">
+                      <p className="game-details__voice-error-inline-text">
+                        Voice navigation must be turned off for voice recording to work. Please disable voice navigation in Settings or mute the microphone in the navbar, then try again.
+                      </p>
+                    </div>
+                  )}
+                  {isVoiceRecording && (
+                    <p className="game-details__voice-status">
+                      <span className="game-details__voice-status-dot" aria-hidden="true" />
+                      Recording... Speak now.
+                    </p>
+                  )}
                 </div>
 
                 <div className="game-details__reviews-actions">
@@ -576,6 +772,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                       <button
                         type="button"
                         className="game-details__review-report"
+                        onClick={() => handleReportReview(review._id)}
                       >
                         <span className="game-details__review-report-icon" aria-hidden="true" />
                         <span>Report</span>

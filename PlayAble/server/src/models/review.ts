@@ -1,16 +1,5 @@
 import { Schema, model, Types, Document } from 'mongoose';
 
-export interface ReviewDocument extends Document {
-  gameId: Types.ObjectId;
-  userId: Types.ObjectId;
-  authorName: string;
-  body: string;
-  likes: number;
-  publicId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 const generatePublicId = () => {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let suffix = '';
@@ -19,6 +8,19 @@ const generatePublicId = () => {
   }
   return `REV-${suffix}`;
 };
+
+export interface ReviewDocument extends Document {
+  gameId: Types.ObjectId;
+  userId: Types.ObjectId;
+  authorName: string;
+  body: string;
+  likes: number;
+  publicId: string;
+  adminReply?: string;
+  voiceTranscript?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 const reviewSchema = new Schema<ReviewDocument>(
   {
@@ -33,6 +35,8 @@ const reviewSchema = new Schema<ReviewDocument>(
     authorName: { type: String, required: true },
     body: { type: String, required: true },
     likes: { type: Number, default: 0 },
+    adminReply: { type: String },
+    voiceTranscript: { type: String },
   },
   { timestamps: true }
 );
@@ -47,6 +51,7 @@ reviewSchema.pre('validate', function ensurePublicId(next) {
 const Review = model<ReviewDocument>('Review', reviewSchema);
 
 export default Review;
+
 export async function ensureReviewPublicIds() {
   const orphaned = await Review.find({
     $or: [{ publicId: { $exists: false } }, { publicId: null }, { publicId: '' }],

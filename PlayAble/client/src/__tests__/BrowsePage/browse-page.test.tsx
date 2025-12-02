@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BrowsePage from '../../pages/BrowsePage';
 import { GameDto } from '../../services/api';
@@ -55,14 +55,17 @@ const defaultProps = {
   onSearchChange: jest.fn(),
 };
 
-const renderWithProviders = (ui: React.ReactElement) => {
-  return render(
+const renderWithProviders = (ui: React.ReactElement) =>
+  render(
     <AuthProvider>
-      <FavouritesProvider>
-        {ui}
-      </FavouritesProvider>
+      <FavouritesProvider>{ui}</FavouritesProvider>
     </AuthProvider>,
   );
+
+const settle = async () => {
+  await act(async () => {
+    await Promise.resolve();
+  });
 };
 
 const TestBrowsePage: React.FC<
@@ -91,7 +94,9 @@ describe('BrowsePage - Acceptance Criteria', () => {
   });
 
   test('shows exactly 9 game cards with thumbnail, title, description, and tags on first page', async () => {
-    renderWithProviders(<TestBrowsePage />);
+    await renderWithProviders(<TestBrowsePage />);
+    await screen.findAllByRole('article');
+    await settle();
 
   
     const cards = await screen.findAllByRole('article');
@@ -113,7 +118,7 @@ describe('BrowsePage - Acceptance Criteria', () => {
   });
 
   test('renders pagination with Previous, Next, numbered buttons and correct state on page 1', async () => {
-    renderWithProviders(<TestBrowsePage />);
+    await renderWithProviders(<TestBrowsePage />);
 
     await screen.findAllByRole('article');
 
@@ -127,13 +132,14 @@ describe('BrowsePage - Acceptance Criteria', () => {
   });
 
   test('shows and updates current page indicator with aria-live when not on page 1', async () => {
-    renderWithProviders(<TestBrowsePage />);
-
+    const user = userEvent.setup();
+    await renderWithProviders(<TestBrowsePage />);
     await screen.findAllByRole('article');
+    await settle();
 
     
     const page2Button = screen.getByRole('button', { name: '2' });
-    await userEvent.click(page2Button);
+    await user.click(page2Button);
 
     
     const indicator = await screen.findByText(/Page 2 of 2/i);
@@ -142,12 +148,13 @@ describe('BrowsePage - Acceptance Criteria', () => {
   });
 
   test('scrolls to top when navigating to another page', async () => {
-    renderWithProviders(<TestBrowsePage />);
-
+    const user = userEvent.setup();
+    await renderWithProviders(<TestBrowsePage />);
     await screen.findAllByRole('article');
+    await settle();
 
     const page2Button = screen.getByRole('button', { name: '2' });
-    await userEvent.click(page2Button);
+    await user.click(page2Button);
 
     // In the current implementation BrowsePage does not trigger scrollTo itself.
     // We only assert that scrollTo could be called in future without breaking tests.
@@ -155,10 +162,11 @@ describe('BrowsePage - Acceptance Criteria', () => {
   });
 
    test('resets pagination to page 1 when using the browse search input', async () => {
+    const user = userEvent.setup();
     const onPageChange = jest.fn();
-    renderWithProviders(<TestBrowsePage onPageChange={onPageChange} />);
-
+    await renderWithProviders(<TestBrowsePage onPageChange={onPageChange} />);
     await screen.findAllByRole('article');
+    await settle();
 
     const searchInput = screen.getByPlaceholderText(
       /Search games by name or keyword/i,
@@ -166,11 +174,11 @@ describe('BrowsePage - Acceptance Criteria', () => {
 
     
     const page2Button = screen.getByRole('button', { name: '2' });
-    await userEvent.click(page2Button);
+    await user.click(page2Button);
 
-   
-    await userEvent.clear(searchInput);
-    await userEvent.type(searchInput, 'Game 2{enter}');
+ 
+    await user.clear(searchInput);
+    await user.type(searchInput, 'Game 2{enter}');
 
   });
 });

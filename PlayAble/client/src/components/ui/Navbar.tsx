@@ -3,9 +3,7 @@
 // Accessibility is prioritised: keyboard navigation, ARIA roles, and high-contrast support are included to meet WCAG 2.1 AA standards.
 // The logout action uses a confirmation dialog to prevent accidental sign-outs, improving user experience for all users.
 import React, { useState, useRef, useEffect } from 'react';
-import useFocusTrap from '../../hooks/navigation/useFocusTrap';
-import NavbarAccountMenu from './NavbarAccountMenu';
-import NavbarVoicePopup from './NavbarVoicePopup';
+import { useVoiceAssistant } from '../../context/VoiceAssistantContext';
 
 export type UserRole = 'guest' | 'user' | 'admin';
 
@@ -25,7 +23,7 @@ const navItems = [
   { key: 'recently-viewed', label: 'Recently Viewed', path: '/recently-viewed', icon: 'clock' },
   { key: 'favourites', label: 'Favourites', path: '/favourites', icon: 'heart' },
   { key: 'settings', label: 'Settings', path: '/settings', icon: 'cog' },
-  { key: 'voice', label: 'Voice', path: '/voice', icon: 'mic' },
+  { key: 'voice', label: 'Listening', path: '/voice', icon: 'mic' },
 ];
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -39,40 +37,93 @@ const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const {
+    voiceInputEnabled,
+    microphoneActive,
+    listeningState,
+    statusMessage,
+    isIndicatorVisible,
+    activateFromVoiceButton,
+    cancelListening,
+    applyMicrophonePreference,
+  } = useVoiceAssistant();
 
   // Refs for navigation elements
   const accountMenuRef = useRef<HTMLDivElement>(null);
-  // Focus trap for account dropdown menu
-  const { containerRef: accountDropdownRef } = useFocusTrap<HTMLDivElement>({
-    isActive: isAccountOpen,
-    initialFocus: 'first',
-    restoreFocus: true,
-  });
+  const holdTimeoutRef = useRef<number | null>(null);
+  const wasMutedBeforeHoldRef = useRef<boolean>(false);
+  const isHoldingRef = useRef<boolean>(false);
 
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
-      setIsVoiceOpen(prev => !prev);
+      // Toggle listening on/off
+      if (listeningState === 'listening' || listeningState === 'processing') {
+        // If listening, deactivate it
+        cancelListening();
+      } else {
+        // If not listening, activate it
+        if (voiceInputEnabled && microphoneActive) {
+          activateFromVoiceButton();
+        }
+      }
       return;
     }
     if (onNavigate) onNavigate(path);
+  };
+
+  const handleVoiceButtonMouseDown = () => {
+    isHoldingRef.current = true;
+    
+    // Start hold timer - mute after 300ms of holding
+    holdTimeoutRef.current = window.setTimeout(() => {
+      if (isHoldingRef.current && microphoneActive) {
+        // Store original mute state
+        wasMutedBeforeHoldRef.current = false;
+        
+        // Temporarily mute the microphone (we'll restore it on mouse up)
+        applyMicrophonePreference(false);
+      }
+    }, 300);
+  };
+
+  const handleVoiceButtonMouseUp = () => {
+    // Clear hold timer if it hasn't fired yet
+    if (holdTimeoutRef.current) {
+      window.clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    
+    const wasHolding = isHoldingRef.current;
+    isHoldingRef.current = false;
+    
+    // If we were holding and muted, restore microphone
+    if (wasHolding && !wasMutedBeforeHoldRef.current && !microphoneActive) {
+      // Restore microphone
+      applyMicrophonePreference(true);
+    }
+  };
+
+  const handleVoiceButtonMouseLeave = () => {
+    // If mouse leaves while holding, treat as mouse up
+    if (holdTimeoutRef.current) {
+      window.clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    
+    // If we muted during hold, restore previous state
+    if (isHoldingRef.current && !wasMutedBeforeHoldRef.current && !microphoneActive) {
+      // Restore microphone
+      applyMicrophonePreference(true);
+    }
+    
+    isHoldingRef.current = false;
   };
 
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
       onSearchSubmit();
-    }
-  };
-
-  // Handle account dropdown keyboard events
-  const handleAccountKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      setIsAccountOpen(false);
-    } else if (event.key === 'ArrowDown' && !isAccountOpen) {
-      event.preventDefault();
-      setIsAccountOpen(true);
     }
   };
 
@@ -98,21 +149,14 @@ const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="navbar" aria-label="Main navigation">
       <div className="navbar__inner">
-        <div
-          className="navbar__brand"
-          onClick={() => handleNavClick('/')}
-          role="button"
-          tabIndex={0}
-          onKeyDown={e => {
+        <div className="navbar__brand" onClick={() => handleNavClick('/')}
+          role="button" tabIndex={0}
+          onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') handleNavClick('/');
           }}
         >
           <div className="navbar__logo" aria-hidden="true">
-            <img
-              src="/src/assets/branding/playable-app-logo-branding.png"
-              alt="PlayAble Logo"
-              style={{ width: '60px', height: '50px', borderRadius: '12px' }}
-            />
+            <img src="/src/assets/branding/playable-app-logo-branding.png" alt="PlayAble Logo" style={{ width: '60px', height: '50px', borderRadius: '12px' }} />
           </div>
           <span className="navbar__title">PlayAble</span>
         </div>
@@ -125,41 +169,87 @@ const Navbar: React.FC<NavbarProps> = ({
             <input
               id="global-search"
               type="search"
-              className="navbar__search-input navbar__search-input--wide"
+              className="navbar__search-input"
               placeholder="Search games..."
               value={searchTerm}
-              onChange={e => onSearchChange(e.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={handleSearchKeyDown}
             />
             {searchTerm && (
               <button
                 type="button"
-                className="navbar__search-clear navbar__search-clear--full"
+                className="navbar__search-clear"
                 onClick={onClearSearch}
+                aria-label="Clear search"
               >
-                <span aria-hidden="true" className="browse-page__search-clear-icon">
-                  ×
-                </span>
-                <span className="browse-page__search-clear-label">Clear</span>
+                ×
               </button>
             )}
           </div>
-          <div className="navbar__search-error" aria-live="polite"></div>
         </div>
+
         <nav className="navbar__nav" aria-label="Primary">
           <ul className="navbar__nav-list" role="menubar">
-            {navItems.map(item => {
-              const isActive =
-                currentPath === item.path || (item.key === 'browse' && currentPath === '/');
+            {navItems.map((item) => {
+              const isActive = currentPath === item.path || (item.key === 'browse' && currentPath === '/');
+              if (item.key === 'voice') {
+                return (
+                  <li key={item.key} className="navbar__voice" role="none">
+                    <div className="navbar__voice-wrapper">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleNavClick('/voice')}
+                        onMouseDown={handleVoiceButtonMouseDown}
+                        onMouseUp={handleVoiceButtonMouseUp}
+                        onMouseLeave={handleVoiceButtonMouseLeave}
+                        className={
+                          'navbar__nav-button navbar__nav-button--voice' +
+                          ((listeningState === 'listening' || listeningState === 'processing') ? ' navbar__nav-button--primary' : '')
+                        }
+                        aria-pressed={listeningState === 'listening' || listeningState === 'processing'}
+                        aria-current={isActive ? 'page' : undefined}
+                      >
+                        <span
+                          className={`navbar__nav-icon navbar__nav-icon--${item.icon}`}
+                          aria-hidden="true"
+                        />
+                        <span>{(listeningState === 'listening' || listeningState === 'processing') ? 'Listening' : 'Voice'}</span>
+                        <span
+                          className={`navbar__voice-status ${
+                            microphoneActive ? 'navbar__voice-status--active' : 'navbar__voice-status--muted'
+                          }`}
+                        >
+                          {microphoneActive ? 'Mic Active' : 'Mic Muted'}
+                        </span>
+                      </button>
+                      {isIndicatorVisible && (
+                        <div
+                          className={`voice-indicator voice-indicator--${listeningState}`}
+                          role="status"
+                          aria-live="assertive"
+                        >
+                          <span className="voice-indicator__dot" aria-hidden="true" />
+                          <span className="voice-indicator__text">
+                            {listeningState === 'listening'
+                              ? 'Listening...'
+                              : listeningState === 'processing'
+                              ? 'Processing'
+                              : statusMessage}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              }
               return (
-                <li key={item.key} role="none">
+                <li key={item.key}>
                   <button
                     type="button"
-                    role="menuitem"
                     onClick={() => handleNavClick(item.path)}
                     className={
                       'navbar__nav-button' +
-                      (item.key === 'voice' ? ' navbar__nav-button--voice' : '') +
                       (isActive ? ' navbar__nav-button--primary' : '')
                     }
                     aria-current={isActive ? 'page' : undefined}
@@ -175,35 +265,103 @@ const Navbar: React.FC<NavbarProps> = ({
             })}
 
             {role === 'admin' && (
-              <li role="none">
+              <li>
                 <button
                   type="button"
-                  role="menuitem"
                   onClick={() => handleNavClick('/admin')}
                   className="navbar__nav-button"
                 >
-                  <span className="navbar__nav-icon navbar__nav-icon--admin" aria-hidden="true" />
+                  <span
+                    className="navbar__nav-icon navbar__nav-icon--admin"
+                    aria-hidden="true"
+                  />
                   <span>Admin</span>
                 </button>
               </li>
             )}
 
             {isLoggedIn ? (
-              <NavbarAccountMenu
-                isOpen={isAccountOpen}
-                onToggle={() => setIsAccountOpen(prev => !prev)}
-                onNavigate={onNavigate}
-                onRequestLogout={() => setShowLogoutConfirm(true)}
-              />
+              <li className="navbar__profile">
+                <div className="navbar__profile-wrapper" ref={accountMenuRef}>
+                  <button
+                    type="button"
+                    className="navbar__nav-button navbar__nav-button--profile"
+                    aria-haspopup="menu"
+                    aria-expanded={isAccountOpen}
+                    onClick={() => setIsAccountOpen((prev) => !prev)}
+                  >
+                    <span
+                      className="navbar__nav-icon navbar__nav-icon--user"
+                      aria-hidden="true"
+                    />
+                    <span>My Account</span>
+                    <span className="navbar__nav-caret" aria-hidden="true">
+                      ▾
+                    </span>
+                  </button>
+                  {isAccountOpen && (
+                    <div className="navbar__profile-menu" role="menu" aria-label="My Account menu">
+                      <div className="navbar__profile-menu-header">My Account</div>
+                      <ul className="navbar__profile-menu-list">
+                        <li role="none">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="navbar__profile-menu-item"
+                            onClick={() => onNavigate && onNavigate('/my-profile')}
+                          >
+                            <span
+                              className="navbar__profile-menu-icon navbar__nav-icon--user"
+                              aria-hidden="true"
+                            />
+                            <span>Profile</span>
+                          </button>
+                        </li>
+                        <li role="none">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="navbar__profile-menu-item"
+                            onClick={() => onNavigate && onNavigate('/inbox')}
+                          >
+                            <span
+                              className="navbar__profile-menu-icon navbar__nav-icon--inbox"
+                              aria-hidden="true"
+                            />
+                            <span>Inbox</span>
+                            <span className="navbar__profile-menu-dot" aria-hidden="true" />
+                          </button>
+                        </li>
+                        <li role="none">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="navbar__profile-menu-item"
+                            onClick={() => setShowLogoutConfirm(true)}
+                          >
+                            <span
+                              className="navbar__profile-menu-icon navbar__nav-icon--lock"
+                              aria-hidden="true"
+                            />
+                            <span>Log out</span>
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </li>
             ) : (
-              <li role="none">
+              <li>
                 <button
                   type="button"
-                  role="menuitem"
                   onClick={() => handleNavClick('/signin')}
                   className="navbar__nav-button navbar__nav-button--signin"
                 >
-                  <span className="navbar__nav-icon navbar__nav-icon--lock" aria-hidden="true" />
+                  <span
+                    className="navbar__nav-icon navbar__nav-icon--lock"
+                    aria-hidden="true"
+                  />
                   <span>Sign in</span>
                 </button>
               </li>
@@ -211,9 +369,6 @@ const Navbar: React.FC<NavbarProps> = ({
           </ul>
         </nav>
       </div>
-
-      <NavbarVoicePopup isOpen={isVoiceOpen} />
-
       {showLogoutConfirm && (
         <div
           role="dialog"

@@ -65,9 +65,7 @@ const GameCard = <TGame extends BasicGameLike>({
 
   const handleFavouriteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    if (onFavouriteClick) {
-      onFavouriteClick(game.id);
-    }
+    onFavouriteClick?.(game.id);
   };
 
   return (
@@ -83,14 +81,22 @@ const GameCard = <TGame extends BasicGameLike>({
       }}
     >
       <div className="game-card__favourite-wrapper">
-        <button
-          type="button"
-          className={`game-card__favourite-button${favourite ? ' game-card__favourite-button--active' : ''}`}
-          aria-pressed={favourite}
-          onClick={handleFavouriteClick}
-        >
-          <span className="game-card__favourite-label">{favouriteLabel ?? 'Favourite'}</span>
-        </button>
+        {onFavouriteClick && (
+          <button
+            type="button"
+            className={`game-card__favourite-button${favourite ? ' game-card__favourite-button--active' : ''}`}
+            onClick={handleFavouriteClick}
+            aria-pressed={favourite}
+          >
+            <span
+              className={`game-card__favourite-icon${favourite ? ' game-card__favourite-icon--active' : ''}`}
+              aria-hidden="true"
+            />
+            <span className="game-card__favourite-label">
+              {favouriteLabel || (favourite ? 'Unfavourite' : 'Add to favourites')}
+            </span>
+          </button>
+        )}
       </div>
       <button
         type="button"

@@ -4,4 +4,6 @@ build/
 .env
 .DS_Store
 *.log
-
+/client/package-lock.json
+/server/package-lock.json
+.vite
