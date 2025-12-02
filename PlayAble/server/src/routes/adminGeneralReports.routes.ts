@@ -6,9 +6,10 @@
  */
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import { protect, authorize } from '../../middleware/auth';
+import { protect, authorize } from '../middleware/auth';
 import { ReportModel } from '../models/report';
 import User from '../models/user';
+import { createNotification } from '../services/notificationService';
 
 const router = Router();
 
@@ -102,6 +103,33 @@ router.post('/:id/reply', protect, authorize('admin'), async (req, res) => {
     }
 
     await report.save();
+    
+    // Create notification for the reporter when admin replies
+    if (report.reporterId) {
+      try {
+        const reportCode = formatReportId(report._id);
+        const adminName = adminUser?.name || 'Admin';
+        
+        await createNotification(
+          report.reporterId,
+          'report_resolved',
+          'Your Report Has Been Resolved',
+          `${adminName} has replied to your report (${reportCode}). Click to view the response.`,
+          {
+            reportId: report._id,
+            metadata: {
+              reportCode,
+              reportType: 'general',
+              adminName,
+            },
+          }
+        );
+      } catch (notifError) {
+        // Don't fail the reply if notification creation fails
+        console.error('Error creating notification for admin reply', notifError);
+      }
+    }
+    
     return res.json({ success: true, report: toDto(report) });
   } catch (err) {
     console.error('Error replying to report', err);
