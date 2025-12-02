@@ -6,6 +6,8 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { ReportModel } from '../models/report';
+import { createNotification } from '../services/notificationService';
+import { protect } from '../middleware/auth';
 
 const router = Router();
 
@@ -118,10 +120,117 @@ export async function createReportHandler(req: any, res: any) {
       status: 'open',
     });
 
+    // Create notification for report submission confirmation
+    if (parsedReporterId) {
+      try {
+        const reportCode = `RPT-${report._id.toString().slice(-6).toUpperCase()}`;
+        const reportTypeLabel = type === 'general' ? 'General Issue' : type === 'game' ? 'Game' : 'Review';
+        
+        await createNotification(
+          parsedReporterId,
+          'report_submitted',
+          'Report Submitted Successfully',
+          `Your ${reportTypeLabel.toLowerCase()} report has been submitted and is being reviewed. Report ID: ${reportCode}`,
+          {
+            reportId: report._id,
+            gameId: gameId ? new mongoose.Types.ObjectId(gameId) : undefined,
+            reviewId: reviewId ? new mongoose.Types.ObjectId(reviewId) : undefined,
+            metadata: {
+              reportCode,
+              reportType: type,
+            },
+          }
+        );
+      } catch (notifError) {
+        // Don't fail the report submission if notification creation fails
+        console.error('Error creating notification for report submission', notifError);
+      }
+    }
+
     return res.status(201).json({ success: true, message: 'Report submitted successfully.', id: report.id });
   } catch (err) {
     console.error('Error creating report', err);
     return res.status(500).json({ success: false, message: 'Failed to submit report.' });
+  }
+}
+
+/**
+ * Handler for fetching a user's own report by ID.
+ * Users can only fetch reports they submitted.
+ * 
+ * @param {any} req - Express request object
+ * @param {any} res - Express response object
+ * @returns {Promise<any>} JSON response with report data
+ */
+export async function getReportHandler(req: any, res: any) {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid report ID.' });
+    }
+
+    const report = await ReportModel.findById(id).lean();
+    
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found.' });
+    }
+
+    // Check if user owns this report (by ID or email)
+    const reportReporterId = report.reporterId?.toString();
+    const reportReporterEmail = report.reporterEmail;
+    const userEmail = req.user?.email;
+
+    const ownsReport = 
+      reportReporterId === userId ||
+      (reportReporterEmail && userEmail && reportReporterEmail.toLowerCase() === userEmail.toLowerCase());
+
+    if (!ownsReport) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to view this report.' });
+    }
+
+    // Format report code based on type
+    const formatReportCode = (reportId: string, type: string) => {
+      if (type === 'general') {
+        return `GR${reportId.slice(-6).toUpperCase()}`;
+      } else if (type === 'game') {
+        return `RG-${reportId.slice(-6).toUpperCase()}`;
+      } else {
+        return `RPT-${reportId.slice(-6).toUpperCase()}`;
+      }
+    };
+
+    const reportCode = formatReportCode(report._id.toString(), report.type);
+
+    return res.json({
+      success: true,
+      report: {
+        id: report._id.toString(),
+        reportCode,
+        type: report.type,
+        description: report.description || '',
+        transcript: report.transcript || '',
+        issueType: report.issueType || '',
+        status: report.status || 'open',
+        createdAt: report.createdAt,
+        resolvedAt: report.resolvedAt || null,
+        adminReplies: (report.adminReplies || []).map((reply: any) => ({
+          message: reply.message,
+          adminName: reply.adminName || 'Admin',
+          createdAt: reply.createdAt,
+        })),
+        gameId: report.game?.toString() || null,
+        reviewId: report.review?.toString() || null,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching report', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch report.' });
   }
 }
 
@@ -133,5 +242,15 @@ export async function createReportHandler(req: any, res: any) {
  * @returns {object} JSON with success status and report ID
  */
 router.post('/api/reports', createReportHandler);
+
+/**
+ * GET /api/reports/:id
+ * Fetches a user's own report by ID.
+ * @route GET /api/reports/:id
+ * @param {string} id - The report ID
+ * @returns {object} JSON with report data including admin replies
+ * @security Requires authentication, user can only fetch their own reports
+ */
+router.get('/api/reports/:id', protect, getReportHandler);
 
 export default router;
