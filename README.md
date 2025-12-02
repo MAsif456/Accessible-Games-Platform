@@ -68,5 +68,8 @@ Backend: Node.js/Express, TypeScript, Mongoose/MongoDB
 
 ## Contributing
 
+## Learning recources for new developers (link to wiki)
+https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Learning-Resources
+
 ## Author
 
