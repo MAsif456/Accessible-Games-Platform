@@ -181,3 +181,16 @@ export const deleteReview = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Failed to delete review' });
   }
 };
+
+/**
+ * Retrieves aggregate review statistics used by the admin dashboard.
+ */
+export const getReviewStats = async (req: Request, res: Response) => {
+  try {
+    const totalReviews = await Review.countDocuments({});
+    res.json({ totalReviews });
+  } catch (error) {
+    console.error('Error fetching review stats', error);
+    res.status(500).json({ message: 'Failed to fetch review stats' });
+  }
+};

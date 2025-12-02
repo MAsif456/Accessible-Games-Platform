@@ -3521,6 +3521,11 @@ body.high-contrast .contrast-theme-picker__header p {
   font-weight: 600;
 }
 
+.game-details__load-more:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* See Reviews section */
 .game-details__reviews-list-heading {
   font-size: 1rem;

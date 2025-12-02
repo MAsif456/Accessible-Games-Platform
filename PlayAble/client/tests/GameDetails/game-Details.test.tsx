@@ -1,17 +1,29 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 
-// Mock window.open so we can assert external navigation without actually leaving the test environment
+// Mock window APIs so we can assert behaviour without jsdom errors.
 const originalWindowOpen = window.open;
+const originalScrollTo = window.scrollTo;
+const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
 
 beforeAll(() => {
   // @ts-ignore
   window.open = jest.fn();
+  // @ts-ignore
+  window.scrollTo = jest.fn();
+  window.HTMLElement.prototype.scrollIntoView = jest.fn();
 });
 
 afterAll(() => {
   window.open = originalWindowOpen;
+  window.scrollTo = originalScrollTo;
+  if (originalScrollIntoView) {
+    window.HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete (window.HTMLElement.prototype as any).scrollIntoView;
+  }
 });
 
 // Helper: render the whole app starting from browse and click into first game
@@ -36,7 +48,7 @@ describe('Game Details Page layout and behaviour', () => {
     expect(screen.getByText(/studio/i)).toBeInTheDocument();
     expect(screen.getByText(/genre/i)).toBeInTheDocument();
     expect(screen.getByAltText(/game thumbnail/i)).toBeInTheDocument();
-    expect(screen.getByText(/accessibility features/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /accessibility features/i })).toBeInTheDocument();
   });
 
   test('shows About This Game and release/download section when scrolled', async () => {
@@ -77,9 +89,11 @@ describe('Game Details Page layout and behaviour', () => {
     const appStoreButton = screen.getByRole('button', { name: /download on the app store/i });
     fireEvent.click(appStoreButton);
 
+    const modal = await screen.findByRole('dialog');
     const modalTitle = await screen.findByText(/you are about to leave playable/i);
     expect(modalTitle).toBeInTheDocument();
-    expect(screen.getByText(/app store/i)).toBeInTheDocument();
+    const description = within(modal).getByText(/open this game in/i);
+    expect(description).toHaveTextContent(/App Store/i);
   });
 
   test('external link confirmation allows proceed or cancel without leaving on cancel', async () => {
@@ -89,7 +103,7 @@ describe('Game Details Page layout and behaviour', () => {
     fireEvent.click(appStoreButton);
 
     const cancelButton = await screen.findByRole('button', { name: /cancel/i });
-    const proceedButton = screen.getByRole('button', { name: /proceed/i });
+    let proceedButton = screen.getByRole('button', { name: /proceed/i });
 
     fireEvent.click(cancelButton);
 
@@ -101,6 +115,7 @@ describe('Game Details Page layout and behaviour', () => {
 
     fireEvent.click(appStoreButton);
     await screen.findByText(/you are about to leave playable/i);
+    proceedButton = screen.getByRole('button', { name: /proceed/i });
     fireEvent.click(proceedButton);
 
     await waitFor(() => {

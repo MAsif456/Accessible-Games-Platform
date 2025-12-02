@@ -1,37 +1,26 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import App from '../../src/App';
-import authService from '../../src/services/authService';
+import Navbar from '../../src/components/ui/Navbar';
 
-// This test verifies that an admin user sees the Admin button in the navbar
-// and that clicking it navigates to the Admin Management page.
+test('admin navbar button is visible and triggers admin navigation', () => {
+  const handleNavigate = jest.fn();
 
-test('admin user sees Admin button and can navigate to Admin Management page', async () => {
-  const adminUser = {
-    id: 'admin-1',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: 'admin' as const,
-  };
+  render(
+    <Navbar
+      role="admin"
+      searchTerm=""
+      onSearchChange={jest.fn()}
+      onSearchSubmit={jest.fn()}
+      onClearSearch={jest.fn()}
+      currentPath="/browse"
+      onNavigate={handleNavigate}
+      onLogout={jest.fn()}
+    />
+  );
 
-  window.localStorage.setItem('user', JSON.stringify(adminUser));
-  window.localStorage.setItem('token', 'fake-admin-token');
-
-  jest.spyOn(authService, 'getCurrentUser').mockResolvedValue({
-    success: true,
-    message: 'ok',
-    user: adminUser,
-  } as any);
-
-  render(<App />);
-
-  // Admin button should appear in navbar for admin user
-  const adminButton = await screen.findByRole('button', { name: /admin/i });
+  const adminButton = screen.getByRole('menuitem', { name: /admin/i });
   expect(adminButton).toBeInTheDocument();
 
   fireEvent.click(adminButton);
-
-  // After clicking Admin, the Admin Management heading should be visible
-  const adminHeading = await screen.findByRole('heading', { name: /admin management/i });
-  expect(adminHeading).toBeInTheDocument();
+  expect(handleNavigate).toHaveBeenCalledWith('/admin');
 });

@@ -125,7 +125,9 @@ function AppContent({ PAGE_SIZE, protectedPaths }: { PAGE_SIZE: number; protecte
   };
 
   const handleGameClick = (gameId: string) => {
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    }
     setSelectedGameId(gameId);
     handleNavigate('/game-details');
   };

@@ -28,7 +28,7 @@ jest.mock('src/services/api', () => {
           description: `Description ${i + 1}`,
           thumbnailUrl: `/images/games/thumb-${i + 1}.jpg`,
           genres: ['Action'],
-          accessibilityTags: ['Vision'],
+          accessibilityTags: ['Visual'],
         }));
 
         const start = (page - 1) * pageSize;
@@ -105,7 +105,7 @@ describe('BrowsePage - Acceptance Criteria', () => {
       
       expect(within(card).getByText(/Description \d+/)).toBeInTheDocument();
       
-      expect(within(card).getByText('Vision')).toBeInTheDocument();
+      expect(within(card).getByText('Visual')).toBeInTheDocument();
     });
 
     

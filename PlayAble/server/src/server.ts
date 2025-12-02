@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 import path from 'path';
 import './models/user';
 import GameModel, { seedGamesIfEmpty, syncSpecificAccessibilityTags } from './models/game';
+import { ensureReviewPublicIds } from './models/review';
 import gamesRouter from '../routes/games.routes';
 import authRoutes from '../routes/authRoutes';
 import './models/settings';
@@ -21,6 +22,12 @@ import reviewReportsRoutes from './routes/reviewReports.routes';
 dotenv.config();
 
 const app: Express = express();
+app.use(
+  cors({
+    origin: "https://playable-frontend.onrender.com",
+    credentials: true,
+  })
+);
 const PORT = process.env.PORT || 5001;
 
 // Enable CORS for cross-origin requests from the frontend (Vite dev server).
@@ -42,6 +49,7 @@ mongoose
     // Seed games collection from JSON if empty
     await seedGamesIfEmpty();
     await syncSpecificAccessibilityTags();
+    await ensureReviewPublicIds();
   })
   .catch(error => {
     console.error('MongoDB connection error:', error);

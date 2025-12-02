@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { getReviewStats } from '../services/api';
 
 const PRIMARY_TABS = ['general-reports', 'reviews', 'games'] as const;
 type PrimaryTab = (typeof PRIMARY_TABS)[number];
@@ -16,6 +17,40 @@ const AdminPage: React.FC = () => {
   const [generalSubTab, setGeneralSubTab] = useState<GeneralSubTab>('general');
   const [reviewsSubTab, setReviewsSubTab] = useState<ReviewsSubTab>('reviews');
   const [gamesSubTab, setGamesSubTab] = useState<GamesSubTab>('games');
+  const [activeReviewsCount, setActiveReviewsCount] = useState<number | null>(null);
+  const [loadingActiveReviews, setLoadingActiveReviews] = useState(false);
+  const [activeReviewsError, setActiveReviewsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingActiveReviews(true);
+    setActiveReviewsError(null);
+
+    getReviewStats()
+      .then(({ totalReviews }) => {
+        if (!isMounted) return;
+        setActiveReviewsCount(totalReviews);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setActiveReviewsError('Unable to load review count');
+        setActiveReviewsCount(null);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingActiveReviews(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+  const activeReviewsAriaLabel = loadingActiveReviews
+    ? 'Loading active reviews'
+    : activeReviewsCount === null
+      ? 'Active reviews count unavailable'
+      : `${activeReviewsCount} published reviews`;
 
   const handlePrimaryKey = (e: React.KeyboardEvent<HTMLButtonElement>, tab: PrimaryTab) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -439,10 +474,12 @@ const AdminPage: React.FC = () => {
             <div className="admin-stat-card__header">
               <h2 className="admin-stat-card__title">Active Reviews</h2>
             </div>
-            <p className="admin-stat-card__value" aria-label="4 published reviews">
-              4
+            <p className="admin-stat-card__value" aria-live="polite" aria-label={activeReviewsAriaLabel}>
+              {loadingActiveReviews ? '...' : activeReviewsCount ?? '--'}
             </p>
-            <p className="admin-stat-card__meta">Published reviews</p>
+            <p className="admin-stat-card__meta">
+              {activeReviewsError ? activeReviewsError : 'Published reviews'}
+            </p>
           </article>
         </section>
       </header>
