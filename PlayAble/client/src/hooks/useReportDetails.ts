@@ -22,6 +22,13 @@ export interface ReviewReportState extends BaseState {
   review: ReviewDetails | null;
 }
 
+/**
+ * Hook that fetches the game details for the reporting page.
+ * Automatically refreshes the game details when the game ID changes.
+ * If the game ID is not provided, it returns an empty state.
+ * @param {string} [gameId] - The ID of the game to fetch.
+ * @returns {GameReportState} - An object with the game details or an error message.
+ */
 export function useGameReportDetails(gameId?: string): GameReportState {
   const cached = gameId ? getCachedGame(gameId) : null;
   const [state, setState] = useState<GameReportState>({
@@ -56,6 +63,13 @@ export function useGameReportDetails(gameId?: string): GameReportState {
   return state;
 }
 
+/**
+ * Hook that fetches the review details for the reporting page.
+ * Automatically refreshes the review details when the review ID changes.
+ * If the review ID is not provided, it returns an empty state.
+ * @param {string} [reviewId] - The ID of the review to fetch.
+ * @returns {ReviewReportState} - An object with the review details or an error message.
+ */
 export function useReviewReportDetails(reviewId?: string): ReviewReportState {
   const [state, setState] = useState<ReviewReportState>({
     loading: !!reviewId,

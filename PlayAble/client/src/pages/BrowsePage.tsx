@@ -6,6 +6,14 @@ import { useBrowseGames } from '../hooks/useBrowseGames';
 import { useFavouritesNav } from '../context/FavouritesContext';
 import { GameDto } from '../services/api';
 
+// Public props for the browse page. The actual routing state (currentPath, currentPage,
+// search term etc.) is owned by the parent (App) so this component stays presentational
+// and easy to test.
+/**
+ * BrowsePage props are provided by the top-level router (App).
+ * The page itself stays presentational: it renders the catalogue UI
+ * and raises events when paging, searching or clicking games.
+ */
 export interface BrowsePageProps {
   currentPath: AppPath;
   currentPage: number;
@@ -16,6 +24,18 @@ export interface BrowsePageProps {
   onSearchChange: (value: string) => void;
 }
 
+// Main catalogue page used to browse accessible games with search, filters, sorting
+// and favourite toggling. Data fetching and filter state are delegated to hooks so
+// this component focuses on layout and interaction wiring.
+/**
+ * Main catalogue page used to browse accessible games.
+ *
+ * Responsibilities:
+ * - Render search input with debounced updates to the parent.
+ * - Display filter chips, active filter summary and pagination.
+ * - Delegate data fetching and filter state to useBrowseGames.
+ * - Integrate favourites via useFavouritesNav.
+ */
 const BrowsePage: React.FC<BrowsePageProps> = ({
   currentPage,
   pageSize,
@@ -24,15 +44,23 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
   onGameClick,
   onSearchChange,
 }) => {
+  // Local input value for the search box, debounced before notifying the parent.
   const [browseSearchInput, setBrowseSearchInput] = useState(searchTerm);
+  const [effectiveSearchTerm, setEffectiveSearchTerm] = useState(searchTerm);
   const [showAllGenres, setShowAllGenres] = useState(false);
 
+  // Keep the local search input in sync when the parent-controlled searchTerm changes
+  // (e.g. when navigation or clear buttons reset it).
   useEffect(() => {
     setBrowseSearchInput(searchTerm);
+    setEffectiveSearchTerm(searchTerm);
   }, [searchTerm]);
 
+  // Lightweight favourites API used by cards to render and toggle favourites.
   const { favouriteIds, toggleFavourite, isFavourite } = useFavouritesNav();
 
+  // Core browse data (games list, filters, metadata, errors) comes from a dedicated hook
+  // so that pagination, filtering and server integration stay encapsulated.
   const {
     games,
     totalPages,
@@ -43,8 +71,14 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
     sortOptions,
     defaultSortId,
     accessibilityLimit,
-  } = useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange });
+  } = useBrowseGames({
+    currentPage,
+    pageSize,
+    searchTerm: effectiveSearchTerm,
+    onPageChange,
+  });
 
+  // Destructure filter helpers and state used by the UI controls below.
   const {
     active,
     draft,
@@ -63,11 +97,15 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
     resetSort,
   } = filters;
 
+  // Debounced search: wait briefly after the user types before notifying the parent.
+  // This reduces API calls and keeps the UI responsive. Also resets to page 1 when
+  // the query changes so results always start from the first page.
   useEffect(() => {
     const trimmed = browseSearchInput.trim();
-    if (trimmed === searchTerm) return;
+    if (trimmed === effectiveSearchTerm) return;
 
     const handle = window.setTimeout(() => {
+      setEffectiveSearchTerm(trimmed);
       onSearchChange(trimmed);
       if (currentPage !== 1) {
         onPageChange(1);
@@ -75,17 +113,26 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
     }, 300);
 
     return () => window.clearTimeout(handle);
-  }, [browseSearchInput, searchTerm, onSearchChange, onPageChange, currentPage]);
+  }, [browseSearchInput, effectiveSearchTerm, onSearchChange, onPageChange, currentPage]);
 
+  /**
+   * Commit the current search input immediately (e.g. when the user presses Enter)
+   * and reset to the first page if needed.
+   */
   const handleSearchSubmit = () => {
     const term = browseSearchInput.trim();
+    setEffectiveSearchTerm(term);
     onSearchChange(term);
     if (currentPage !== 1) {
       onPageChange(1);
     }
   };
 
+  // Limit the number of genre chips shown by default to keep the layout manageable.
   const visibleGenres = showAllGenres ? metadata.genres : metadata.genres.slice(0, 20);
+
+  // Compute a human-readable label for the current sort option. Memoised so we do not
+  // recompute on every render unless dependencies change.
   const sortLabel = useMemo(
     () => sortOptions.find(option => option.id === active.sort)?.label ?? 'Sort By',
     [active.sort, sortOptions]
@@ -94,6 +141,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
 
   return (
     <main className="browse-page" aria-label="Browse accessible mobile games">
+      {/* Header area with search, clear button and filters entry point */}
       <header className="browse-page__header">
         <div className="browse-page__search-wrapper">
           <div className="browse-page__search-bar">
@@ -104,6 +152,8 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 className="browse-page__search-input"
                 value={browseSearchInput}
                 onChange={e => {
+                  // Apply a defensive max length to keep the search term reasonable
+                  // for both performance and accessibility.
                   let value = e.target.value;
                   if (value.length > 50) {
                     value = value.slice(0, 50);
@@ -124,6 +174,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                   className="browse-page__search-clear navbar__search-clear--full"
                   onClick={() => {
                     setBrowseSearchInput('');
+                    setEffectiveSearchTerm('');
                     onSearchChange('');
                     if (currentPage !== 1) onPageChange(1);
                   }}
@@ -154,6 +205,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
         <div className="browse-page__header-right" />
       </header>
 
+      {/* Chip-style summary of currently active filters and sort order */}
       {hasActiveFilters && (
         <section className="browse-page__active-filters" aria-label="Active filters">
           <div className="browse-page__active-filters-inner">
@@ -210,6 +262,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
         </section>
       )}
 
+      {/* Lightweight page indicator above the grid */}
       {totalPages > 1 && (
         <p className="browse-page__page-indicator" aria-live="polite">
           Page {currentPage} of {totalPages}
@@ -223,6 +276,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
         </p>
       ) : (
         <>
+          {/* Main grid of game cards */}
           <section className="browse-page__grid" aria-label="Game catalogue">
             {(games || []).map((game: GameDto) => (
               <GameCard
@@ -236,6 +290,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             ))}
           </section>
 
+          {/* Paged navigation below the grid */}
           {totalPages > 1 && (
             <Pagination
               page={currentPage}
@@ -247,6 +302,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
         </>
       )}
 
+      {/* Off-canvas filters panel used on smaller viewports */}
       <aside
         id="browse-filters-panel"
         className={`browse-filters ${isFiltersOpen ? 'browse-filters--open' : ''}`}
@@ -286,6 +342,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
           </div>
 
           <div className="browse-filters__body">
+            {/* Genre filter section */}
             <section className="browse-filters__section">
               <header className="browse-filters__section-header">
                 <h3>Genre</h3>
@@ -319,6 +376,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
               )}
             </section>
 
+            {/* Accessibility tags filter section with selection limit */}
             <section className="browse-filters__section">
               <header className="browse-filters__section-header">
                 <h3>Accessibility Categories</h3>
@@ -349,6 +407,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
               </div>
             </section>
 
+            {/* Sort selector */}
             <section className="browse-filters__section">
               <header className="browse-filters__section-header">
                 <h3>Sort By</h3>

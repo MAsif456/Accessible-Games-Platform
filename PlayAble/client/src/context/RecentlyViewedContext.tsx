@@ -14,6 +14,9 @@ export interface RecentlyViewedGameDto {
   accessibilityTags: string[];
 }
 
+/**
+ * Server shape for recently viewed list.
+ */
 interface RecentlyViewedResponse {
   games: RecentlyViewedGameDto[];
   total: number;

@@ -1,9 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
-import { getPaginatedGames, getAllGamesForAdmin, getGameById, createGame, updateGame, deleteGame, getGamesMetadata } from '../services/games.service';
+import {
+  getPaginatedGames,
+  getAllGamesForAdmin,
+  getGameById,
+  createGame,
+  updateGame,
+  deleteGame,
+  getGamesMetadata,
+} from '../services/games.service';
 import { parseGamesQuery } from '../utils/validate';
 import { IGame } from '../src/models';
 
-// Adapter/DTO to shape the Game document for API responses
+/**
+ * Adapter/DTO to shape the Game document for API responses.
+ * Keeps API payloads consistent between admin and public endpoints.
+ */
 function toGameDto(game: IGame & { createdAt?: Date; updatedAt?: Date }) {
   return {
     id: (game as any)._id?.toString?.() ?? undefined,
@@ -21,6 +32,9 @@ function toGameDto(game: IGame & { createdAt?: Date; updatedAt?: Date }) {
   };
 }
 
+/**
+ * Public games listing with pagination and filters.
+ */
 export async function getGamesHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const parsed = parseGamesQuery(req.query);
@@ -38,6 +52,9 @@ export async function getGamesHandler(req: Request, res: Response, next: NextFun
   }
 }
 
+/**
+ * Lightweight metadata (genres, accessibility tags, release years) for filter UI.
+ */
 export async function getGamesMetadataHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const metadata = await getGamesMetadata();
@@ -47,6 +64,9 @@ export async function getGamesMetadataHandler(req: Request, res: Response, next:
   }
 }
 
+/**
+ * Admin listing of all games (unpaginated) for management UI.
+ */
 export async function getAdminGamesHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const games = await getAllGamesForAdmin();
@@ -56,6 +76,9 @@ export async function getAdminGamesHandler(req: Request, res: Response, next: Ne
   }
 }
 
+/**
+ * Single game fetch by id.
+ */
 export async function getGameByIdHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const game = await getGameById(req.params.id);
@@ -68,6 +91,9 @@ export async function getGameByIdHandler(req: Request, res: Response, next: Next
   }
 }
 
+/**
+ * Admin create game.
+ */
 export async function createGameHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const {
@@ -100,6 +126,9 @@ export async function createGameHandler(req: Request, res: Response, next: NextF
   }
 }
 
+/**
+ * Admin update game.
+ */
 export async function updateGameHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const id = req.params.id;
@@ -113,6 +142,9 @@ export async function updateGameHandler(req: Request, res: Response, next: NextF
   }
 }
 
+/**
+ * Admin delete game.
+ */
 export async function deleteGameHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const id = req.params.id;

@@ -4,11 +4,11 @@ import {
   adminDeleteReview,
   adminListReviews,
   adminReplyToReview,
-} from '../reviews.controller';
+} from '../../controllers/reviews.controller';
 import {
   adminListReviewReports,
   adminResolveReviewReport,
-} from '../reviewReports.controller';
+} from '../../controllers/reviewReports.controller';
 import Review from '../../models/review';
 import { ReportModel } from '../../models/report';
 import ReviewReport from '../../models/reviewReport';
@@ -54,6 +54,12 @@ const mockLegacyReviewReport = ReviewReport as unknown as {
   findById: jest.Mock;
 };
 
+/**
+ * Creates a mock response object for Express route handlers.
+ * The mock response object has `status`, `json`, and `send` methods, which
+ * all return the mock response object itself, allowing for chaining.
+ * @returns {Object} A mock response object for Express route handlers.
+ */
 const makeRes = () => {
   const res: Partial<Response> = {};
   res.status = jest.fn().mockReturnValue(res);

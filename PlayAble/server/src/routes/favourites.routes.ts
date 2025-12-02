@@ -5,7 +5,7 @@ import { parsePagination } from '../../utils/validate';
 
 const router = Router();
 
-// Protect all favourites routes
+
 router.use(protect);
 
 router.get('/', async (req: Request, res: Response) => {

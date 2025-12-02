@@ -25,6 +25,11 @@ const defaultProps = {
   onSearchChange: jest.fn(),
 };
 
+/**
+ * Renders a given React element wrapped in the AuthProvider and FavouritesProvider
+ * context. This is useful for testing components that rely on these contexts.
+ * @param {React.ReactElement} ui - The React element to render
+ */
 const renderWithProviders = (ui: React.ReactElement) =>
   render(
     <AuthProvider>
@@ -32,12 +37,21 @@ const renderWithProviders = (ui: React.ReactElement) =>
     </AuthProvider>,
   );
 
+/**
+ * Waits for the current event loop to finish and the next event loop to start.
+ * This is useful for waiting for the effects of a state change or an animation to finish.
+ */
 const settle = async () => {
   await act(async () => {
     await Promise.resolve();
   });
 };
 
+/**
+ * Returns the "Apply filters" button from the filter dialog.
+ * The filter dialog is the modal that appears when the user clicks on the "Filters" button.
+ * This function is useful for testing the filter dialog and its related functionality.
+ */
 const getDialogApplyButton = () =>
   within(screen.getByRole('dialog')).getAllByRole('button', { name: /apply filters/i })[0];
 

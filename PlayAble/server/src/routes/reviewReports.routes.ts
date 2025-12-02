@@ -8,8 +8,10 @@ import {
 
 const router = Router();
 
+// User-facing review report endpoint
 router.post('/reviews/:id/report', protect, createReviewReport);
 
+// Admin review report management
 router.get('/admin/review-reports', protect, adminListReviewReports);
 
 router.get('/admin/review-reports/resolved', protect, (req, res, next) => {

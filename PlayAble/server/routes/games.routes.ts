@@ -12,6 +12,7 @@ import { protect, authorize } from '../middleware/auth';
 
 const router = Router();
 
+// Public catalogue routes
 router.get('/games/metadata', getGamesMetadataHandler);
 router.get('/games', getGamesHandler);
 

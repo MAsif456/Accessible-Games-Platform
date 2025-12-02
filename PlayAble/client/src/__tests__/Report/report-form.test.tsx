@@ -10,6 +10,10 @@ jest.mock('../../services/reportApi', () => ({
 
 const mockedSubmitReport = submitReport as jest.Mock;
 
+/**
+ * Renders a ReportForm component with type set to 'general'.
+ * Useful for testing the component's validation and submission logic.
+ */
 function renderForm() {
   render(<ReportForm type="general" />);
 }

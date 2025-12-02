@@ -9,6 +9,14 @@ export interface PaginatedFavourites {
 }
 
 export class FavouritesRepository {
+  
+  /**
+   * Fetch paginated favourites for a user, with lean populated game docs.
+   * @param {string} userId - User ID to fetch favourites for.
+   * @param {number} page - Page number to fetch.
+   * @param {number} pageSize - Number of items to fetch per page.
+   * @returns {Promise<PaginatedFavourites>} - Paginated favourites for user.
+   */
   async getFavouritesForUser(
     userId: string,
     page: number,
@@ -31,6 +39,14 @@ export class FavouritesRepository {
     return { items, total, page, pageSize };
   }
 
+
+  /**
+   * Upsert a favourite and populate the game.
+   * @param {string} userId - User ID to add favourite for.
+   * @param {string} gameId - Game ID to favourite.
+   * @returns {Promise<IFavourite & { game?: any }>} - Added favourite with populated game doc.
+   * @throws {Error} - If failed to add favourite.
+   */
   async addFavourite(userId: string, gameId: string): Promise<IFavourite & { game?: any }> {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const gameObjectId = new mongoose.Types.ObjectId(gameId);
@@ -51,6 +67,9 @@ export class FavouritesRepository {
     return favourite as IFavourite & { game?: any };
   }
 
+  /**
+    * Remove a favourite; returns deleted count for caller to decide 404 vs 204.
+    */
   async removeFavourite(userId: string, gameId: string): Promise<number> {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const gameObjectId = new mongoose.Types.ObjectId(gameId);

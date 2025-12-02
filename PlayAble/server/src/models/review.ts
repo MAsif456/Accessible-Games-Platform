@@ -18,6 +18,7 @@ export interface ReviewDocument extends Document {
   voiceTranscript?: string;
 }
 
+// Stores user-generated reviews for games; includes publicId for safer exposure.
 const reviewSchema = new Schema<ReviewDocument>(
   {
     gameId: { type: Schema.Types.ObjectId, ref: 'Game', required: true },

@@ -8,6 +8,9 @@ interface UseBrowseGamesParams {
   onPageChange: (page: number) => void;
 }
 
+/**
+ * Centralized sort options for browse; keep API id and display text together.
+ */
 const ACCESSIBILITY_LIMIT = 5;
 
 export const SORT_OPTIONS = [
@@ -58,6 +61,11 @@ const initialBrowseState: BrowseFiltersState = {
 
 const metadataCache: { data?: GamesMetadata; promise?: Promise<GamesMetadata> } = {};
 
+/**
+ * Creates a deep copy of a FilterState object.
+ * @param {FilterState} state - The FilterState object to clone.
+ * @returns {FilterState} - A new FilterState object with the same values as the original.
+ */
 function cloneFilterState(state: FilterState): FilterState {
   return {
     genres: [...state.genres],
@@ -66,10 +74,32 @@ function cloneFilterState(state: FilterState): FilterState {
   };
 }
 
+/**
+ * Toggles the presence of a value in a list.
+ * If the value is already in the list, it is removed.
+ * If the value is not in the list, it is added.
+ * @param {string[]} list - The list to modify.
+ * @param {string} value - The value to toggle.
+ * @returns {string[]} - The modified list.
+ */
 function toggleValue(list: string[], value: string) {
   return list.includes(value) ? list.filter(item => item !== value) : [...list, value];
 }
 
+/**
+ * Reducer for the browse filters state.
+ * Handles the following actions:
+ * - 'openFilters': Opens the filters modal and sets the draft state to the active state.
+ * - 'closeFilters': Closes the filters modal.
+ * - 'toggleDraftGenre': Toggles the presence of a genre in the draft state.
+ * - 'toggleDraftAccessibility': Toggles the presence of an accessibility tag in the draft state.
+ * - 'setDraftSort': Sets the sort of the draft state.
+ * - 'applyDraft': Applies the draft state to the active state and resets the draft state.
+ * - 'resetSort': Resets the sort of the active and draft states.
+ * - 'resetAll': Resets the active and draft states to their initial values.
+ * - 'removeActiveGenre': Removes a genre from the active state.
+ * - 'removeActiveAccessibility': Removes an accessibility tag from the active state.
+ */
 function filtersReducer(state: BrowseFiltersState, action: BrowseAction): BrowseFiltersState {
   switch (action.type) {
     case 'openFilters':
@@ -136,6 +166,12 @@ function filtersReducer(state: BrowseFiltersState, action: BrowseAction): Browse
   }
 }
 
+/**
+ * Hook that returns the metadata for the filter UI.
+ * It fetches the data from the server and stores it in a cache.
+ * If the data is already cached, it will return the cached data.
+ * @returns {metadata: GamesMetadata, loading: boolean, error: string | null}
+ */
 function useGamesMetadata() {
   const [metadata, setMetadata] = useState<GamesMetadata>({
     genres: [],
@@ -154,6 +190,18 @@ function useGamesMetadata() {
     }
 
     const promise = metadataCache.promise || getGamesMetadata();
+    // Guard against mocks that return undefined/non-promise values
+    if (!promise || typeof (promise as any).then !== 'function') {
+      const fallback = metadataCache.data || { genres: [], accessibilityTags: [], releaseYears: [] };
+      metadataCache.data = fallback;
+      if (mounted) {
+        setMetadata(fallback);
+        setLoading(false);
+        setError('Failed to load filters');
+      }
+      return;
+    }
+
     metadataCache.promise = promise;
 
     promise
@@ -178,6 +226,18 @@ function useGamesMetadata() {
   return { metadata, loading, error };
 }
 
+/**
+ * Hook that provides a state object with games data, total number of pages, total number of results, a loading indicator, and an error message.
+ * The state is updated whenever the search term, filters, or page changes.
+ * The hook automatically aborts stale fetches when the search term, filters, or page changes.
+ * @param {{
+ *   currentPage: number;
+ *   pageSize: number;
+ *   searchTerm: string;
+ *   filters: FilterState;
+ * }} - An object with the current page, page size, search term, and filter state.
+ * @returns {UseGamesQueryState} - A state object with games data, total number of pages, total number of results, a loading indicator, and an error message.
+ */
 function useGamesQuery({
   currentPage,
   pageSize,
@@ -204,6 +264,7 @@ function useGamesQuery({
   });
 
   useEffect(() => {
+    // Abort stale fetches when search/filters/page change.
     const controller = new AbortController();
     const trimmedSearch = searchTerm.trim();
 
@@ -235,6 +296,12 @@ function useGamesQuery({
   return state;
 }
 
+/**
+ * Hook providing a browseable list of games with filtering, sorting and pagination.
+ *
+ * @param {UseBrowseGamesParams} props - Props containing the current page, page size, search term and pagination callback.
+ * @returns {Object} An object containing the browseable list of games, total pages, total results, loading state, error message, and functions to interact with the filters.
+ */
 export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange }: UseBrowseGamesParams) {
   const [filtersState, dispatch] = useReducer(filtersReducer, initialBrowseState);
   const { metadata, loading: metadataLoading } = useGamesMetadata();
@@ -262,11 +329,21 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
 
   const toggleDraftGenre = (genre: string) => dispatch({ type: 'toggleDraftGenre', genre });
 
+/**
+ * Toggle the presence of an accessibility tag in the draft filter state.
+ * @param {string} tag - The accessibility tag to toggle.
+ */
   const toggleDraftAccessibility = (tag: string) =>
     dispatch({ type: 'toggleDraftAccessibility', tag });
 
   const setDraftSort = (sort: SortOptionId) => dispatch({ type: 'setDraftSort', sort });
 
+/**
+ * Applies the draft filter state to the active state and resets
+ * the draft state. If the current page is not the first page,
+ * navigates to the first page. Scrolls to the top of the page
+ * smoothly.
+ */
   const applyFilters = () => {
     dispatch({ type: 'applyDraft' });
     if (currentPage !== 1) {
@@ -275,6 +352,11 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+/**
+ * Resets the active and draft filter states to their initial values.
+ * If the current page is not the first page, navigates to the first page.
+ * Scrolls to the top of the page smoothly.
+ */
   const clearFilters = () => {
     dispatch({ type: 'resetAll' });
     if (currentPage !== 1) {
@@ -283,6 +365,12 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+/**
+ * Removes a genre from the active filter state.
+ * If the current page is not the first page, navigates to the first page.
+ * Scrolls to the top of the page smoothly.
+ * @param {string} genre - The genre to remove from the active filter state.
+ */
   const removeGenre = (genre: string) => {
     dispatch({ type: 'removeActiveGenre', genre });
     if (currentPage !== 1) {
@@ -290,6 +378,11 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
     }
   };
 
+/**
+ * Removes an accessibility tag from the active filter state.
+ * If the current page is not the first page, navigates to the first page.
+ * @param {string} tag - The accessibility tag to remove from the active filter state.
+ */
   const removeAccessibility = (tag: string) => {
     dispatch({ type: 'removeActiveAccessibility', tag });
     if (currentPage !== 1) {
@@ -297,6 +390,10 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
     }
   };
 
+/**
+ * Resets the active sort state to its default value.
+ * If the current page is not the first page, navigates to the first page.
+ */
   const resetSort = () => {
     dispatch({ type: 'resetSort' });
     if (currentPage !== 1) {

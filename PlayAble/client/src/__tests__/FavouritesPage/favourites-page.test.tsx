@@ -20,6 +20,11 @@ jest.mock('../../context/AuthContext', () => {
   const actual = jest.requireActual('../../context/AuthContext');
   return {
     ...actual,
+/**
+ * Mocked useAuth hook for testing purposes.
+ * Returns a mock user object with `id`, `name`, and `role` properties.
+ * Also returns `isAuthenticated` as true, and `login` and `logout` as noop functions.
+ */
     useAuth: () => ({
       user: { id: 'test-user', name: 'Test User', role: 'user' },
       isAuthenticated: true,
@@ -30,6 +35,11 @@ jest.mock('../../context/AuthContext', () => {
 });
 
 const renderWithProviders = (ui: React.ReactElement) => {
+/**
+ * Renders a given React element wrapped in the AuthProvider and FavouritesProvider
+ * contexts. This is useful for testing components that rely on these contexts.
+ * @param {React.ReactElement} ui - The React element to render
+ */
   return render(
     <AuthProvider>
       <FavouritesProvider>{ui}</FavouritesProvider>
@@ -37,6 +47,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
   );
 };
 
+ 
 describe('FavouritesPage', () => {
   test('shows empty state when there are no favourites', async () => {
     renderWithProviders(<FavouritesPage />);

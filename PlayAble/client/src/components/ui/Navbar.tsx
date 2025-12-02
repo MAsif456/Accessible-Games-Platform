@@ -6,14 +6,25 @@ import React, { useState } from 'react';
 
 export type UserRole = 'guest' | 'user' | 'admin';
 
-export interface NavbarProps {
+/**
+ * Props for the Navbar component.
+ */
+interface NavbarProps {
+  /** User role for determining access level */
   role?: UserRole;
+  /** Current search term */
   searchTerm: string;
+  /** Function to call when search term changes */
   onSearchChange: (value: string) => void;
+  /** Function to call when search is submitted */
   onSearchSubmit: () => void;
+  /** Function to call when search is cleared */
   onClearSearch: () => void;
+  /** Current path for navigation */
   currentPath?: string;
+  /** Function to call when navigation occurs */
   onNavigate?: (path: string) => void;
+  /** Function to call when user logs out */
   onLogout?: () => void;
 }
 
@@ -25,6 +36,13 @@ const navItems = [
   { key: 'voice', label: 'Voice', path: '/voice', icon: 'mic' },
 ];
 
+/**
+ * Main navigation bar for the PlayAble platform, providing access to all key pages and user account actions.
+ * Accessibility is prioritized: keyboard navigation, ARIA roles, and high-contrast support are included to meet WCAG 2.1 AA standards.
+ * The logout action uses a confirmation dialog to prevent accidental sign-outs, improving user experience for all users.
+ * @param {NavbarProps} props - Props for the Navbar component.
+ * @returns {JSX.Element} - Rendered Navbar component.
+ */
 const Navbar: React.FC<NavbarProps> = ({
   role = 'guest',
   searchTerm,
@@ -39,6 +57,10 @@ const Navbar: React.FC<NavbarProps> = ({
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  /**
+   * Handle navigation item click.
+   * @param {string} path - Path to navigate to.
+   */
   const handleNavClick = (path: string) => {
     if (path === '/voice') {
       // Toggle voice popup instead of navigation
@@ -48,6 +70,10 @@ const Navbar: React.FC<NavbarProps> = ({
     if (onNavigate) onNavigate(path);
   };
 
+  /**
+   * Handle search input key down event.
+   * @param {React.KeyboardEvent<HTMLInputElement>} event - Keyboard event.
+   */
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -55,6 +81,7 @@ const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+  // Determine if the user is logged in based on the role
   const isLoggedIn = role === 'user' || role === 'admin';
 
   return (

@@ -9,6 +9,7 @@ export interface ReportDocument extends Document {
   reporterId?: Schema.Types.ObjectId;
   game?: Schema.Types.ObjectId;
   review?: Schema.Types.ObjectId;
+  adminReply?: string;
   createdAt: Date;
   updatedAt: Date;
   resolved?: boolean;
@@ -17,6 +18,7 @@ export interface ReportDocument extends Document {
   outcome?: 'kept' | 'deleted';
 }
 
+// Generic report model for general, game, and review reports (newer pipeline).
 const reportSchema = new Schema<ReportDocument>(
   {
     type: { type: String, enum: ['general', 'game', 'review'], required: true },
@@ -25,6 +27,7 @@ const reportSchema = new Schema<ReportDocument>(
     reporterId: { type: Schema.Types.ObjectId, ref: 'User' },
     game: { type: Schema.Types.ObjectId, ref: 'Game' },
     review: { type: Schema.Types.ObjectId, ref: 'Review' },
+    adminReply: { type: String },
     resolved: { type: Boolean, default: false },
     resolvedAt: { type: Date },
     resolvedBy: { type: Schema.Types.ObjectId, ref: 'User' },

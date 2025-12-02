@@ -40,7 +40,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     resolveReportedReview,
     error: adminActionsError,
   } = useAdminReviewActions({
-
+    // Toast is wired in App and passed to AdminPage via props in tests; keep optional for now
     showToast: showPrompt,
     onRefreshReviews: reviewsTable.refresh,
     onRefreshReported: reportedTable.refresh,
@@ -48,7 +48,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   });
 
   // Local modal state
-  const [reviewToDelete, setReviewToDelete] = useState<null | { id: string; displayId?: string; authorName?: string }>(null);
+  const [reviewToDelete, setReviewToDelete] = useState<null | { id: string; authorName?: string }>(null);
   const [reviewToReply, setReviewToReply] = useState<null | any>(null);
   const [replyText, setReplyText] = useState('');
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -74,6 +74,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [gamesStatsLoading, setGamesStatsLoading] = useState(true);
   const GAMES_PAGE_SIZE = 10;
 
+  // Load games on initial mount so Total Games is populated immediately
   useEffect(() => {
     let isCancelled = false;
     setGamesStatsLoading(true);
@@ -219,6 +220,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   };
 
   const renderReviewsSection = () => {
+    // Confirm resolve modal should always be available for any reviews subtab
     const confirmResolveModal = (
       <Modal
         isOpen={!!resolveConfirmAction}
@@ -363,13 +365,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                         <button
                           type="button"
                           className="admin-table__action-button admin-table__action-button--secondary"
-                          onClick={() =>
-                            setReviewToDelete({
-                              id: review._id,
-                              displayId: review.publicId ?? review._id,
-                              authorName: review.authorName,
-                            })
-                          }
+                          onClick={() => setReviewToDelete({ id: review._id, authorName: review.authorName })}
                         >
                           Delete
                         </button>
@@ -400,13 +396,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             contentClassName="modal-content--wide"
           >
             <h2 id="delete-review-title" className="dialog__title">
-              Delete Review - Admin Action
+              Delete Review – Admin Action
             </h2>
-            {reviewToDelete && (
-              <p className="dialog__meta">
-                <strong>Review ID:</strong> {reviewToDelete.displayId ?? reviewToDelete.id}
-              </p>
-            )}
             <p className="dialog__message">
               {`Are you sure you want to delete this review${
                 reviewToDelete?.authorName ? ` from ${reviewToDelete.authorName}` : ''
@@ -535,6 +526,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </div>
           </header>
 
+          {/* Search across reported reviews by id, game, author or reason */}
           <div className="admin-section-card__search-wrapper">
             <div className="admin-section-card__search-input-wrapper">
               <input
@@ -559,6 +551,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </div>
           </div>
 
+          {/* Surface any API / loading errors for the reported reviews table */}
           {reportedTable.error && (
             <div role="alert" className="admin-error-message">
               {reportedTable.error}
@@ -619,6 +612,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </table>
           </div>
 
+          {/* Paginated navigation for reported reviews */}
           {reportedTable.total > reportedTable.pageSize && (
             <div className="admin-pagination">
               <Pagination
@@ -630,7 +624,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </div>
           )}
 
-          {/* Resolve Modal */}
+          {/* Resolve Modal: shows full report + review context and allows outcome selection */}
           <Modal
             isOpen={!!reportToResolve}
             titleId="resolve-report-title"
@@ -647,6 +641,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                   Resolve Reported Review
                 </h2>
                 <div className="report-modal__sections">
+                  {/* Left column: metadata about the report itself */}
                   <div className="report-modal__section">
                     <h3>Report Information</h3>
                     <p><strong>Report ID:</strong> {reportToResolve._id}</p>
@@ -654,6 +649,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     <p><strong>Reported By:</strong> {reportToResolve.reporterEmail ?? 'Unknown'}</p>
                     <p><strong>Reported Date:</strong> {new Date(reportToResolve.createdAt).toLocaleDateString()}</p>
                   </div>
+                  {/* Right column: underlying review text and game context */}
                   <div className="report-modal__section">
                     <h3>Review Content</h3>
                     <p><strong>Review ID:</strong> {reportToResolve.reviewPublicId ?? reportToResolve.reviewId}</p>
@@ -661,6 +657,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     <p><strong>Author:</strong> {reportToResolve.reviewAuthorName ?? ''}</p>
                     <p><strong>Text:</strong> {reportToResolve.reviewBody ?? 'No content available'}</p>
                   </div>
+                  {/* Optional moderator reply that will be persisted via adminResolveReviewReport */}
                   <div className="report-modal__section">
                     <h3>Admin Reply to Author (optional)</h3>
                     <textarea
@@ -690,9 +687,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                         {adminActionsError}
                       </p>
                     )}
-                    <p className="admin-form-field-hint">
-                      Any reply entered here will be sent when you choose Complete or Delete Review.
-                    </p>
                   </div>
                 </div>
                 <div className="dialog__actions dialog__actions--split">
@@ -734,6 +728,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
       );
     }
 
+    // resolved reported reviews
     const totalPages = Math.max(1, Math.ceil(resolvedTable.total / resolvedTable.pageSize));
     return (
       <section className="admin-section-card" aria-labelledby="resolved-reviews-title">
@@ -873,6 +868,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                   <p><strong>Game:</strong> {resolvedReportToView.gameTitle ?? resolvedReportToView.gameSlug ?? ''}</p>
                   <p><strong>Author:</strong> {resolvedReportToView.reviewAuthorName ?? ''}</p>
                   <p><strong>Text:</strong> {resolvedReportToView.reportReason ?? 'No content available'}</p>
+                  <p><strong>Admin Reply:</strong> {resolvedReportToView.adminReply?.trim() || 'No admin reply recorded'}</p>
                 </div>
               </div>
               <div className="dialog__actions">

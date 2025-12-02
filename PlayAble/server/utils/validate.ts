@@ -47,6 +47,9 @@ export function parseGamesQuery(query: any): GamesFilterQuery {
   return { page, pageSize, search: sanitizedSearch, genres, tags, sort };
 }
 
+/**
+ * Shared pagination parser with sane defaults and max page size enforcement.
+ */
 export function parsePagination(query: any, defaults?: { page?: number; pageSize?: number; maxPageSize?: number }) {
   const fallbackPage = defaults?.page ?? 1;
   const fallbackPageSize = defaults?.pageSize ?? 9;

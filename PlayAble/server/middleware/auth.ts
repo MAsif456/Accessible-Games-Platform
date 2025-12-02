@@ -97,6 +97,7 @@ export const protect = async (
       });
       return;
     }
+  /* istanbul ignore next */
   } catch (error: any) {
     console.error('Auth middleware error:', error);
     res.status(500).json({

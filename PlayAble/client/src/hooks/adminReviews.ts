@@ -7,6 +7,9 @@ import {
   getAdminResolvedReviewReports,
 } from '../services/adminReviewsService';
 
+/**
+ * Minimal table state contract for admin review/report tables.
+ */
 export interface UseTableState<T> {
   items: T[];
   loading: boolean;
@@ -20,6 +23,17 @@ export interface UseTableState<T> {
   refresh: () => void;
 }
 
+/**
+ * Hook that provides a minimal table state contract for admin review/report tables.
+ * The returned state includes a list of items, a loading indicator, an error message,
+ * the current search term, the current page, the page size, the total number of items,
+ * a function to set the search term, a function to set the page, and a function to refresh the table.
+ * The hook automatically refreshes the table when the search term or page changes.
+ * The hook also debounces the search term by 300ms to avoid excessive fetching.
+ * @param {function} fetcher - A function that fetches the data for the table.
+ * @param {number} pageSize - The number of items to fetch per page. Defaults to 7.
+ * @returns {UseTableState<T>} - A state object that conforms to the UseTableState contract.
+ */
 function usePaginatedSearchTable<T>(
   fetcher: (params: { page: number; pageSize: number; search?: string }) => Promise<{ items: T[]; total: number }>,
   pageSize: number = 7,
@@ -35,6 +49,14 @@ function usePaginatedSearchTable<T>(
 
   const effectiveSearch = debouncedSearchTerm.trim();
 
+/**
+ * Loads the table data with the given page and search parameters.
+ * Automatically refreshes the table when the search term or page changes.
+ * Debounces the search term by 300ms to avoid excessive fetching.
+ * @param {object} [override] - An object with optional page and search parameters.
+ * @example
+ * const handleLoad = () => load({ page: 2, search: 'example' });
+ */
   const load = (override?: { page?: number; search?: string }) => {
     const nextPage = override?.page ?? page;
     const nextSearch = override?.search ?? effectiveSearch;
@@ -45,6 +67,7 @@ function usePaginatedSearchTable<T>(
     fetcher({ page: nextPage, pageSize, search: nextSearch || undefined })
       .then(res => {
         if (nextRequest !== requestId + 1) return;
+        // Guard against malformed responses to avoid runtime crashes.
         const safeItems = Array.isArray(res.items) ? res.items : [];
         setItems(safeItems);
         setTotal(typeof res.total === 'number' ? res.total : safeItems.length);
@@ -74,6 +97,11 @@ function usePaginatedSearchTable<T>(
     load({ page: 1, search: effectiveSearch });
   }, [effectiveSearch]);
 
+/**
+ * Refreshes the table by calling load() with the current page and search parameters.
+ * This is useful when the table data changes outside of the hook's control, such as when
+ * the user creates a new review or resolves a reported review.
+ */
   const refresh = () => {
     load();
   };
@@ -87,6 +115,10 @@ function usePaginatedSearchTable<T>(
     pageSize,
     total,
     setSearchTerm,
+/**
+ * Sets the current page number and loads the table with the updated page.
+ * @param p New page number.
+ */
     setPage: (p: number) => {
       setPage(p);
       load({ page: p });
@@ -95,14 +127,35 @@ function usePaginatedSearchTable<T>(
   };
 }
 
+/**
+ * Hook for loading admin review table data.
+ * Uses the getAdminReviews function under the hood.
+ * @param pageSize Optional parameter to set the number of items per page.
+ * @returns A UseTableState object containing the table data and functions to search and paginate.
+ */
 export function useReviewsTable(pageSize = 7): UseTableState<ReviewDto> {
   return usePaginatedSearchTable<ReviewDto>(getAdminReviews, pageSize);
 }
 
+
+/**
+ * Hook for loading admin reported reviews table data.
+ * Uses the getAdminReportedReviews function under the hood.
+ * @param pageSize Optional parameter to set the number of items per page.
+ * @returns A UseTableState object containing the table data and functions to search and paginate.
+ */
 export function useReportedReviewsTable(pageSize = 7): UseTableState<AdminReviewReport> {
   return usePaginatedSearchTable<AdminReviewReport>(getAdminReportedReviews, pageSize);
 }
 
+
 export function useResolvedReportedReviewsTable(pageSize = 7): UseTableState<AdminResolvedReviewReport> {
-  return usePaginatedSearchTable<AdminResolvedReviewReport>(getAdminResolvedReviewReports, pageSize);
+/*************  ✨ Windsurf Command ⭐  *************/
+/**
+ * Hook for loading admin resolved reported reviews table data.
+ * Uses the getAdminResolvedReviewReports function under the hood.
+ * @param {number} [pageSize=7] - Optional parameter to set the number of items per page.
+ * @returns {UseTableState<AdminResolvedReviewReport>} - A state object containing the table data and functions to search and paginate.
+ */
+/*******  193b87e0-7dd6-41f1-a7c6-f5eb5c986bc2  *******/  return usePaginatedSearchTable<AdminResolvedReviewReport>(getAdminResolvedReviewReports, pageSize);
 }

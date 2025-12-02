@@ -7,6 +7,12 @@ jest.mock('../../models/report', () => ({
   },
 }));
 
+/**
+ * Creates a mock response object for Express route handlers.
+ * The mock response object has `status` and `json` methods, which
+ * both return the mock response object itself, allowing for chaining.
+ * @returns {Object} A mock response object for Express route handlers.
+ */
 function createMockRes() {
   const res: any = {};
   res.status = jest.fn().mockReturnValue(res);

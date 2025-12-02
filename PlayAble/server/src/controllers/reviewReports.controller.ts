@@ -5,6 +5,15 @@ import ReviewReport from '../models/reviewReport';
 import Review from '../models/review';
 import { ReportModel } from '../models/report';
 
+
+/**
+ * Creates a new review report.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ * @returns {Promise<void>} - A promise that resolves when the request has been handled.
+ * @throws {Error} - An error occurred while creating the review report.
+ */
+
 export const createReviewReport = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -45,6 +54,14 @@ export const createReviewReport = async (req: Request, res: Response) => {
   }
 };
 
+
+/**
+ * Admin: list review reports (supports resolved/unresolved and search).
+ * @param {Request} req - Express request object.
+ * @param {Response} res - Express response object.
+ * @returns {Promise<void>} - Promise resolving to void.
+ * @throws {Error} - If there is an error fetching the review reports.
+ */
 export const adminListReviewReports = async (req: Request, res: Response) => {
   try {
     const page = Math.max(parseInt((req.query.page as string) || '1', 10), 1);
@@ -197,6 +214,7 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           reviewId: rawReviewId,
           reviewPublicId: friendlyReviewId,
           reportReason: doc.description || doc.transcript || 'No details provided.',
+          adminReply: doc.adminReply || doc.reviewDoc?.adminReply,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt,
           resolved: typeof doc.resolved === 'boolean' ? doc.resolved : !!doc.resolvedValue,
@@ -218,6 +236,7 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           reviewId: rawReviewId,
           reviewPublicId: friendlyReviewId,
           reportReason: doc.reasonText,
+          adminReply: doc.adminReply || doc.review?.adminReply,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt,
           resolved: !!doc.resolved,
@@ -242,6 +261,9 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Admin: resolve a review report, optionally deleting the review.
+ */
 export const adminResolveReviewReport = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -268,6 +290,8 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
     }
 
     const reviewId = (report as any).review ?? (report as any).reviewId;
+    const reviewDoc = reviewId ? await Review.findById(reviewId) : null;
+    const adminReplySnapshot = reviewDoc?.adminReply;
 
     if (shouldDeleteReview && reviewId) {
       await Review.findByIdAndDelete(reviewId);
@@ -277,6 +301,9 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
     (report as any).resolvedAt = new Date();
     (report as any).resolvedBy = user?.id ? new mongoose.Types.ObjectId(user.id) : undefined;
     (report as any).outcome = shouldDeleteReview ? 'deleted' : 'kept';
+    if (adminReplySnapshot && !(report as any).adminReply) {
+      (report as any).adminReply = adminReplySnapshot;
+    }
     await report.save();
 
     return res.status(200).json(report.toObject());

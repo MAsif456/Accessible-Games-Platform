@@ -22,6 +22,9 @@ let metadataCache: { value: GamesMetadata | null; expiresAt: number } = {
   expiresAt: 0,
 };
 
+/**
+ * Build Mongo filter for public games listing.
+ */
 function buildGamesFilter(query: GamesFilterQuery): FilterQuery<IGame> {
   const filter: FilterQuery<IGame> = { isPublished: true };
 
@@ -103,6 +106,10 @@ export function resetGamesMetadataCache() {
   metadataCache = { value: null, expiresAt: 0 };
 }
 
+/**
+ * Return distinct metadata (genres, accessibility tags, release years) for filters.
+ * Uses a short-lived cache to reduce DB load.
+ */
 export async function getGamesMetadata(options: { useCache?: boolean } = {}): Promise<GamesMetadata> {
   const useCache = options.useCache !== false;
   const now = Date.now();

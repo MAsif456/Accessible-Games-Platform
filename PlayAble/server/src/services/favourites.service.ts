@@ -19,6 +19,9 @@ export interface PaginatedFavouriteGames {
 }
 
 class FavouritesService {
+  /**
+   * Map a game document (populated or raw) to the DTO exposed to clients.
+   */
   private toDto(game: any): FavouriteGameDto {
     return {
       id: game._id?.toString?.() ?? game.id,
@@ -31,6 +34,13 @@ class FavouritesService {
     };
   }
 
+  /**
+   * Fetch paginated favourites for a user, with lean populated game docs.
+   * @param {string} userId - User ID to fetch favourites for.
+   * @param {number} page - Page number to fetch.
+   * @param {number} pageSize - Number of items to fetch per page.
+   * @returns {Promise<PaginatedFavouriteGames>} - Paginated favourites for user.
+   */
   async getFavouritesForUser(
     userId: string,
     page: number,
@@ -53,6 +63,14 @@ class FavouritesService {
     return { items: games, total, page, pageSize };
   }
 
+
+  /**
+   * Add a game to the user's favourites list.
+   * @param {string} userId - The user ID to add the favourite for.
+   * @param {string} gameId - The game ID to add to the user's favourites list.
+   * @returns {Promise<FavouriteGameDto>} - The added favourite game.
+   * @throws {Error} - If the game to add was not found.
+   */
   async addFavourite(userId: string, gameId: string): Promise<FavouriteGameDto> {
     const gameExists = await GameModel.exists({ _id: gameId });
     if (!gameExists) {
@@ -67,6 +85,13 @@ class FavouritesService {
 
     return this.toDto(favGame);
   }
+  /**
+   * Remove a favourite game.
+   * @param {string} userId - The user ID to remove the favourite for.
+   * @param {string} gameId - The game ID to remove from the user's favourites list.
+   * @returns {Promise<number>} - The number of documents deleted.
+   * @throws {Error} - If the game to remove was not found.
+   */
 
   async removeFavourite(userId: string, gameId: string): Promise<number> {
     return favouritesRepository.removeFavourite(userId, gameId);

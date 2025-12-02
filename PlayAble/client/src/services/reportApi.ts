@@ -15,6 +15,9 @@ export interface SubmitReportResponse {
   message: string;
 }
 
+/**
+ * Submit a report to the server. Voice transcript is optional; description must be validated upstream.
+ */
 export async function submitReport(payload: SubmitReportPayload): Promise<SubmitReportResponse> {
   const response = await apiPost('/api/reports', payload);
 
