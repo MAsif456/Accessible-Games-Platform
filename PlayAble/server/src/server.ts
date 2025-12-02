@@ -10,8 +10,8 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { seedAdminUserIfNotExists } from './models/user';
 import { seedGamesIfEmpty, syncSpecificAccessibilityTags } from './models/game';
-import gamesRouter from '../routes/games.routes';
-import authRoutes from '../routes/authRoutes';
+import gamesRouter from './routes/games.routes';
+import authRoutes from './routes/authRoutes';
 import './models/settings';
 import UserSettings from './models/settings';
 import favouritesRoutes from './routes/favourites.routes';
@@ -21,6 +21,7 @@ import reviewReportsRoutes from './routes/reviewReports.routes';
 import recentlyViewedRoutes from './routes/recentlyViewed.routes';
 import adminGeneralReportsRoutes from './routes/adminGeneralReports.routes';
 import adminGameReportsRoutes from './routes/adminGameReports.routes';
+import notificationsRoutes from './routes/notifications.routes';
 
 // Import security middleware
 import cookieParser from 'cookie-parser';
@@ -153,6 +154,7 @@ app.use('/api', reviewReportsRoutes);
 app.use('/api', recentlyViewedRoutes);
 app.use('/api/admin/general-reports', adminGeneralReportsRoutes);
 app.use('/api/admin/game-reports', adminGameReportsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Fix syntax error in `pickFirstString` function
 const pickFirstString = (value: unknown): string | undefined => {
