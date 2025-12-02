@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Review from '../models/review';
 import User from '../models/user';
 import Game from '../models/game';
+import { createNotification } from '../services/notificationService';
 
 type AuthedRequest = Request & {
   user?: {
@@ -295,16 +296,49 @@ export const adminListReviews = async (req: Request, res: Response) => {
 export const adminDeleteReview = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { reason } = req.body as { reason?: string };
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'Invalid review ID' });
     }
 
-    const review = await Review.findById(id);
+    const review = await Review.findById(id).populate('gameId', 'title slug').lean();
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
 
-    await review.deleteOne();
+    const reviewUserId = review.userId?.toString();
+    const reviewContent = review.body?.substring(0, 100) || 'your review';
+    const gameTitle = (review.gameId as any)?.title || 'the game';
+    const gameSlug = (review.gameId as any)?.slug;
+    const gameId = review.gameId?.toString();
+
+    await Review.findByIdAndDelete(id);
+
+    // Create notification for the review author
+    if (reviewUserId) {
+      try {
+        await createNotification(
+          reviewUserId,
+          'review_deleted',
+          'Your Review Has Been Deleted',
+          `Your review for "${gameTitle}" has been deleted by an administrator.${reason ? ` Reason: ${reason}` : ''}`,
+          {
+            reviewId: id,
+            gameId: gameId ? new mongoose.Types.ObjectId(gameId) : undefined,
+            metadata: {
+              reviewContent,
+              deletionReason: reason || undefined,
+              gameTitle,
+              gameSlug,
+            },
+          }
+        );
+      } catch (notifError) {
+        // Don't fail the deletion if notification creation fails
+        console.error('Error creating notification for review deletion', notifError);
+      }
+    }
+
     return res.status(204).send();
   } catch (error) {
     console.error('Error deleting review (admin)', error);
