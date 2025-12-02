@@ -4,6 +4,7 @@ import type { ReviewReportOutcome } from '../models/reviewReport';
 import ReviewReport from '../models/reviewReport';
 import Review from '../models/review';
 import { ReportModel } from '../models/report';
+import { createNotification } from '../services/notificationService';
 
 export const createReviewReport = async (req: Request, res: Response) => {
   try {
@@ -275,7 +276,9 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
 
     const reviewId = (report as any).review ?? (report as any).reviewId;
 
+    let reviewData: any = null;
     if (shouldDeleteReview && reviewId) {
+      reviewData = await Review.findById(reviewId).populate('gameId', 'title slug').lean();
       await Review.findByIdAndDelete(reviewId);
     }
 
@@ -289,6 +292,37 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
     reportDoc.resolvedBy = user?.id ? new mongoose.Types.ObjectId(user.id) : undefined;
     reportDoc.outcome = shouldDeleteReview ? 'deleted' : 'kept';
     await report.save();
+
+    // Create notification for the review author if review was deleted
+    if (shouldDeleteReview && reviewData && reviewData.userId) {
+      try {
+        const reviewContent = reviewData.body?.substring(0, 100) || 'your review';
+        const gameTitle = (reviewData.gameId as any)?.title || 'the game';
+        const gameSlug = (reviewData.gameId as any)?.slug;
+        const gameId = reviewData.gameId?.toString();
+        const deletionReason = reportDoc.description || 'Reported content violation';
+
+        await createNotification(
+          reviewData.userId,
+          'review_deleted',
+          'Your Review Has Been Deleted',
+          `Your review for "${gameTitle}" has been deleted by an administrator. Reason: ${deletionReason}`,
+          {
+            reviewId: reviewId.toString(),
+            gameId: gameId ? new mongoose.Types.ObjectId(gameId) : undefined,
+            metadata: {
+              reviewContent,
+              deletionReason,
+              gameTitle,
+              gameSlug,
+            },
+          }
+        );
+      } catch (notifError) {
+        // Don't fail the resolution if notification creation fails
+        console.error('Error creating notification for review deletion', notifError);
+      }
+    }
 
     return res.status(200).json(report.toObject());
   } catch (error) {
