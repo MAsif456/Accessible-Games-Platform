@@ -408,6 +408,7 @@ function AppContent({ PAGE_SIZE }: { PAGE_SIZE: number }) {
                     onNavigate={handleNavigate}
                     onOpenGameReport={openGameReport}
                     onOpenReviewReport={openReviewReport}
+                    onUnreadCountChange={setUnreadNotificationCount}
                   />
                 </main>
               </ProtectedRoute>
