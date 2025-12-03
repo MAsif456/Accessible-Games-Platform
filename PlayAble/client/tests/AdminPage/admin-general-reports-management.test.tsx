@@ -29,6 +29,20 @@ jest.mock('../../src/services/api', () => ({
   getGames: jest.fn(),
   getReviewStats: jest.fn(),
   getAuthHeaders: jest.fn(() => ({})),
+  getGamesMetadata: jest.fn().mockResolvedValue({
+    genres: [],
+    accessibilityTags: [],
+    platforms: [],
+    featureGroups: [],
+    tags: [],
+    modes: [],
+    inputMethods: [],
+    publishers: [],
+    developers: [],
+    themes: [],
+    languages: [],
+    releaseYears: [],
+  }),
 }));
 jest.mock('../../src/hooks/adminReviews');
 jest.mock('../../src/hooks/useAdminReviewActions');

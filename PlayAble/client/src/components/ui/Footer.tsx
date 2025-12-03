@@ -1,14 +1,27 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import useKeyboardNavigation from '../../hooks/navigation/useKeyboardNavigation';
 
+/**
+ * Props for the Footer component.
+ */
 interface FooterProps {
+  /** Callback function to handle navigation */
   onNavigate?: (path: string) => void;
 }
 
+/**
+ * Footer component with keyboard-navigable links.
+ * @param {FooterProps} props - Props for the footer component.
+ * @returns {JSX.Element} - Rendered footer component.
+ */
 const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+  // Reference to the footer navigation element
   const footerNavRef = useRef<HTMLUListElement>(null);
 
-  // Get all footer navigation buttons for keyboard navigation
+  /**
+   * Collects footer buttons for roving focus in horizontal navigation.
+   * @returns {HTMLButtonElement[]} - Array of footer buttons.
+   */
   const getFooterButtons = useCallback((): HTMLButtonElement[] => {
     if (!footerNavRef.current) return [];
     return Array.from(footerNavRef.current.querySelectorAll('button[type="button"]'));
@@ -20,8 +33,12 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
     { direction: 'horizontal', loop: true }
   );
 
-  // Handle keyboard events for footer navigation
+  // Attach global handler to support focus within footer.
   useEffect(() => {
+    /**
+     * Handles keydown events to support keyboard navigation within the footer.
+     * @param {KeyboardEvent} event - The keyboard event.
+     */
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only handle if focus is within footer navigation
       if (footerNavRef.current?.contains(event.target as Node)) {

@@ -70,10 +70,13 @@ if (process.env.NODE_ENV === 'development') {
 // ============================================================================
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    "https://playable-frontend.onrender.com",
+    "http://localhost:3000"
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-User-Id', 'x-user-id'],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-User-Id", "x-user-id"],
 }));
 
 // Enhanced CORS security checks

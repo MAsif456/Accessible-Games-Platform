@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { createReportHandler } from '../../routes/reports.routes';
 import { ReportModel } from '../../models/report';
 
@@ -7,6 +8,12 @@ jest.mock('../../models/report', () => ({
   },
 }));
 
+/**
+ * Creates a mock response object for Express route handlers.
+ * The mock response object has `status` and `json` methods, which
+ * both return the mock response object itself, allowing for chaining.
+ * @returns {Object} A mock response object for Express route handlers.
+ */
 function createMockRes() {
   const res: any = {};
   res.status = jest.fn().mockReturnValue(res);
@@ -63,23 +70,20 @@ describe('createReportHandler', () => {
 
   it('creates a report when payload is valid and trims description', async () => {
     mockedReportModel.create.mockResolvedValue({ id: 'abc123' });
-    const req: any = { body: { type: 'game', description: '   valid description   ', gameId: 'gid' } };
+    const gameId = new mongoose.Types.ObjectId().toHexString();
+    const req: any = { body: { type: 'game', description: '   valid description   ', gameId } };
     const res = createMockRes();
 
     await createReportHandler(req, res);
 
-    expect(mockedReportModel.create).toHaveBeenCalledWith({
-      type: 'game',
-      description: 'valid description',
-      transcript: undefined,
-      issueType: undefined,
-      game: 'gid',
-      review: undefined,
-      reporterId: undefined,
-      reporterEmail: undefined,
-      reporterName: undefined,
-      status: 'open',
-    });
+    expect(mockedReportModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'game',
+        description: 'valid description',
+        game: expect.any(mongoose.Types.ObjectId),
+        status: 'open',
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
       success: true,

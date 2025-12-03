@@ -9,6 +9,14 @@ interface SkipLinkProps {
   children: React.ReactNode;
 }
 
+/**
+ * A link that appears at the top of the page when you press Tab.
+ * When clicked, it will focus on the element that matches the href.
+ * This is useful for bypassing navigation and other elements that
+ * are not interesting for keyboard users.
+ * @param {string} href - The href of the target element.
+ * @param {React.ReactNode} children - The text content of the link.
+ */
 const SkipLink: React.FC<SkipLinkProps> = ({ href, children }) => {
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();

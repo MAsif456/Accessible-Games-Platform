@@ -19,7 +19,11 @@ module.exports = {
 
   setupFilesAfterEnv: ['<rootDir>/tests/setupTests.ts'],
 
-  // Coverage configuration
+  // Enable coverage collection and use v8 provider
+  collectCoverage: true,
+  coverageProvider: 'v8',
+
+  // Coverage configuration: include src, exclude tests and boilerplate
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.test.{ts,tsx}',
@@ -28,6 +32,9 @@ module.exports = {
     '!src/setupTests.ts',
     '!src/vite-env.d.ts',
   ],
-  coverageDirectory: 'coverage',
+  coverageDirectory: '<rootDir>/coverage',
   coverageReporters: ['text', 'html', 'lcov'],
+  coveragePathIgnorePatterns: ['/node_modules/', '<rootDir>/dist/'],
 };
+
+

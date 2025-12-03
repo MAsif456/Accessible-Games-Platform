@@ -52,6 +52,10 @@ Object.defineProperty(window, 'webkitSpeechRecognition', {
   value: jest.fn(() => mockRecognition),
 });
 
+/**
+ * Renders a ReportForm component with type set to 'general'.
+ * Useful for testing the component's validation and submission logic.
+ */
 function renderForm() {
   const mockOnNavigate = jest.fn();
   const mockSetSearchTerm = jest.fn();
@@ -75,14 +79,31 @@ describe('ReportForm validation', () => {
     });
   });
 
+  it('shows an error when no description or transcript is provided after submit', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    expect(
+      screen.queryByText(/please provide at least 10 characters or add a voice recording/i)
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /submit report/i }));
+
+    expect(
+      screen.getByText(/please provide at least 10 characters or add a voice recording/i)
+    ).toBeInTheDocument();
+  });
+
   it('shows an error when description is shorter than 10 characters', async () => {
     const user = userEvent.setup();
     renderForm();
 
-    const textarea = screen.getByLabelText(/written description/i);
+    const textarea = screen.getByLabelText(/description/i);
     await user.type(textarea, 'short');
 
-    await user.click(screen.getByRole('button', { name: /submit report/i }));
+    const form = screen.getByRole('button', { name: /submit report/i }).closest('form');
+    if (!form) throw new Error('Report form not found');
+    fireEvent.submit(form);
 
     await waitFor(() =>
       expect(screen.getByText(/at least 10 characters/i)).toBeInTheDocument()
@@ -94,11 +115,13 @@ describe('ReportForm validation', () => {
     const user = userEvent.setup();
     renderForm();
 
-    const textarea = screen.getByLabelText(/written description/i);
+    const textarea = screen.getByLabelText(/description/i);
     const tooLong = 'a'.repeat(1001);
     fireEvent.change(textarea, { target: { value: tooLong } });
 
-    await user.click(screen.getByRole('button', { name: /submit report/i }));
+    const form = screen.getByRole('button', { name: /submit report/i }).closest('form');
+    if (!form) throw new Error('Report form not found');
+    fireEvent.submit(form);
 
     await waitFor(() =>
       expect(screen.getByText(/under 1000 characters/i)).toBeInTheDocument()
@@ -111,7 +134,7 @@ describe('ReportForm validation', () => {
     mockedSubmitReport.mockResolvedValue({ success: true, message: 'ok' });
     renderForm();
 
-    const textarea = screen.getByLabelText(/written description/i);
+    const textarea = screen.getByLabelText(/description/i);
     const message = 'This is a valid report description.';
     await user.type(textarea, message);
 
@@ -126,6 +149,8 @@ describe('ReportForm validation', () => {
     );
 
     await waitFor(() => expect((textarea as HTMLTextAreaElement).value).toBe(''));
-    expect(screen.queryByText(/at least 10 characters/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/please provide at least 10 characters or add a voice recording/i)
+    ).not.toBeInTheDocument();
   });
 });

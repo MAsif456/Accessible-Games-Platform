@@ -22,6 +22,7 @@ export interface ReviewDocument extends Document {
   updatedAt: Date;
 }
 
+// Stores user-generated reviews for games; includes publicId for safer exposure.
 const reviewSchema = new Schema<ReviewDocument>(
   {
     publicId: {

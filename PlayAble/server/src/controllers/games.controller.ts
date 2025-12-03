@@ -6,6 +6,7 @@ import {
   createGame,
   updateGame,
   deleteGame,
+  getGamesMetadata,
 } from '../services/games.service';
 import { parseGamesQuery } from '../../utils/validate';
 import { IGame } from '../models';
@@ -23,9 +24,7 @@ function normalizeSpecificAccessibilityTags(
   }
   const normalized: Record<string, string[]> = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (Array.isArray(value) && value.length) {
-      normalized[key] = value;
-    } else if (Array.isArray(value)) {
+    if (Array.isArray(value)) {
       normalized[key] = value;
     }
   }
@@ -33,7 +32,8 @@ function normalizeSpecificAccessibilityTags(
 }
 
 /**
- * Converts a Game model document to a clean DTO for API responses.
+ * Adapter/DTO to shape the Game document for API responses.
+ * Keeps API payloads consistent between admin and public endpoints.
  */
 function toGameDto(game: IGame & { createdAt?: Date; updatedAt?: Date }) {
   return {
@@ -54,7 +54,7 @@ function toGameDto(game: IGame & { createdAt?: Date; updatedAt?: Date }) {
 }
 
 /**
- * HTTP handler for retrieving paginated games with filtering and sorting.
+ * Public games listing with pagination and filters.
  */
 export async function getGamesHandler(req: Request, res: Response, next: NextFunction) {
   try {
@@ -74,7 +74,19 @@ export async function getGamesHandler(req: Request, res: Response, next: NextFun
 }
 
 /**
- * HTTP handler for retrieving all games for admin management.
+ * Lightweight metadata (genres, accessibility tags, release years) for filter UI.
+ */
+export async function getGamesMetadataHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const metadata = await getGamesMetadata();
+    return res.json(metadata);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Admin listing of all games (unpaginated) for management UI.
  */
 export async function getAdminGamesHandler(req: Request, res: Response, next: NextFunction) {
   try {
@@ -86,7 +98,7 @@ export async function getAdminGamesHandler(req: Request, res: Response, next: Ne
 }
 
 /**
- * HTTP handler for retrieving a single game by ID.
+ * Single game fetch by id.
  */
 export async function getGameByIdHandler(req: Request, res: Response, next: NextFunction) {
   try {
@@ -101,7 +113,7 @@ export async function getGameByIdHandler(req: Request, res: Response, next: Next
 }
 
 /**
- * HTTP handler for creating a new game.
+ * Admin create game.
  */
 export async function createGameHandler(req: Request, res: Response, next: NextFunction) {
   try {
@@ -136,7 +148,7 @@ export async function createGameHandler(req: Request, res: Response, next: NextF
 }
 
 /**
- * HTTP handler for updating an existing game.
+ * Admin update game.
  */
 export async function updateGameHandler(req: Request, res: Response, next: NextFunction) {
   try {
@@ -152,7 +164,7 @@ export async function updateGameHandler(req: Request, res: Response, next: NextF
 }
 
 /**
- * HTTP handler for deleting a game.
+ * Admin delete game.
  */
 export async function deleteGameHandler(req: Request, res: Response, next: NextFunction) {
   try {
@@ -163,4 +175,3 @@ export async function deleteGameHandler(req: Request, res: Response, next: NextF
     next(err);
   }
 }
-

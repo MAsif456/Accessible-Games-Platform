@@ -1,5 +1,5 @@
 import { FilterQuery, SortOrder } from 'mongoose';
-import { IGame } from '../models';
+import { IGame, GameModel } from '../models';
 import { GamesFilterQuery } from '../../utils/validate';
 import GamesRepository from '../repositories/games.repository';
 
@@ -20,6 +20,20 @@ export interface PaginatedGamesResult {
   totalPages: number;
 }
 
+export interface GamesMetadata {
+  genres: string[];
+  accessibilityTags: string[];
+  releaseYears: number[];
+}
+
+const METADATA_TTL_MS = 5 * 60 * 1000;
+let metadataCache: { value: GamesMetadata | null; expiresAt: number } = {
+  value: null,
+  expiresAt: 0,
+};
+
+/**
+ * Build Mongo filter for public games listing.
 /**
  * Builds a MongoDB filter query from user-provided search criteria.
  *
@@ -152,6 +166,45 @@ export async function getPaginatedGames(query: GamesFilterQuery): Promise<Pagina
     totalResults,
     totalPages,
   };
+}
+
+export function resetGamesMetadataCache() {
+  metadataCache = { value: null, expiresAt: 0 };
+}
+
+/**
+ * Return distinct metadata (genres, accessibility tags, release years) for filters.
+ * Uses a short-lived cache to reduce DB load.
+ */
+export async function getGamesMetadata(options: { useCache?: boolean } = {}): Promise<GamesMetadata> {
+  const useCache = options.useCache !== false;
+  const now = Date.now();
+
+  if (useCache && metadataCache.value && metadataCache.expiresAt > now) {
+    return metadataCache.value;
+  }
+
+  const [genres, accessibilityTags, releaseYears] = await Promise.all([
+    GameModel.distinct('genres', { isPublished: true }),
+    GameModel.distinct('accessibilityTags', { isPublished: true }),
+    GameModel.distinct('releaseYear', { isPublished: true, releaseYear: { $ne: null } }),
+  ]);
+
+  const safeGenres = (genres as string[]).filter(Boolean).sort();
+  const safeAccessibility = (accessibilityTags as string[]).filter(Boolean).sort();
+  const safeYears = (releaseYears as number[]).filter(Boolean).sort((a, b) => b - a);
+
+  const result: GamesMetadata = {
+    genres: safeGenres,
+    accessibilityTags: safeAccessibility,
+    releaseYears: safeYears,
+  };
+
+  if (useCache) {
+    metadataCache = { value: result, expiresAt: now + METADATA_TTL_MS };
+  }
+
+  return result;
 }
 
 /**

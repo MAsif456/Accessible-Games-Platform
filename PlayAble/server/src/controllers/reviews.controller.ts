@@ -13,6 +13,13 @@ type AuthedRequest = Request & {
   };
 };
 
+/**
+ * Public: list all reviews for a game (newest first), backfilling missing author names.
+ * @param {Request} req Request object with game ID in params.
+ * @param {Response} res Response object.
+ * @returns {Promise<void>} Promise resolving after sending JSON response.
+ */
+
 export const listReviews = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -66,6 +73,13 @@ export const listReviews = async (req: Request, res: Response) => {
   }
 };
 
+
+/**
+ * Public: create a new review for a game (auth required).
+ * @param {AuthedRequest} req Request object with user data.
+ * @param {Response} res Response object.
+ * @returns {Promise<void>} Promise resolving after creation.
+ */
 export const createReview = async (req: AuthedRequest, res: Response) => {
   try {
     const { id: gameId } = req.params as { id: string };
@@ -140,6 +154,30 @@ export const createReview = async (req: AuthedRequest, res: Response) => {
   }
 };
 
+
+/**
+ * Public: fetch a single review by its ID, along with its game context, for the reporting page.
+ * @param {Request} req Request object
+ * @param {Response} res Response object
+ * @returns {Promise<void>} Promise resolving after deletion
+ */
+/**
+ * Response shape:
+ * {
+ *   game: {
+ *     id: string,
+ *     title: string,
+ *     description: string,
+ *     categories: string[]
+ *   },
+ *   review: {
+ *     id: string,
+ *     author: string,
+ *     createdAt: Date,
+ *     content: string
+ *   }
+ * }
+ */
 export const getReviewById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -184,6 +222,20 @@ export const getReviewById = async (req: Request, res: Response) => {
   }
 };
 
+
+/**
+ * Public: toggle like on a review (idempotent based on client "liked" flag).
+ * 
+ * @param {Request} req Request object
+ * @param {Response} res Response object
+ * @returns {Promise<void>} Promise resolving after like toggle
+ * 
+ * @example
+ * const reviewId = '...';
+ * const liked = true;
+ * const res = await toggleReviewLike({ params: { id: reviewId }, body: { liked } });
+ * console.log(res.json());
+ */
 export const toggleReviewLike = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -212,6 +264,14 @@ export const toggleReviewLike = async (req: Request, res: Response) => {
   }
 };
 
+
+/**
+ * Public: delete a review authored by the current user.
+ * Requires authentication.
+ * @param {Request} req Request object
+ * @param {Response} res Response object
+ * @returns {Promise<void>} Promise resolving after deletion
+ */
 export const deleteReview = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -243,7 +303,17 @@ export const deleteReview = async (req: Request, res: Response) => {
 };
 
 /**
- * Retrieves aggregate review statistics used by the admin dashboard.
+ * Admin: list reviews (supports resolved/unresolved and search).
+ * Returns a list of reviews in the format:
+ * {
+ *   items: Review[],
+ *   page: number,
+ *   pageSize: number,
+ *   total: number
+ * }
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @returns {Promise<void>}
  */
 export const getReviewStats = async (req: Request, res: Response) => {
   try {
@@ -372,6 +442,12 @@ export const adminListReviews = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Admin: delete a review by its ID.
+ * @param {Request} req Request object
+ * @param {Response} res Response object
+ * @returns {Promise<void>} Promise resolving after deletion
+ */
 export const adminDeleteReview = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -462,6 +538,12 @@ export const adminDeleteReview = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Admin: reply to a review by its ID.
+ * @param {Request} req Request object
+ * @param {Response} res Response object
+ * @returns {Promise<void>} Promise resolving after reply is sent
+ */
 export const adminReplyToReview = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

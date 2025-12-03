@@ -70,18 +70,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+/**
+ * Refreshes the user's accessibility settings by re-fetching them from the
+ * server. Does nothing if the user is not logged in.
+ * @returns {Promise<void>} A promise that resolves when the operation is complete.
+ */
   const refreshUserSettings = async () => {
     if (user?.id) {
       await loadUserSettings(user.id);
     }
   };
 
+/**
+ * Updates the user's accessibility settings by re-setting the state and
+ * re-applying accessibility preferences based on the new settings.
+ * Does nothing if the settings are null.
+ * @param {UserSettings | null} settings The new accessibility settings to apply, or null to disable accessibility settings.
+ */
   const updateUserSettingsState = (settings: UserSettings | null) => {
     setUserSettings(settings);
     applyAccessibilityPreferences(settings);
   };
 
   useEffect(() => {
+    /**
+ * Initialises the authentication state by verifying the stored user's
+ * token and fetching their accessibility settings. If the stored user
+ * has a valid token, the current user is updated and their
+ * accessibility settings are re-fetched from the server. If the
+ * stored user has an invalid or expired token, they are logged out
+ * and their accessibility settings are disabled. If no stored user is
+ * found, the authentication state is left unchanged.
+ * @returns {Promise<void>} A promise that resolves when the operation is complete.
+ */
     const initialiseAuth = async () => {
       try {
         const storedUser = authService.getStoredUser();
@@ -118,7 +139,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initialiseAuth();
   }, []);
 
-  const signup = async (data: SignupData): Promise<AuthResponse> => {
+
+/**
+ * Signs up a new user with the provided data.
+ * If successful, the newly created user is set as the current user and
+ * their accessibility settings are loaded.
+ * @param {SignupData} data - Data to sign up a new user with.
+ * @returns {Promise<AuthResponse>} A promise that resolves with an authentication response.
+ * @throws {Error} If the signup fails.
+ */
+/*******  6a885aa0-90c3-40e7-baf1-1da1e8e332ae  *******/  const signup = async (data: SignupData): Promise<AuthResponse> => {
     try {
       const response = await authService.signup(data);
       if (response.success && response.user) {
@@ -135,6 +165,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+/**
+ * Logs in a user with the provided data.
+ * If successful, the logged in user is set as the current user and
+ * their accessibility settings are loaded.
+ * @param {LoginData} data - Data to log in a user with.
+ * @returns {Promise<AuthResponse>} A promise that resolves with an authentication response.
+ * @throws {Error} If the login fails.
+ */
   const login = async (data: LoginData): Promise<AuthResponse> => {
     try {
       const response = await authService.login(data);
@@ -152,6 +190,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+/**
+ * Logs out the current user and resets their accessibility settings.
+ * @returns {Promise<void>} A promise that resolves when the operation is complete.
+ * @throws {Error} If the logout fails.
+ */
   const logout = async (): Promise<void> => {
     try {
       await authService.logout();
@@ -162,6 +205,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+/**
+ * Updates the current user and their accessibility settings in local storage.
+ * @param {User} updatedUser - The updated user to be stored.
+ */
   const updateUser = (updatedUser: User) => {
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));

@@ -9,18 +9,21 @@ export interface ReviewReportDocument extends Document {
   voiceTranscript?: string;
   createdAt: Date;
   updatedAt: Date;
+  adminReply?: string;
   resolved: boolean;
   resolvedAt?: Date;
   resolvedBy?: Types.ObjectId;
   outcome?: ReviewReportOutcome;
 }
 
+// Legacy review report model; newer reports may also live in ReportModel.
 const reviewReportSchema = new Schema<ReviewReportDocument>(
   {
     reviewId: { type: Schema.Types.ObjectId, ref: 'Review', required: true },
     reporterId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     reasonText: { type: String, required: true },
     voiceTranscript: { type: String },
+    adminReply: { type: String },
     resolved: { type: Boolean, default: false },
     resolvedAt: { type: Date },
     resolvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
