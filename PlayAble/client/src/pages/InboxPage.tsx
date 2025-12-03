@@ -415,16 +415,33 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
       {selectedNotification && (
         <Modal
           isOpen={true}
+          titleId="notification-title"
           onClose={() => {
             setSelectedNotification(null);
             setReportDetails(null);
             setReviewDetails(null);
             setDetailsError(null);
           }}
-          title={selectedNotification.title}
-          aria-label="Notification details"
         >
           <div className="inbox-detail">
+            <div className="inbox-detail__header">
+              <h2 id="notification-title" className="inbox-detail__title">
+                {selectedNotification.title}
+              </h2>
+              <button
+                type="button"
+                className="inbox-detail__close"
+                onClick={() => {
+                  setSelectedNotification(null);
+                  setReportDetails(null);
+                  setReviewDetails(null);
+                  setDetailsError(null);
+                }}
+                aria-label="Close notification"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
             <div className="inbox-detail__meta">
               <span className="inbox-detail__type">
                 {getNotificationTypeLabel(selectedNotification.type)}
