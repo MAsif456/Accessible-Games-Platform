@@ -23,7 +23,6 @@ import AdminGameFormPage from './pages/AdminGameFormPage';
 import GameDetailsPage from './pages/GameDetailsPage';
 import ReportPage from './pages/ReportPage';
 import NotFoundPage from './pages/NotFoundPage';
-import { getUnreadNotificationCount } from './services/notificationsApi';
 
 export type AppPath = string;
 
@@ -469,7 +468,7 @@ function AppContent({ PAGE_SIZE }: { PAGE_SIZE: number }) {
         <Footer onNavigate={handleNavigate} />
       </div>
     </VoiceAssistantProvider>
-  );
+  );              
 }
 
 export default App;

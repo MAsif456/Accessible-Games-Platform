@@ -6,12 +6,12 @@
 import rateLimit from 'express-rate-limit';
 
 /**
- * General API rate limiter - 1000 requests per 15 minutes (increased for development)
+ * General API rate limiter - 1000 requests per 15 minutes
  * Applied to all /api/* routes
  */
 export const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // 1000 requests per window (increased from 100 for development)
+  max: 1000, // 1000 requests per window
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: true, // Also enable `X-RateLimit-*` headers for compatibility
   message: {
@@ -37,7 +37,7 @@ export const generalApiLimiter = rateLimit({
  */
 export const adminApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 2000, // 2000 requests per window (increased from 200 for development)
+  max: 2000, // 2000 requests per window
   standardHeaders: true,
   legacyHeaders: true,
   message: {
@@ -58,7 +58,7 @@ export const adminApiLimiter = rateLimit({
 });
 
 /**
- * Login rate limiter - 50 failed attempts per 15 minutes (increased for development)
+ * Login rate limiter - 50 failed attempts per 15 minutes
  * Only counts failed login attempts (skipSuccessfulRequests: true)
  */
 export const loginLimiter = rateLimit({
@@ -86,12 +86,12 @@ export const loginLimiter = rateLimit({
 });
 
 /**
- * Signup rate limiter - 30 attempts per hour (increased for development)
+ * Signup rate limiter - 30 attempts per hour
  * Prevents mass account creation
  */
 export const signupLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 30, // 30 signups per hour (increased from 3 for development)
+  max: 30, // 30 signups per hour
   standardHeaders: true,
   legacyHeaders: true,
   message: {
@@ -102,12 +102,12 @@ export const signupLimiter = rateLimit({
 });
 
 /**
- * Password reset rate limiter - 30 requests per hour (increased for development)
+ * Password reset rate limiter - 30 requests per hour
  * Prevents email flooding and password reset abuse
  */
 export const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 30, // 30 requests per hour (increased from 3 for development)
+  max: 30, // 30 requests per hour
   standardHeaders: true,
   legacyHeaders: true,
   message: {
