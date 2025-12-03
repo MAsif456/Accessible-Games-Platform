@@ -47,6 +47,12 @@ export interface ReportDocument extends Document {
   game?: Schema.Types.ObjectId;
   /** Reference to the review being reported (for review reports) */
   review?: Schema.Types.ObjectId;
+
+  /** Legacy single reply text (for backward compatibility) */
+  adminReply?: string;
+  /** Legacy resolved flag (for backward compatibility) */
+  resolved?: boolean;
+
   /** Current status of the report */
   status: 'open' | 'resolved';
   /** Array of admin replies to this report */
@@ -89,6 +95,10 @@ const reportSchema = new Schema<ReportDocument>(
     reporterEmail: { type: String },
     game: { type: Schema.Types.ObjectId, ref: 'Game' },
     review: { type: Schema.Types.ObjectId, ref: 'Review' },
+    // Legacy single reply + boolean resolved flag (kept for backward compatibility)
+    adminReply: { type: String },
+    resolved: { type: Boolean, default: false },
+    // New status + embedded replies model used by admin general/game report flows
     status: { type: String, enum: ['open', 'resolved'], default: 'open' },
     adminReplies: { type: [adminReplySchema], default: [] },
     resolvedAt: { type: Date },

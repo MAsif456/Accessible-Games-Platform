@@ -3,6 +3,27 @@ import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
 
+jest.mock('../../src/services/api', () => ({
+  __esModule: true,
+  getGames: jest.fn().mockResolvedValue({ games: [], total: 0 }),
+  getReviewStats: jest.fn().mockResolvedValue({ totalReviews: 0 }),
+  getAuthHeaders: jest.fn(() => ({})),
+  getGamesMetadata: jest.fn().mockResolvedValue({
+    genres: [],
+    accessibilityTags: [],
+    platforms: [],
+    featureGroups: [],
+    tags: [],
+    modes: [],
+    inputMethods: [],
+    publishers: [],
+    developers: [],
+    themes: [],
+    languages: [],
+    releaseYears: [],
+  }),
+}));
+
 // Helper to locate and click the Admin button by its visible text
 const clickAdminButton = async () => {
   const adminText = await screen.findByText(/admin/i);

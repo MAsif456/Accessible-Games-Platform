@@ -7,6 +7,55 @@ import { ReportModel } from '../models/report';
 import { createNotification } from '../services/notificationService';
 import { NotificationModel } from '../models/notification';
 
+let legacyReportsMigrated = false;
+
+async function migrateLegacyReviewReports() {
+  if (legacyReportsMigrated) return;
+  try {
+    const legacyDocs = await ReviewReport.find({});
+    if (!legacyDocs.length) {
+      legacyReportsMigrated = true;
+      return;
+    }
+
+    const ops = legacyDocs.map(doc => ({
+      updateOne: {
+        filter: { _id: doc._id },
+        update: {
+          $set: {
+            type: 'review',
+            description: doc.reasonText,
+            transcript: doc.voiceTranscript,
+            reporterId: doc.reporterId,
+            review: doc.reviewId,
+            resolved: doc.resolved ?? false,
+            resolvedAt: doc.resolvedAt,
+            resolvedBy: doc.resolvedBy,
+            outcome: doc.outcome,
+            adminReply: (doc as any).adminReply,
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+    await ReportModel.bulkWrite(ops);
+    await ReviewReport.deleteMany({ _id: { $in: legacyDocs.map(d => d._id) } });
+    legacyReportsMigrated = true;
+  } catch (error) {
+    console.error('Error migrating legacy review reports', error);
+  }
+}
+
+
+/**
+ * Creates a new review report.
+ * @param {Request} req - The request object.
+ * @param {Response} res - The response object.
+ * @returns {Promise<void>} - A promise that resolves when the request has been handled.
+ * @throws {Error} - An error occurred while creating the review report.
+ */
+
 export const createReviewReport = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -146,8 +195,18 @@ export const createReviewReport = async (req: Request, res: Response) => {
   }
 };
 
+
+/**
+ * Admin: list review reports (supports resolved/unresolved and search).
+ * @param {Request} req - Express request object.
+ * @param {Response} res - Express response object.
+ * @returns {Promise<void>} - Promise resolving to void.
+ * @throws {Error} - If there is an error fetching the review reports.
+ */
 export const adminListReviewReports = async (req: Request, res: Response) => {
   try {
+    await migrateLegacyReviewReports();
+
     const page = Math.max(parseInt((req.query.page as string) || '1', 10), 1);
     const pageSize = Math.min(
       Math.max(parseInt((req.query.pageSize as string) || '10', 10), 1),
@@ -159,17 +218,18 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
 
     const searchRegex = search ? new RegExp(search, 'i') : null;
     const searchObjectId =
-      search && mongoose.Types.ObjectId.isValid(search) ? new mongoose.Types.ObjectId(search) : null;
+      search && mongoose.Types.ObjectId.isValid(search)
+        ? new mongoose.Types.ObjectId(search)
+        : null;
 
     const reviewReportPipeline: any[] = [
       { $match: { type: 'review' } },
       {
         $addFields: {
           resolvedValue: {
-            $cond: [
-              { $ne: ['$status', null] },
+            $or: [
               { $eq: ['$status', 'resolved'] },
-              { $ifNull: ['$resolved', false] },
+              { $eq: ['$resolved', true] },
             ],
           },
           reviewRef: {
@@ -221,21 +281,17 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
               { $ifNull: ['$game', '$reviewDoc.gameId'] },
             ],
           },
-          // Get author name from user document, fallback to review authorName, then Anonymous
           reviewAuthorName: {
             $cond: [
               { $and: [{ $ne: ['$reviewAuthor', null] }, { $ne: ['$reviewAuthor.name', null] }] },
               '$reviewAuthor.name',
               {
-                $cond: [
-                  { $and: [{ $ne: ['$reviewAuthor', null] }, { $ne: ['$reviewAuthor.email', null] }] },
+                $ifNull: [
                   '$reviewAuthor.email',
-                  {
-                    $ifNull: ['$reviewDoc.authorName', 'Anonymous']
-                  }
-                ]
-              }
-            ]
+                  { $ifNull: ['$reviewDoc.authorName', 'Anonymous'] },
+                ],
+              },
+            ],
           },
         },
       },
@@ -276,6 +332,8 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
 
     reviewReportPipeline.push({ $sort: { createdAt: -1 } });
 
+    const reportModelDocs = await ReportModel.aggregate(reviewReportPipeline);
+
     const legacyPipeline: any[] = [
       { $match: { resolved } },
       {
@@ -309,46 +367,23 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
       { $unwind: { path: '$game', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
-          // Get author name from user document, fallback to review authorName, then Anonymous
           reviewAuthorName: {
             $cond: [
               { $and: [{ $ne: ['$reviewAuthor', null] }, { $ne: ['$reviewAuthor.name', null] }] },
               '$reviewAuthor.name',
               {
-                $cond: [
-                  { $and: [{ $ne: ['$reviewAuthor', null] }, { $ne: ['$reviewAuthor.email', null] }] },
+                $ifNull: [
                   '$reviewAuthor.email',
-                  {
-                    $ifNull: ['$review.authorName', 'Anonymous']
-                  }
-                ]
-              }
-            ]
+                  { $ifNull: ['$review.authorName', 'Anonymous'] },
+                ],
+              },
+            ],
           },
         },
       },
     ];
 
-    if (searchRegex) {
-      legacyPipeline.push({
-        $match: {
-          $or: [
-            { reasonText: { $regex: searchRegex } },
-            { 'review.body': { $regex: searchRegex } },
-            { 'review.authorName': { $regex: searchRegex } },
-            { 'game.title': { $regex: searchRegex } },
-            ...(searchObjectId ? [{ _id: searchObjectId }] : []),
-          ],
-        },
-      });
-    }
-
-    legacyPipeline.push({ $sort: { createdAt: -1 } });
-
-    const [reportModelDocs, legacyDocs] = await Promise.all([
-      ReportModel.aggregate(reviewReportPipeline),
-      ReviewReport.aggregate(legacyPipeline),
-    ]);
+    const legacyDocs = await ReviewReport.aggregate(legacyPipeline);
 
     const mappedReports = [
       ...reportModelDocs.map((doc: any) => {
@@ -356,6 +391,10 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           doc.reviewRef?.toString?.() ?? doc.review?.toString?.() ?? doc.reviewDoc?._id?.toString?.();
         const friendlyReviewId =
           doc.reviewDoc?.publicId || (rawReviewId ? `rev_${rawReviewId.slice(0, 8)}` : undefined);
+        const latestAdminReply =
+          Array.isArray(doc.adminReplies) && doc.adminReplies.length
+            ? doc.adminReplies[doc.adminReplies.length - 1]?.message
+            : undefined;
 
         // Extract reporter name/email: user lookup -> stored reporterName -> stored reporterEmail -> Anonymous
         const reporterName = doc.reporterUser?.name || doc.reporterName || null;
@@ -370,6 +409,7 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           reviewId: rawReviewId,
           reviewPublicId: friendlyReviewId,
           reportReason: doc.description || doc.transcript || 'No details provided.',
+          adminReply: doc.adminReply || latestAdminReply || doc.reviewDoc?.adminReply,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt,
           resolved: typeof doc.resolved === 'boolean' ? doc.resolved : !!doc.resolvedValue,
@@ -401,6 +441,7 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           reviewId: rawReviewId,
           reviewPublicId: friendlyReviewId,
           reportReason: doc.reasonText,
+          adminReply: doc.adminReply || doc.review?.adminReply,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt,
           resolved: !!doc.resolved,
@@ -427,8 +468,13 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Admin: resolve a review report, optionally deleting the review.
+ */
 export const adminResolveReviewReport = async (req: Request, res: Response) => {
   try {
+    await migrateLegacyReviewReports();
+
     const { id } = req.params;
     const { action, deleteReview: deleteReviewFlag } = req.body as {
       action?: 'complete' | 'delete-review';
@@ -442,8 +488,35 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
 
     const shouldDeleteReview = action === 'delete-review' || deleteReviewFlag === true;
 
-    const report =
-      (await ReportModel.findOne({ _id: id, type: 'review' })) || (await ReviewReport.findById(id));
+    let report = await ReportModel.findOne({ _id: id, type: 'review' });
+
+    // If we can't find a new-style report, try to migrate a legacy ReviewReport on the fly.
+    if (!report) {
+      const legacy = await ReviewReport.findById(id);
+      if (legacy) {
+        const reviewObjectId =
+          legacy.reviewId && mongoose.Types.ObjectId.isValid(legacy.reviewId)
+            ? new mongoose.Types.ObjectId(legacy.reviewId)
+            : undefined;
+
+        report = await ReportModel.create({
+          type: 'review',
+          description: legacy.reasonText,
+          transcript: legacy.voiceTranscript,
+          reporterId: legacy.reporterId,
+          review: reviewObjectId,
+          resolved: legacy.resolved ?? false,
+          resolvedAt: legacy.resolvedAt,
+          resolvedBy: legacy.resolvedBy,
+          outcome: legacy.outcome,
+          adminReply: (legacy as any).adminReply,
+        });
+
+        // Clean up the legacy document so we don't keep diverging schemas around.
+        await legacy.deleteOne();
+      }
+    }
+
     if (!report) {
       return res.status(404).json({ message: 'Report not found' });
     }
@@ -455,6 +528,8 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
     }
 
     const reviewId = (report as any).review ?? (report as any).reviewId;
+    const reviewDoc = reviewId ? await Review.findById(reviewId) : null;
+    const adminReplySnapshot = (reviewDoc as any)?.adminReply;
 
     let reviewData: any = null;
     if (shouldDeleteReview && reviewId) {
@@ -468,14 +543,21 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
     }
 
     const reportDoc = report as any;
-    if (typeof reportDoc.status !== 'undefined') {
-      reportDoc.status = 'resolved';
-    } else {
-      reportDoc.resolved = true;
-    }
+
+    // Support both new ReportModel (status field) and legacy ReviewReport (resolved boolean)
+    reportDoc.status = 'resolved';
+    reportDoc.resolved = true;
+
     reportDoc.resolvedAt = new Date();
     reportDoc.resolvedBy = user?.id ? new mongoose.Types.ObjectId(user.id) : undefined;
     reportDoc.outcome = shouldDeleteReview ? 'deleted' : 'kept';
+
+    // For legacy ReviewReport docs, preserve any admin reply that may have been
+    // saved on the underlying Review document if the report itself has none.
+    if (adminReplySnapshot && typeof reportDoc.adminReply === 'undefined') {
+      reportDoc.adminReply = adminReplySnapshot;
+    }
+
     await report.save();
 
     // Create notification for the review author if review was deleted

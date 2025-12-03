@@ -6,6 +6,7 @@ export interface IFavourite extends Document {
   createdAt: Date;
 }
 
+// Stores user <-> game favourites with unique constraint to avoid duplicates.
 const FavouriteSchema = new Schema<IFavourite>(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },

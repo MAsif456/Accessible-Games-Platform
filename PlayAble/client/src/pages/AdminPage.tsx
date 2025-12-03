@@ -14,10 +14,13 @@ import {
   replyToGameReport,
 } from '../services/adminGameReportsService';
 import { getAdminGames } from '../services/gamesAdminService';
-import Pagination from '../components/ui/Pagination';
-import Modal from '../components/ui/Modal';
 import { useReviewsTable, useReportedReviewsTable, useResolvedReportedReviewsTable } from '../hooks/adminReviews';
-import useAdminReviewActions, { ADMIN_REPLY_MIN_CHARS, ADMIN_REPLY_MAX_CHARS } from '../hooks/useAdminReviewActions';
+import useAdminReviewActions from '../hooks/useAdminReviewActions';
+import GeneralReportsSection from './admin/GeneralReportsSection';
+import ReviewsSection from './admin/ReviewsSection';
+import GamesSection from './admin/GamesSection';
+import GeneralReportModal from './admin/modals/GeneralReportModal';
+import GameReportModal from './admin/modals/GameReportModal';
 
 // Consistent date formatting function for tests and display
 /**
@@ -556,7 +559,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     }
   };
 
-  const renderGeneralReportsSection = () => {
+  return (
     const isResolved = generalSubTab === 'resolved';
     const reports = isResolved ? paginatedResolvedGeneralReports : paginatedGeneralReports;
     const loading = isResolved ? resolvedReportsLoading : generalReportsLoading;
@@ -1960,9 +1963,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
           </div>
         </div>
       )}
-    </Modal>
-  );
-
   return (
     <main className="admin-page" aria-label="Admin Management dashboard">
       <header className="admin-page__header">
@@ -2119,7 +2119,30 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
               Resolved Reports
             </button>
           </div>
-          {renderGeneralReportsSection()}
+          <GeneralReportsSection
+            generalSubTab={generalSubTab}
+            paginatedGeneralReports={paginatedGeneralReports}
+            paginatedResolvedGeneralReports={paginatedResolvedGeneralReports}
+            generalReportsLoading={generalReportsLoading}
+            resolvedReportsLoading={resolvedReportsLoading}
+            generalReportsError={generalReportsError}
+            resolvedReportsError={resolvedReportsError}
+            generalReportsSearch={generalReportsSearch}
+            resolvedReportsSearch={resolvedReportsSearch}
+            setGeneralReportsSearch={setGeneralReportsSearch}
+            setResolvedReportsSearch={setResolvedReportsSearch}
+            generalReportsTotalPages={generalReportsTotalPages}
+            resolvedGeneralReportsTotalPages={resolvedGeneralReportsTotalPages}
+            generalReportsPage={generalReportsPage}
+            resolvedGeneralReportsPage={resolvedGeneralReportsPage}
+            setGeneralReportsPage={setGeneralReportsPage}
+            setResolvedGeneralReportsPage={setResolvedGeneralReportsPage}
+            formatDate={formatDate}
+            truncateDescription={truncateDescription}
+            formatReporter={formatReporter}
+            openReportModal={openReportModal}
+          />
+>>>>>>> 510457e3cf9bac5ba29367b623e5564cfd59f8d8
         </section>
       )}
 
@@ -2168,7 +2191,36 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
               Resolved Reported Reviews
             </button>
           </div>
-          {renderReviewsSection()}
+          <ReviewsSection
+            reviewsSubTab={reviewsSubTab}
+            reviewsTable={reviewsTable}
+            reportedTable={reportedTable}
+            resolvedTable={resolvedTable}
+            setReviewToReply={setReviewToReply}
+            setReviewToDelete={setReviewToDelete}
+            reviewToDelete={reviewToDelete}
+            reviewToReply={reviewToReply}
+            replyText={replyText}
+            setReplyText={setReplyText}
+            replyError={replyError}
+            setReplyError={setReplyError}
+            adminActionsError={adminActionsError}
+            sendAdminReply={sendAdminReply}
+            deleteReview={deleteReview}
+            reportToResolve={reportToResolve}
+            setReportToResolve={setReportToResolve}
+            moderatorReply={moderatorReply}
+            setModeratorReply={setModeratorReply}
+            moderatorReplyError={moderatorReplyError}
+            setModeratorReplyError={setModeratorReplyError}
+            resolveConfirmAction={resolveConfirmAction}
+            setResolveConfirmAction={setResolveConfirmAction}
+            resolvedReportToView={resolvedReportToView}
+            setResolvedReportToView={setResolvedReportToView}
+            resolveReportedReview={resolveReportedReview}
+            formatDate={formatDate}
+          />
+>>>>>>> 510457e3cf9bac5ba29367b623e5564cfd59f8d8
         </section>
       )}
 
@@ -2217,11 +2269,70 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
               Resolved Reported Games
             </button>
           </div>
-          {renderGamesSection()}
+          <GamesSection
+            gamesSubTab={gamesSubTab}
+            handleAddNewGame={handleAddNewGame}
+            gamesSearchTerm={gamesSearchTerm}
+            setGamesSearchTerm={setGamesSearchTerm}
+            gamesError={gamesError}
+            gamesLoading={gamesLoading}
+            pageGames={pageGames}
+            gamesPage={gamesPage}
+            setGamesPage={setGamesPage}
+            totalGamesPages={totalGamesPages}
+            GAMES_PAGE_SIZE={GAMES_PAGE_SIZE}
+            handleManageGame={handleManageGame}
+            gameReportsSearch={gameReportsSearch}
+            setGameReportsSearch={setGameReportsSearch}
+            gameReportsError={gameReportsError}
+            gameReportsLoading={gameReportsLoading}
+            filteredGameReports={filteredGameReports}
+            paginatedGameReports={paginatedGameReports}
+            gameReportsTotalPages={gameReportsTotalPages}
+            gameReportsPage={gameReportsPage}
+            setGameReportsPage={setGameReportsPage}
+            formatGameIssueType={formatGameIssueType}
+            truncateDescription={truncateDescription}
+            formatDate={formatDate}
+            openGameReportModal={openGameReportModal}
+            resolvedGameReportsSearch={resolvedGameReportsSearch}
+            setResolvedGameReportsSearch={setResolvedGameReportsSearch}
+            resolvedGameReportsError={resolvedGameReportsError}
+            resolvedGameReportsLoading={resolvedGameReportsLoading}
+            filteredResolvedGameReports={filteredResolvedGameReports}
+            paginatedResolvedGameReports={paginatedResolvedGameReports}
+            resolvedGameReportsTotalPages={resolvedGameReportsTotalPages}
+            resolvedGameReportsPage={resolvedGameReportsPage}
+            setResolvedGameReportsPage={setResolvedGameReportsPage}
+          />
         </section>
       )}
-      {renderReportModal()}
-      {renderGameReportModal()}
+      <GeneralReportModal
+        activeReport={activeReport}
+        reportModalMode={reportModalMode}
+        closeReportModal={closeReportModal}
+        formatReporter={formatReporter}
+        formatDate={formatDate}
+        reportReplyMessage={reportReplyMessage}
+        setReportReplyMessage={setReportReplyMessage}
+        reportModalError={reportModalError}
+        handleReportReplySubmit={handleReportReplySubmit}
+        reportModalSubmitting={reportModalSubmitting}
+      />
+      <GameReportModal
+        activeGameReport={activeGameReport}
+        gameReportModalMode={gameReportModalMode}
+        closeGameReportModal={closeGameReportModal}
+        formatGameIssueType={formatGameIssueType}
+        formatGameReportReporter={formatGameReportReporter}
+        formatDate={formatDate}
+        gameReportReplyMessage={gameReportReplyMessage}
+        setGameReportReplyMessage={setGameReportReplyMessage}
+        gameReportModalError={gameReportModalError}
+        handleGameReportReplySubmit={handleGameReportReplySubmit}
+        gameReportModalSubmitting={gameReportModalSubmitting}
+      />
+>>>>>>> 510457e3cf9bac5ba29367b623e5564cfd59f8d8
     </main>
   );
 };

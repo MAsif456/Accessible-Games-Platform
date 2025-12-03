@@ -7,6 +7,8 @@ import dotenv from 'dotenv';
 // Load environment variables (same as server)
 dotenv.config();
 
+jest.setTimeout(20000);
+
 describe('FavouritesRepository', () => {
   const userId = new mongoose.Types.ObjectId().toHexString();
 
@@ -52,7 +54,7 @@ describe('FavouritesRepository', () => {
   });
 
   it('returns paginated favourites for a user', async () => {
-    
+
     const games = await GameModel.insertMany(
       Array.from({ length: 10 }, (_, i) => ({
         title: `Game ${i + 1}`,
@@ -69,18 +71,14 @@ describe('FavouritesRepository', () => {
       games.map(g => ({ user: userId, game: g._id })),
     );
 
-   
-    const insertedFavourites = await FavouriteModel.find({ user: userId }).populate('game').exec();
-    console.log('Inserted Favourites:', insertedFavourites);
-
-    
     const page1 = await favouritesRepository.getFavouritesForUser(userId, 1, 9);
 
-    
     expect(page1.items).toHaveLength(9);
     expect(page1.total).toBe(10);
     expect(page1.page).toBe(1);
     expect(page1.pageSize).toBe(9);
+    // Lean populated docs still include the game fields
+    expect((page1.items[0] as any).game.title).toBeDefined();
   });
 
      it('removes a favourite using ObjectIds and pulls next item into first page', async () => {
@@ -140,10 +138,19 @@ describe('FavouritesRepository', () => {
     }
 
   
-    await favouritesRepository.removeFavourite(userId, gameIds[0]);
+    const deletedCount = await favouritesRepository.removeFavourite(userId, gameIds[0]);
+    expect(deletedCount).toBe(1);
 
     const page1 = await favouritesRepository.getFavouritesForUser(userId, 1, 9);
     expect(page1.items).toHaveLength(9);
     expect(page1.total).toBe(9);
+  });
+
+  test('removeFavourite returns 0 when nothing is deleted', async () => {
+    const deleted = await favouritesRepository.removeFavourite(
+      userId,
+      new mongoose.Types.ObjectId().toHexString(),
+    );
+    expect(deleted).toBe(0);
   });
 });

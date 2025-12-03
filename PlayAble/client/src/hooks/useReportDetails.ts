@@ -22,6 +22,13 @@ export interface ReviewReportState extends BaseState {
   review: ReviewDetails | null;
 }
 
+/**
+ * Hook that fetches the game details for the reporting page.
+ * Automatically refreshes the game details when the game ID changes.
+ * If the game ID is not provided, it returns an empty state.
+ * @param {string} [gameId] - The ID of the game to fetch.
+ * @returns {GameReportState} - An object with the game details or an error message.
+ */
 export function useGameReportDetails(gameId?: string): GameReportState {
   const cached = gameId ? getCachedGame(gameId) : null;
   const [state, setState] = useState<GameReportState>({
@@ -29,17 +36,22 @@ export function useGameReportDetails(gameId?: string): GameReportState {
     error: null,
     game: cached ?? null,
   });
+  const [requestId, setRequestId] = useState(0);
 
   useEffect(() => {
     if (!gameId) return;
+    const nextRequest = requestId + 1;
+    setRequestId(nextRequest);
     let cancelled = false;
 
     (async () => {
       try {
         const game = await getGameById(gameId);
-        if (!cancelled) setState({ loading: false, error: null, game });
+        if (!cancelled && requestId + 1 === nextRequest)
+          setState({ loading: false, error: null, game });
       } catch (err) {
-        if (!cancelled) setState({ loading: false, error: 'Could not load game details.', game: null });
+        if (!cancelled && requestId + 1 === nextRequest)
+          setState({ loading: false, error: 'Could not load game details.', game: null });
       }
     })();
 
@@ -51,6 +63,13 @@ export function useGameReportDetails(gameId?: string): GameReportState {
   return state;
 }
 
+/**
+ * Hook that fetches the review details for the reporting page.
+ * Automatically refreshes the review details when the review ID changes.
+ * If the review ID is not provided, it returns an empty state.
+ * @param {string} [reviewId] - The ID of the review to fetch.
+ * @returns {ReviewReportState} - An object with the review details or an error message.
+ */
 export function useReviewReportDetails(reviewId?: string): ReviewReportState {
   const [state, setState] = useState<ReviewReportState>({
     loading: !!reviewId,
@@ -58,17 +77,33 @@ export function useReviewReportDetails(reviewId?: string): ReviewReportState {
     game: null,
     review: null,
   });
+  const [requestId, setRequestId] = useState(0);
 
   useEffect(() => {
     if (!reviewId) return;
+    const nextRequest = requestId + 1;
+    setRequestId(nextRequest);
     let cancelled = false;
 
     (async () => {
       try {
         const { game, review } = await getReviewById(reviewId);
-        if (!cancelled) setState({ loading: false, error: null, game, review });
+        if (!cancelled && requestId + 1 === nextRequest) {
+          const mappedReview: ReviewDetails = {
+            id: review.id,
+            author: review.author,
+            createdAt: review.createdAt,
+            content: review.content,
+          };
+          setState({
+            loading: false,
+            error: null,
+            game: game ?? null,
+            review: mappedReview,
+          });
+        }
       } catch (err) {
-        if (!cancelled)
+        if (!cancelled && requestId + 1 === nextRequest)
           setState({ loading: false, error: 'Could not load review details.', game: null, review: null });
       }
     })();

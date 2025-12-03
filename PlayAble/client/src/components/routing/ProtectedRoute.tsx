@@ -6,9 +6,12 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+
 /**
- * ProtectedRoute component that redirects unauthenticated users to sign-in page
+ * A protected route component that redirects unauthenticated users to sign-in page
  * and preserves the intended destination for redirect after login
+ * @param {ProtectedRouteProps} props - The children to render if the user is authenticated
+ * @returns {React.ReactNode} - The children to render if the user is authenticated, otherwise a redirect to signin
  */
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();

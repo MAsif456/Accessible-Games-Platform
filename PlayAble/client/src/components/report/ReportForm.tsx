@@ -4,17 +4,30 @@ import { useVoiceRecording } from '../../hooks/useVoiceRecording';
 import { useVoiceAssistant } from '../../context/VoiceAssistantContext';
 import { useAuth } from '../../context/AuthContext';
 
+/**
+ * Props for the accessible report form. Depending on report `type`, will include gameId/reviewId.
+ */
 interface ReportFormProps {
+  /** Type of the report (general, game, review) */
   type: ReportType;
+  /** ID of the game being reported, if applicable */
   gameId?: string;
+  /** ID of the review being reported, if applicable */
   reviewId?: string;
+  /** Callback function to be called on successful report submission */
   onSuccess?: () => void;
 }
 
+// Define minimum and maximum character limits for the report description
 const MIN_CHARS = 10;
 const MAX_CHARS = 1000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * ReportForm component for submitting various types of reports.
+ * @param {ReportFormProps} props - Props for the report form component.
+ * @returns {JSX.Element} - Rendered report form component.
+ */
 const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSuccess }) => {
   const { user } = useAuth();
   const [description, setDescription] = useState('');
@@ -25,6 +38,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
   const [contactError, setContactError] = useState<string | null>(null);
   const baseDescriptionTextRef = React.useRef<string>(''); // Track text before recording started
 
+  // Trimmed description for validation purposes
   const { 
     cancelListening, 
     forceStopRecognition,
@@ -43,6 +57,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
 
   const requiresContact = type === 'general';
   const trimmedDescription = description.trim();
+  // Derived validity to keep the submit handler small and readable
   const hasValidDescription =
     trimmedDescription.length >= MIN_CHARS && trimmedDescription.length <= MAX_CHARS;
 
@@ -53,9 +68,30 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
   // For general reports, logged-in users need a valid email, but non-logged-in users don't
   const hasValidContactEmail = !requiresContact || !isLoggedIn || (contactEmail && EMAIL_REGEX.test(contactEmail));
   
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
   const canSubmit =
     (hasValidDescription || hasVoiceTranscript) &&
     hasValidContactEmail;
+
+  const getDescriptionError = () => {
+    if (!hasSubmitted) return null;
+    if (trimmedDescription.length === 0 && !hasVoiceTranscript) {
+      return `Please provide at least ${MIN_CHARS} characters or add a voice recording.`;
+    }
+    if (trimmedDescription.length > 0 && trimmedDescription.length < MIN_CHARS) {
+      return `Please provide at least ${MIN_CHARS} characters.`;
+    }
+    if (trimmedDescription.length > MAX_CHARS) {
+      return `Please keep your report under ${MAX_CHARS} characters.`;
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    setFieldError(getDescriptionError());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trimmedDescription, hasVoiceTranscript, hasSubmitted]);
 
   // Start voice recording - check if voice navigation is active first
   const handleStartRecording = async () => {
@@ -111,27 +147,21 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
     }
   }, [voiceTranscript, isVoiceRecording]);
 
+  /**
+   * Handle form submission.
+   * @param {React.FormEvent} e - Form event.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasSubmitted(true);
 
-    // Clear previous errors
-    setFieldError(null);
-    setContactError(null);
-
-    // Validate description length
-    if (trimmedDescription && trimmedDescription.length < MIN_CHARS && !hasVoiceTranscript) {
-      setFieldError(`Please provide at least ${MIN_CHARS} characters or add a voice recording.`);
+    const descriptionError = getDescriptionError();
+    if (descriptionError) {
+      setFieldError(descriptionError);
       return;
     }
 
-    if (trimmedDescription.length > MAX_CHARS) {
-      setFieldError(`Please keep your report under ${MAX_CHARS} characters.`);
-      return;
-    }
-
-    // Check if we have valid content (description or voice transcript)
-    if (!hasValidDescription && !hasVoiceTranscript) {
-      setFieldError(`Please provide at least ${MIN_CHARS} characters or add a voice recording.`);
+    if (!canSubmit) {
       return;
     }
 
@@ -158,9 +188,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
     setContactError(null);
 
     try {
+      // Submit the report
       await submitReport({
         type,
         description: hasValidDescription ? trimmedDescription : undefined,
+        // Transcript support will be wired in later when voice recording is implemented
         transcript: hasVoiceTranscript && !hasValidDescription ? voiceTranscript.trim() : undefined,
         reporterEmail: requiresContact ? contactEmail : (user?.email || undefined),
         reporterName: contactName || undefined,
@@ -169,10 +201,13 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
         reviewId,
       });
 
+      // Reset form state after successful submission
       setDescription('');
       baseDescriptionTextRef.current = '';
       clearVoiceTranscript();
+      setHasSubmitted(false);
 
+      // Call the onSuccess callback if provided
       if (onSuccess) {
         onSuccess();
       }
@@ -184,31 +219,31 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
   };
 
   return (
-    <form className="report-form" onSubmit={handleSubmit} aria-label="Report form">
+    <form className="report-form" onSubmit={handleSubmit}>
       <div className="report-form__field-group">
         <div className="report-form__header-row">
-          <label htmlFor="report-description" className="report-form__label">
-            Written Description
+          <label className="report-form__label" htmlFor="description">
+            Description
           </label>
+          <span className="report-form__counter">
+            {description.length}/{MAX_CHARS}
+          </span>
         </div>
         <textarea
-          id="report-description"
+          id="description"
           className="report-form__textarea"
           value={description}
-          onChange={e => {
-            setDescription(e.target.value);
-            if (fieldError) {
-              setFieldError(null);
-            }
-          }}
-          rows={4}
-          placeholder="Please describe the issue you encountered in detail (minimum 10 characters)."
+          onChange={e => setDescription(e.target.value)}
+          placeholder={`Describe the issue in at least ${MIN_CHARS} characters...`}
         />
         {fieldError && (
           <p className="report-form__field-error" role="alert">
             {fieldError}
           </p>
         )}
+        <div className="report-form__helper">
+          You can also add a voice recording to provide more context.
+        </div>
       </div>
 
       <section className="report-form__voice" aria-label="Voice recording">
@@ -228,7 +263,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
             <p className="report-form__voice-transcript-label">
               {isVoiceRecording ? 'Live Transcript:' : 'Transcript:'}
             </p>
-            <p className={`report-form__voice-transcript-text ${isVoiceRecording ? 'report-form__voice-transcript-text--live' : ''}`}>
+            <p
+              className={`report-form__voice-transcript-text ${
+                isVoiceRecording ? 'report-form__voice-transcript-text--live' : ''
+              }`}
+            >
               {voiceTranscript || (isVoiceRecording ? 'Listening...' : '')}
             </p>
           </div>
@@ -253,7 +292,10 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
               onClick={stopVoiceRecording}
               disabled={isSubmitting}
             >
-              <span className="report-form__voice-icon report-form__voice-icon--recording" aria-hidden="true" />
+              <span
+                className="report-form__voice-icon report-form__voice-icon--recording"
+                aria-hidden="true"
+              />
               <span className="report-form__voice-button-text">Stop Recording</span>
             </button>
           )}
@@ -272,9 +314,14 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
           )}
         </div>
         {showVoiceNavError && microphoneActive && voiceInputEnabled && (
-          <div className="report-form__voice-error-inline" role="alert" aria-live="polite">
+          <div
+            className="report-form__voice-error-inline"
+            role="alert"
+            aria-live="polite"
+          >
             <p className="report-form__voice-error-inline-text">
-              Voice navigation must be turned off for voice recording to work. Please disable voice navigation in Settings or mute the microphone in the navbar, then try again.
+              Voice navigation must be turned off for voice recording to work. Please disable
+              voice navigation in Settings or mute the microphone in the navbar, then try again.
             </p>
           </div>
         )}
@@ -308,6 +355,6 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       </div>
     </form>
   );
-};
+}
 
 export default ReportForm;

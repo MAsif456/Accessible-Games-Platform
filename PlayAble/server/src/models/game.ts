@@ -14,6 +14,7 @@ export interface IGame extends Document {
   isPublished: boolean;
 }
 
+// Primary catalogue entry for games.
 const GameSchema = new Schema<IGame>(
   {
     slug: { type: String, required: true, unique: true, trim: true },

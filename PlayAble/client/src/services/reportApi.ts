@@ -45,10 +45,7 @@ export interface SubmitReportResponse {
   message: string;
 }
 
-/**
- * Represents a report as returned by the API.
- * @interface Report
- */
+
 export interface Report {
   /** Unique identifier for the report */
   id: string;
@@ -89,6 +86,7 @@ export interface GetReportResponse {
   report: Report;
 }
 
+
 /**
  * Submits a report to the server.
  * @param {SubmitReportPayload} payload - The report data to submit
@@ -96,7 +94,11 @@ export interface GetReportResponse {
  * @throws {Error} If the API request fails
  */
 export async function submitReport(payload: SubmitReportPayload): Promise<SubmitReportResponse> {
-  const response = await apiPost('/api/reports', payload);
+  const response = await apiPost('/api/reports', payload, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
 
   if (!response.ok) {
     throw new Error('Failed to submit report');

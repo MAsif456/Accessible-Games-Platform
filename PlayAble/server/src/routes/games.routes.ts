@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getGamesHandler,
+  getGamesMetadataHandler,
   getAdminGamesHandler,
   getGameByIdHandler,
   createGameHandler,
@@ -11,6 +12,8 @@ import { protect, authorize } from '../middleware/auth';
 
 const router = Router();
 
+// Public catalogue routes
+router.get('/games/metadata', getGamesMetadataHandler);
 router.get('/games', getGamesHandler);
 
 // Admin games management routes
