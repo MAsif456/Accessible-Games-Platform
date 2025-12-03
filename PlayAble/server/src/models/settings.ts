@@ -39,8 +39,8 @@ const UserSettingsSchema = new Schema<IUserSettings>(
     },
     highContrastTheme: {
       type: String,
-      default: 'tidepool',
-      enum: ['tidepool', 'sunset', 'twilight', 'midnight'],
+      default: 'white',
+      enum: ['white', 'black'],
     },
     reducedMotion: {
       type: Boolean,

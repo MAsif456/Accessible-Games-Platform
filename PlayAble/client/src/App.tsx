@@ -402,7 +402,7 @@ function AppContent({ PAGE_SIZE }: { PAGE_SIZE: number }) {
             <Route path="/recently-viewed" element={
               <ProtectedRoute>
                 <main id="main-content" tabIndex={-1}>
-                  <RecentlyViewedPage onNavigate={handleNavigate} onGameClick={handleGameClick} />
+                  <RecentlyViewedPage onNavigate={handleNavigate} onGameClick={handleGameClick} showPrompt={showPrompt} />
                 </main>
               </ProtectedRoute>
             } />

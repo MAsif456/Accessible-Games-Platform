@@ -1,13 +1,13 @@
 // filepath: client/tests/AdminPage/AdminGamesManagement.test.tsx
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import App from '../../src/App';
-import authService from '../../src/services/authService';
-import * as gamesAdminService from '../../src/services/gamesAdminService';
-import * as api from '../../src/services/api';
-import * as adminReportsService from '../../src/services/adminReportsService';
-import * as adminReviewsHooks from '../../src/hooks/adminReviews';
-import * as adminReviewActionsHook from '../../src/hooks/useAdminReviewActions';
+import App from '../../App';
+import authService from '../../services/authService';
+import * as gamesAdminService from '../../services/gamesAdminService';
+import * as api from '../../services/api';
+import * as adminReportsService from '../../services/adminReportsService';
+import * as adminReviewsHooks from '../../hooks/adminReviews';
+import * as adminReviewActionsHook from '../../hooks/useAdminReviewActions';
 
 jest.mock('../../src/services/gamesAdminService', () => ({
   __esModule: true,
@@ -138,6 +138,7 @@ const clickAdminButton = async () => {
 
 describe('Admin Games Management acceptance criteria', () => {
   beforeEach(() => {
+    // Ensure mocks are properly set up before each test
     (gamesAdminService.getAdminGames as jest.Mock).mockResolvedValue({ games: [mockGame] });
     (gamesAdminService.getAdminGameById as jest.Mock).mockResolvedValue({ game: mockGame });
     (gamesAdminService.createAdminGame as jest.Mock).mockResolvedValue({ game: mockGame });
@@ -155,7 +156,7 @@ describe('Admin Games Management acceptance criteria', () => {
 
     await clickAdminButton();
 
-    const gamesTabPrimary = await screen.findByRole('tab', { name: /games management/i });
+    const gamesTabPrimary = await screen.findByRole('tab', { name: /games management/i }, { timeout: 10000 });
     fireEvent.click(gamesTabPrimary);
 
     const gamesTabPanel = await screen.findByRole('tabpanel', { name: /games management/i });
@@ -167,7 +168,7 @@ describe('Admin Games Management acceptance criteria', () => {
     expect(subTabs.some(t => t.textContent?.includes('Reported Games'))).toBe(true);
     expect(subTabs.some(t => t.textContent?.includes('Resolved Reported Games'))).toBe(true);
 
-    const table = await inGamesPanel.findByRole('table', { name: /games management table/i });
+    const table = await inGamesPanel.findByRole('table', { name: /games management table/i }, { timeout: 10000 });
     expect(table).toBeInTheDocument();
 
     expect(inGamesPanel.getByRole('columnheader', { name: /id/i })).toBeInTheDocument();

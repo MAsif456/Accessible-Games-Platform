@@ -46,12 +46,16 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
   const hasValidDescription =
     trimmedDescription.length >= MIN_CHARS && trimmedDescription.length <= MAX_CHARS;
 
-  const contactEmail = (user?.email ?? '').trim();
+  const isLoggedIn = !!user;
+  const contactEmail = isLoggedIn ? (user?.email ?? '').trim() : '';
   const contactName = (user?.name ?? '').trim();
 
+  // For general reports, logged-in users need a valid email, but non-logged-in users don't
+  const hasValidContactEmail = !requiresContact || !isLoggedIn || (contactEmail && EMAIL_REGEX.test(contactEmail));
+  
   const canSubmit =
     (hasValidDescription || hasVoiceTranscript) &&
-    (!requiresContact || (contactEmail && EMAIL_REGEX.test(contactEmail)));
+    hasValidContactEmail;
 
   // Start voice recording - check if voice navigation is active first
   const handleStartRecording = async () => {
@@ -110,8 +114,13 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (trimmedDescription && trimmedDescription.length < MIN_CHARS) {
-      setFieldError(`Please provide at least ${MIN_CHARS} characters.`);
+    // Clear previous errors
+    setFieldError(null);
+    setContactError(null);
+
+    // Validate description length
+    if (trimmedDescription && trimmedDescription.length < MIN_CHARS && !hasVoiceTranscript) {
+      setFieldError(`Please provide at least ${MIN_CHARS} characters or add a voice recording.`);
       return;
     }
 
@@ -120,7 +129,8 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       return;
     }
 
-    if (!canSubmit) {
+    // Check if we have valid content (description or voice transcript)
+    if (!hasValidDescription && !hasVoiceTranscript) {
       setFieldError(`Please provide at least ${MIN_CHARS} characters or add a voice recording.`);
       return;
     }
@@ -130,9 +140,10 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       stopVoiceRecording();
     }
 
-    if (requiresContact) {
+    // For general reports, validate contact email only for logged-in users
+    if (requiresContact && isLoggedIn) {
       if (!contactEmail) {
-        setContactError('A valid contact email is required to submit this report.');
+        setContactError('A valid contact email is required to submit this report. Please update your account email.');
         return;
       }
       if (!EMAIL_REGEX.test(contactEmail)) {
@@ -151,7 +162,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
         type,
         description: hasValidDescription ? trimmedDescription : undefined,
         transcript: hasVoiceTranscript && !hasValidDescription ? voiceTranscript.trim() : undefined,
-        reporterEmail: requiresContact ? contactEmail : user?.email,
+        reporterEmail: requiresContact ? contactEmail : (user?.email || undefined),
         reporterName: contactName || undefined,
         reporterId: user?.id,
         gameId,
@@ -280,11 +291,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
           {errorMessage}
         </p>
       )}
-      {contactError && (
-        <p className="report-form__error" role="alert">
-          {contactError}
-        </p>
-      )}
+        {contactError && (
+          <p className="report-form__error" role="alert">
+            {contactError}
+          </p>
+        )}
 
       <div className="report-form__actions">
         <button

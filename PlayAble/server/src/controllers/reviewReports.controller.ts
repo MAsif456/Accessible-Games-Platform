@@ -5,6 +5,7 @@ import ReviewReport from '../models/reviewReport';
 import Review from '../models/review';
 import { ReportModel } from '../models/report';
 import { createNotification } from '../services/notificationService';
+import { NotificationModel } from '../models/notification';
 
 export const createReviewReport = async (req: Request, res: Response) => {
   try {
@@ -24,20 +25,119 @@ export const createReviewReport = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Reason must be at least 10 characters.' });
     }
 
-    const review = await Review.findById(id).lean();
+    // Fetch review with game populated - use lean() for easier access
+    const review = await Review.findById(id).populate('gameId', 'title slug').lean();
     if (!review) {
       return res.status(404).json({ message: 'Review not found' });
     }
 
-    const report = await ReportModel.create({
-      type: 'review',
-      description: reasonText.trim(),
-      transcript: voiceTranscript,
-      review: review._id,
-      game: review.gameId ? new mongoose.Types.ObjectId(review.gameId) : undefined,
-      reporterId: user?.id ? new mongoose.Types.ObjectId(user.id) : undefined,
+    if (!user?.id) {
+      return res.status(401).json({ message: 'User ID is required' });
+    }
+
+    // Create report using ReviewReport model (saves to reviewreports collection)
+    console.log(`[createReviewReport] Creating review report: reviewId=${review._id}, reporterId=${user.id}, reasonText length=${reasonText.trim().length}`);
+    
+    const report = await ReviewReport.create({
+      reviewId: review._id,
+      reporterId: new mongoose.Types.ObjectId(user.id),
+      reasonText: reasonText.trim(),
+      voiceTranscript: voiceTranscript,
       resolved: false,
     });
+
+    console.log(`[createReviewReport] Review report created successfully: reportId=${report._id}, saved to reviewreports collection`);
+
+    // Create notification for the review author (NOT the reporter)
+    // Extract userId from review - handle ObjectId format from lean()
+    let reviewUserId: string | null = null;
+    
+    // When using .lean(), userId comes back as ObjectId
+    const rawUserId = review.userId;
+    console.log(`[createReviewReport] Raw userId from review:`, rawUserId, `type:`, typeof rawUserId, `isObjectId:`, rawUserId instanceof mongoose.Types.ObjectId);
+    
+    if (rawUserId) {
+      if (rawUserId instanceof mongoose.Types.ObjectId) {
+        reviewUserId = rawUserId.toString();
+      } else if (typeof rawUserId === 'string') {
+        reviewUserId = rawUserId;
+      } else if ((rawUserId as any).toString && typeof (rawUserId as any).toString === 'function') {
+        reviewUserId = (rawUserId as any).toString();
+      } else {
+        reviewUserId = String(rawUserId);
+      }
+    }
+    
+    console.log(`[createReviewReport] Extracted reviewUserId: ${reviewUserId}, isValid: ${reviewUserId ? mongoose.Types.ObjectId.isValid(reviewUserId) : false}`);
+
+    if (reviewUserId && mongoose.Types.ObjectId.isValid(reviewUserId)) {
+      try {
+        const gameTitle = (review.gameId as any)?.title || 'a game';
+        const reviewContent = review.body || 'your review';
+        let gameId: string | null = null;
+        
+        if (review.gameId) {
+          if ((review.gameId as any)?._id) {
+            gameId = (review.gameId as any)._id.toString();
+          } else if (review.gameId instanceof mongoose.Types.ObjectId) {
+            gameId = review.gameId.toString();
+          } else if (typeof review.gameId === 'string') {
+            gameId = review.gameId;
+          }
+        }
+
+        console.log(`[createReviewReport] Creating notification for review author: userId=${reviewUserId}, reviewId=${review._id}, gameTitle=${gameTitle}, reviewContent="${reviewContent.substring(0, 50)}..."`);
+
+        // Create notification - NO reporter information included
+        const notification = await createNotification(
+          reviewUserId,
+          'review_reported',
+          'Your Review Has Been Reported',
+          `Your review for "${gameTitle}" has been reported. Your review: "${reviewContent}" Our team will review it shortly.`,
+          {
+            reviewId: review._id.toString(),
+            gameId: gameId ? new mongoose.Types.ObjectId(gameId) : undefined,
+            // Note: We intentionally do NOT include reportId or reporter info in metadata
+            metadata: {
+              reviewContent: reviewContent,
+              gameTitle: gameTitle,
+              gameSlug: (review.gameId as any)?.slug,
+              // No reporter information is stored
+            },
+          }
+        );
+        
+        console.log(`[createReviewReport] Notification created successfully: notificationId=${notification._id}, userId=${reviewUserId}, type=${notification.type}`);
+        
+        // Verify notification was saved to database
+        const verifyNotification = await NotificationModel.findById(notification._id);
+        if (verifyNotification) {
+          console.log(`[createReviewReport] ✅ Notification verified in database: userId=${verifyNotification.userId}, type=${verifyNotification.type}, title="${verifyNotification.title}"`);
+        } else {
+          console.error(`[createReviewReport] ❌ WARNING: Notification was not found in database after creation!`);
+        }
+      } catch (notifError) {
+        console.error('[createReviewReport] ❌ Error creating notification:', notifError);
+        console.error('[createReviewReport] Error details:', {
+          reviewUserId,
+          reviewId: review._id,
+          error: notifError instanceof Error ? notifError.message : String(notifError),
+          stack: notifError instanceof Error ? notifError.stack : undefined,
+        });
+        // Don't fail the report creation if notification fails
+      }
+    } else {
+      console.error(`[createReviewReport] ❌ FAILED: No valid userId found for review ${review._id}`);
+      console.error(`[createReviewReport] review.userId:`, review.userId);
+      console.error(`[createReviewReport] reviewUserId:`, reviewUserId);
+      console.error(`[createReviewReport] Review object keys:`, Object.keys(review));
+      console.error(`[createReviewReport] Full review object (sanitized):`, {
+        _id: review._id,
+        userId: review.userId,
+        body: review.body?.substring(0, 50),
+        gameId: review.gameId,
+      });
+    }
 
     res.status(201).json(report);
   } catch (error) {
@@ -105,6 +205,9 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
         },
       },
       {
+        $unwind: { path: '$reviewAuthor', preserveNullAndEmptyArrays: true },
+      },
+      {
         $addFields: {
           gameRef: {
             $cond: [
@@ -120,11 +223,13 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           },
           // Get author name from user document, fallback to review authorName, then Anonymous
           reviewAuthorName: {
-            $ifNull: [
-              { $arrayElemAt: ['$reviewAuthor.name', 0] },
+            $cond: [
+              { $and: [{ $ne: ['$reviewAuthor', null] }, { $ne: ['$reviewAuthor.name', null] }] },
+              '$reviewAuthor.name',
               {
-                $ifNull: [
-                  { $arrayElemAt: ['$reviewAuthor.email', 0] },
+                $cond: [
+                  { $and: [{ $ne: ['$reviewAuthor', null] }, { $ne: ['$reviewAuthor.email', null] }] },
+                  '$reviewAuthor.email',
                   {
                     $ifNull: ['$reviewDoc.authorName', 'Anonymous']
                   }
@@ -191,6 +296,9 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
         },
       },
       {
+        $unwind: { path: '$reviewAuthor', preserveNullAndEmptyArrays: true },
+      },
+      {
         $lookup: {
           from: 'games',
           localField: 'review.gameId',
@@ -203,11 +311,13 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
         $addFields: {
           // Get author name from user document, fallback to review authorName, then Anonymous
           reviewAuthorName: {
-            $ifNull: [
-              { $arrayElemAt: ['$reviewAuthor.name', 0] },
+            $cond: [
+              { $and: [{ $ne: ['$reviewAuthor', null] }, { $ne: ['$reviewAuthor.name', null] }] },
+              '$reviewAuthor.name',
               {
-                $ifNull: [
-                  { $arrayElemAt: ['$reviewAuthor.email', 0] },
+                $cond: [
+                  { $and: [{ $ne: ['$reviewAuthor', null] }, { $ne: ['$reviewAuthor.email', null] }] },
+                  '$reviewAuthor.email',
                   {
                     $ifNull: ['$review.authorName', 'Anonymous']
                   }
@@ -247,6 +357,14 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
         const friendlyReviewId =
           doc.reviewDoc?.publicId || (rawReviewId ? `rev_${rawReviewId.slice(0, 8)}` : undefined);
 
+        // Extract reporter name/email: user lookup -> stored reporterName -> stored reporterEmail -> Anonymous
+        const reporterName = doc.reporterUser?.name || doc.reporterName || null;
+        const reporterEmail = doc.reporterUser?.email || doc.reporterEmail || null;
+        const reporterDisplay = reporterName || reporterEmail || 'Anonymous';
+
+        // Extract review author name: aggregation result -> reviewDoc authorName -> Anonymous
+        const reviewAuthorName = doc.reviewAuthorName || doc.reviewDoc?.authorName || 'Anonymous';
+
         return {
           _id: doc._id.toString(),
           reviewId: rawReviewId,
@@ -256,10 +374,12 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           updatedAt: doc.updatedAt,
           resolved: typeof doc.resolved === 'boolean' ? doc.resolved : !!doc.resolvedValue,
           outcome: doc.outcome as ReviewReportOutcome | undefined,
-          reporterEmail: doc.reporterUser?.email,
+          reporterName: reporterName || undefined,
+          reporterEmail: reporterEmail || undefined,
+          reporterDisplay: reporterDisplay,
           gameTitle: doc.gameDoc?.title,
           gameSlug: doc.gameDoc?.slug,
-          reviewAuthorName: doc.reviewAuthorName || doc.reviewDoc?.authorName || 'Anonymous',
+          reviewAuthorName: reviewAuthorName,
           reviewBody: doc.reviewDoc?.body,
         };
       }),
@@ -267,6 +387,14 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
         const rawReviewId = doc.reviewId?.toString?.() ?? doc.review?._id?.toString?.();
         const friendlyReviewId =
           doc.review?.publicId || (rawReviewId ? `rev_${rawReviewId.slice(0, 8)}` : undefined);
+
+        // For legacy reports, try to get reporter info from lookup
+        const reporterName = doc.reporterUser?.name || null;
+        const reporterEmail = doc.reporterUser?.email || null;
+        const reporterDisplay = reporterName || reporterEmail || 'Anonymous';
+
+        // Extract review author name: aggregation result -> review authorName -> Anonymous
+        const reviewAuthorName = doc.reviewAuthorName || doc.review?.authorName || 'Anonymous';
 
         return {
           _id: doc._id.toString(),
@@ -277,10 +405,12 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           updatedAt: doc.updatedAt,
           resolved: !!doc.resolved,
           outcome: doc.outcome as ReviewReportOutcome | undefined,
-          reporterEmail: undefined,
+          reporterName: reporterName || undefined,
+          reporterEmail: reporterEmail || undefined,
+          reporterDisplay: reporterDisplay,
           gameTitle: doc.game?.title,
           gameSlug: doc.game?.slug,
-          reviewAuthorName: doc.reviewAuthorName || doc.review?.authorName || 'Anonymous',
+          reviewAuthorName: reviewAuthorName,
           reviewBody: doc.review?.body,
         };
       }),
@@ -318,7 +448,9 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Report not found' });
     }
 
-    if ((report as any).resolved) {
+    // Check if already resolved - handle both ReportModel (status) and ReviewReport (resolved) formats
+    const isResolved = (report as any).status === 'resolved' || (report as any).resolved === true;
+    if (isResolved) {
       return res.status(400).json({ message: 'Report is already resolved' });
     }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import type { ReviewDto } from '../services/api';
 import type { AdminReviewReport, AdminResolvedReviewReport } from '../services/adminReviewsService';
 import {
@@ -34,25 +34,61 @@ function usePaginatedSearchTable<T>(
 
   const effectiveSearch = debouncedSearchTerm.trim();
 
-  const load = (override?: { page?: number; search?: string }) => {
+  const load = useCallback((override?: { page?: number; search?: string }) => {
     const nextPage = override?.page ?? page;
     const nextSearch = override?.search ?? effectiveSearch;
     setLoading(true);
     setError(null);
     fetcher({ page: nextPage, pageSize, search: nextSearch || undefined })
       .then(res => {
-        setItems(res.items);
-        setTotal(res.total);
+        const items = res?.items || [];
+        const total = res?.total || 0;
+        setItems(items);
+        setTotal(total);
+        // If current page is empty after deletion and we're not on page 1, go to previous page
+        if (items.length === 0 && nextPage > 1 && !override) {
+          const prevPage = nextPage - 1;
+          setPage(prevPage);
+          // Recursively call load with the previous page
+          fetcher({ page: prevPage, pageSize, search: nextSearch || undefined })
+            .then(prevRes => {
+              const prevItems = prevRes?.items || [];
+              const prevTotal = prevRes?.total || 0;
+              setItems(prevItems);
+              setTotal(prevTotal);
+              setLoading(false);
+            })
+            .catch(err => {
+              console.error('Failed to load admin table', err);
+              setError('Unable to load data. Please try again later.');
+              setLoading(false);
+            });
+        } else {
+          setLoading(false);
+        }
       })
       .catch(err => {
         console.error('Failed to load admin table', err);
         setError('Unable to load data. Please try again later.');
-      })
-      .finally(() => setLoading(false));
-  };
+        setLoading(false);
+      });
+  }, [page, effectiveSearch, fetcher, pageSize]);
+
+  // Use refs to track latest values for refresh
+  const pageRef = useRef(page);
+  const effectiveSearchRef = useRef(effectiveSearch);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    effectiveSearchRef.current = effectiveSearch;
+  }, [effectiveSearch]);
 
   useEffect(() => {
     load({ page: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -65,11 +101,13 @@ function usePaginatedSearchTable<T>(
   useEffect(() => {
     setPage(1);
     load({ page: 1, search: effectiveSearch });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveSearch]);
 
-  const refresh = () => {
-    load();
-  };
+  const refresh = useCallback(() => {
+    // Force a fresh load using the latest page and search values
+    load({ page: pageRef.current, search: effectiveSearchRef.current });
+  }, [load]);
 
   return {
     items,

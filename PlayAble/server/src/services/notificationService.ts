@@ -142,3 +142,56 @@ export async function getUnreadNotificationCount(
   return NotificationModel.countDocuments({ userId: userIdObj, read: false });
 }
 
+/**
+ * Marks a notification as unread.
+ * @param notificationId - The notification ID
+ * @param userId - The user ID (for security)
+ */
+export async function markNotificationAsUnread(
+  notificationId: string,
+  userId: string | mongoose.Types.ObjectId
+): Promise<NotificationDocument | null> {
+  const userIdObj = typeof userId === 'string' 
+    ? new mongoose.Types.ObjectId(userId) 
+    : userId;
+
+  const notification = await NotificationModel.findOneAndUpdate(
+    { _id: notificationId, userId: userIdObj },
+    { read: false, $unset: { readAt: 1 } },
+    { new: true }
+  );
+
+  return notification;
+}
+
+/**
+ * Marks all notifications as unread for a user.
+ * @param userId - The user ID
+ */
+export async function markAllNotificationsAsUnread(
+  userId: string | mongoose.Types.ObjectId
+): Promise<void> {
+  const userIdObj = typeof userId === 'string' 
+    ? new mongoose.Types.ObjectId(userId) 
+    : userId;
+
+  await NotificationModel.updateMany(
+    { userId: userIdObj, read: true },
+    { read: false, $unset: { readAt: 1 } }
+  );
+}
+
+/**
+ * Deletes all notifications for a user.
+ * @param userId - The user ID
+ */
+export async function deleteAllNotifications(
+  userId: string | mongoose.Types.ObjectId
+): Promise<void> {
+  const userIdObj = typeof userId === 'string' 
+    ? new mongoose.Types.ObjectId(userId) 
+    : userId;
+
+  await NotificationModel.deleteMany({ userId: userIdObj });
+}
+

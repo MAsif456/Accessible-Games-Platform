@@ -213,6 +213,38 @@ const SettingsPage = () => {
   const handleToggle = (key: ToggleableSetting) => {
     setSettings((prev) => {
       const nextValue = !prev[key];
+      
+      // High contrast mode and dark mode are mutually exclusive
+      if (key === 'highContrastMode') {
+        if (nextValue) {
+          // If turning on high contrast, turn off dark mode
+          return {
+            ...prev,
+            highContrastMode: true,
+            darkMode: false,
+          };
+        } else {
+          return {
+            ...prev,
+            highContrastMode: false,
+          };
+        }
+      } else if (key === 'darkMode') {
+        if (nextValue) {
+          // If turning on dark mode, turn off high contrast
+          return {
+            ...prev,
+            darkMode: true,
+            highContrastMode: false,
+          };
+        } else {
+          return {
+            ...prev,
+            darkMode: false,
+          };
+        }
+      }
+      
       if (key === 'voiceInput') {
         applyVoiceInputPreference(nextValue);
         // When voice input is turned off, also mute the microphone

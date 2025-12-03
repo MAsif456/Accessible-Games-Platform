@@ -92,10 +92,12 @@ export async function createReportHandler(req: any, res: any) {
     }
 
     const trimmedReporterEmail = reporterEmail?.trim() || authReporterEmail?.trim();
-    if (type === 'general' && !trimmedReporterEmail) {
+    // Email is only required for logged-in users submitting general reports
+    // Non-logged-in users can submit general reports without email
+    if (type === 'general' && authReporterId && !trimmedReporterEmail) {
       return res
         .status(400)
-        .json({ success: false, message: 'Contact email is required for general reports.' });
+        .json({ success: false, message: 'Contact email is required for general reports. Please update your account email.' });
     }
     if (trimmedReporterEmail && !EMAIL_REGEX.test(trimmedReporterEmail)) {
       return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });

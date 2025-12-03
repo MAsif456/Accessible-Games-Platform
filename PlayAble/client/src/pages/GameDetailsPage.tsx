@@ -62,6 +62,8 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   const reviewsListRef = useRef<HTMLDivElement | null>(null);
   const [showVoiceNavError, setShowVoiceNavError] = useState(false);
   const baseReviewTextRef = useRef<string>(''); // Track text before recording started
+  const [reviewToDelete, setReviewToDelete] = useState<string | null>(null);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
 
   const { cancelListening, forceStopRecognition, microphoneActive, voiceInputEnabled } = useVoiceAssistant();
   const {
@@ -807,17 +809,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                         <button
                           type="button"
                           className="game-details__review-delete"
-                          onClick={async () => {
-                            const confirmed = window.confirm('Are you sure you want to delete this review?');
-                            if (!confirmed) return;
-
-                            try {
-                              await deleteReview(review._id);
-                              setReviews(prev => prev.filter(r => r._id !== review._id));
-                            } catch (err) {
-                              console.error('Failed to delete review', err);
-                            }
-                          }}
+                          onClick={() => setReviewToDelete(review._id)}
                         >
                           Delete
                         </button>
@@ -881,6 +873,50 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
               Proceed
             </button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!reviewToDelete}
+        titleId="delete-review-title"
+        descriptionId="delete-review-description"
+        onClose={() => !isDeletingReview && setReviewToDelete(null)}
+      >
+        <h2 id="delete-review-title" className="dialog__title">
+          Delete Review?
+        </h2>
+        <p id="delete-review-description" className="dialog__message">
+          Are you sure you want to delete this review? This action cannot be undone.
+        </p>
+        <div className="dialog__actions">
+          <button
+            type="button"
+            className="dialog__button dialog__button--secondary"
+            onClick={() => setReviewToDelete(null)}
+            disabled={isDeletingReview}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="dialog__button dialog__button--primary"
+            onClick={async () => {
+              if (!reviewToDelete) return;
+              setIsDeletingReview(true);
+              try {
+                await deleteReview(reviewToDelete);
+                setReviews(prev => prev.filter(r => r._id !== reviewToDelete));
+                setReviewToDelete(null);
+              } catch (err) {
+                console.error('Failed to delete review', err);
+              } finally {
+                setIsDeletingReview(false);
+              }
+            }}
+            disabled={isDeletingReview}
+          >
+            {isDeletingReview ? 'Deleting...' : 'Delete Review'}
+          </button>
         </div>
       </Modal>
     </main>

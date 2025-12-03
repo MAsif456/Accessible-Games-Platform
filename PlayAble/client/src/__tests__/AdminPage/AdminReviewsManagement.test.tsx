@@ -1,8 +1,8 @@
 //import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import AdminPage from '../../src/pages/AdminPage';
-import * as adminReviewsHooks from '../../src/hooks/adminReviews';
-import * as adminReviewActionsHook from '../../src/hooks/useAdminReviewActions';
+import AdminPage from '../../pages/AdminPage';
+import * as adminReviewsHooks from '../../hooks/adminReviews';
+import * as adminReviewActionsHook from '../../hooks/useAdminReviewActions';
 
 jest.mock('../../src/services/gamesAdminService', () => ({
   __esModule: true,
@@ -172,7 +172,7 @@ describe('Admin reviews tab UI', () => {
     const viewButton = await screen.findByRole('button', { name: /view/i });
     fireEvent.click(viewButton);
 
-    const modalHeading = await screen.findByRole('heading', { name: /view resolved report/i });
+    const modalHeading = await screen.findByRole('heading', { name: /review report details/i });
     const modal = (modalHeading.closest('[role="dialog"]') as HTMLElement | null) || document.body;
     expect(within(modal).getByText(/resolved game/i)).toBeInTheDocument();
     expect(within(modal).getAllByText(/resolved reason/i).length).toBeGreaterThan(0);

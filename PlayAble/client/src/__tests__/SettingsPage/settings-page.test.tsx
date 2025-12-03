@@ -309,8 +309,8 @@ describe('SettingsPage', () => {
         expect(screen.getByText('Contrast Themes')).toBeInTheDocument();
       });
 
-      const sunsetTheme = await screen.findByRole('radio', { name: /Sunset Ember/i });
-      await userEvent.click(sunsetTheme);
+      const blackTheme = await screen.findByRole('radio', { name: /Black High Contrast/i });
+      await userEvent.click(blackTheme);
 
       await waitFor(() => {
         expect(mockedSettingsApi.updateSettings).toHaveBeenCalled();

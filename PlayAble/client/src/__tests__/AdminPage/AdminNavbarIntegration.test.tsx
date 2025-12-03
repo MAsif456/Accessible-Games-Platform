@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import Navbar from '../../src/components/ui/Navbar';
+import Navbar from '../../components/ui/Navbar';
 
 jest.mock('../../src/context/AuthContext', () => {
   const actual = jest.requireActual('../../src/context/AuthContext');

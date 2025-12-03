@@ -1055,7 +1055,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     <tr key={report._id}>
                       <td>{report._id}</td>
                       <td>{report.gameTitle ?? report.gameSlug ?? report.reviewPublicId ?? report.reviewId}</td>
-                      <td>{report.reviewAuthorName ?? ''}</td>
+                      <td>{report.reviewAuthorName || 'Anonymous'}</td>
                       <td>{report.reportReason}</td>
                       <td>{formatDate(report.createdAt)}</td>
                       <td className="admin-table__actions-cell">
@@ -1110,14 +1110,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     <h3>Report Information</h3>
                     <p><strong>Report ID:</strong> {reportToResolve._id}</p>
                     <p><strong>Reason:</strong> {reportToResolve.reportReason}</p>
-                    <p><strong>Reported By:</strong> {reportToResolve.reporterEmail ?? 'Unknown'}</p>
+                    <p><strong>Reported By:</strong> {reportToResolve.reporterName || reportToResolve.reporterEmail || reportToResolve.reporterDisplay || 'Unknown'}</p>
                     <p><strong>Reported Date:</strong> {new Date(reportToResolve.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="report-modal__section">
                     <h3>Review Content</h3>
                     <p><strong>Review ID:</strong> {reportToResolve.reviewPublicId ?? reportToResolve.reviewId}</p>
                     <p><strong>Game:</strong> {reportToResolve.gameTitle ?? reportToResolve.gameSlug ?? ''}</p>
-                    <p><strong>Author:</strong> {reportToResolve.reviewAuthorName ?? ''}</p>
+                    <p><strong>Author:</strong> {reportToResolve.reviewAuthorName || 'Anonymous'}</p>
                     <p><strong>Text:</strong> {reportToResolve.reviewBody ?? 'No content available'}</p>
                   </div>
                   <div className="report-modal__section">
@@ -1273,7 +1273,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     <tr key={report._id}>
                       <td>{report._id}</td>
                       <td>{report.gameTitle ?? report.gameSlug ?? report.reviewPublicId ?? report.reviewId}</td>
-                      <td>{report.reviewAuthorName ?? ''}</td>
+                      <td>{report.reviewAuthorName || 'Anonymous'}</td>
                       <td title={reason}>
                         {reason.length > 60 ? `${reason.slice(0, 60)}…` : reason}
                       </td>
@@ -1309,43 +1309,94 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
 
           <Modal
             isOpen={!!resolvedReportToView}
-            titleId="view-resolved-report-title"
+            titleId="review-report-modal-title"
             onClose={() => setResolvedReportToView(null)}
-            contentClassName="modal-content--wide"
+            contentClassName="admin-report-modal__container"
           >
             {resolvedReportToView && (
-              <div>
-                <h2 id="view-resolved-report-title" className="dialog__title">
-                  View Resolved Report
-              </h2>
-              <div className="report-modal__sections">
-                <div className="report-modal__section">
-                  <h3>Report Information</h3>
-                  <p><strong>Report ID:</strong> {resolvedReportToView._id}</p>
-                  <p><strong>Reason:</strong> {resolvedReportToView.reportReason}</p>
-                  <p><strong>Reported Date:</strong> {new Date(resolvedReportToView.createdAt).toLocaleDateString()}</p>
-                  <p><strong>Outcome:</strong> {resolvedReportToView.outcome === 'deleted' ? 'Review deleted' : 'Review kept'}</p>
-                </div>
-                <div className="report-modal__section">
-                  <h3>Review Content</h3>
-                  <p><strong>Review ID:</strong> {resolvedReportToView.reviewPublicId ?? resolvedReportToView.reviewId}</p>
-                  <p><strong>Game:</strong> {resolvedReportToView.gameTitle ?? resolvedReportToView.gameSlug ?? ''}</p>
-                  <p><strong>Author:</strong> {resolvedReportToView.reviewAuthorName ?? ''}</p>
-                  <p><strong>Text:</strong> {resolvedReportToView.reportReason ?? 'No content available'}</p>
+              <div className="admin-report-modal">
+                <header className="admin-report-modal__header">
+                  <div>
+                    <p className="admin-report-modal__eyebrow">
+                      Review Report Details
+                    </p>
+                    <h2 id="review-report-modal-title" className="admin-report-modal__title">
+                      Report {resolvedReportToView.reviewPublicId ?? resolvedReportToView.reviewId}
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-report-modal__close"
+                    onClick={() => setResolvedReportToView(null)}
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </header>
+
+                <section className="admin-report-modal__section" aria-label="Review report details">
+                  <dl className="admin-report-modal__definition-list">
+                    <div>
+                      <dt>Status</dt>
+                      <dd>
+                        <span className="admin-badge admin-badge--status">
+                          Resolved
+                        </span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Game</dt>
+                      <dd>{resolvedReportToView.gameTitle || resolvedReportToView.gameSlug || 'Unknown game'}</dd>
+                    </div>
+                    <div>
+                      <dt>Review ID</dt>
+                      <dd>{resolvedReportToView.reviewPublicId ?? resolvedReportToView.reviewId}</dd>
+                    </div>
+                    <div>
+                      <dt>Review Author</dt>
+                      <dd>{resolvedReportToView.reviewAuthorName || 'Anonymous'}</dd>
+                    </div>
+                    <div>
+                      <dt>Reported By</dt>
+                      <dd>{resolvedReportToView.reporterName || resolvedReportToView.reporterEmail || resolvedReportToView.reporterDisplay || 'Anonymous'}</dd>
+                    </div>
+                    <div>
+                      <dt>Report Date</dt>
+                      <dd>{formatDate(resolvedReportToView.createdAt)}</dd>
+                    </div>
+                    <div>
+                      <dt>Outcome</dt>
+                      <dd>
+                        <span className="admin-badge admin-badge--status">
+                          {resolvedReportToView.outcome === 'deleted' ? 'Review deleted' : 'Review kept'}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="admin-report-modal__description">
+                    <h3>Report Reason</h3>
+                    <p>{resolvedReportToView.reportReason || 'No reason provided.'}</p>
+                  </div>
+                  {resolvedReportToView.reviewBody && (
+                    <div className="admin-report-modal__description">
+                      <h3>Review Content</h3>
+                      <p>{resolvedReportToView.reviewBody}</p>
+                    </div>
+                  )}
+                </section>
+
+                <div className="admin-report-modal__actions">
+                  <button
+                    type="button"
+                    className="admin-report-modal__primary"
+                    onClick={() => setResolvedReportToView(null)}
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
-              <div className="dialog__actions">
-                <button
-                  type="button"
-                  className="dialog__button dialog__button--secondary"
-                  onClick={() => setResolvedReportToView(null)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-        </Modal>
+            )}
+          </Modal>
       </section>
     );
   };
@@ -1758,18 +1809,20 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
           )}
 
           <div className="admin-report-modal__actions">
-            <button type="button" className="admin-report-modal__secondary" onClick={closeReportModal}>
-              Cancel
-            </button>
             {reportModalMode === 'reply' ? (
-              <button
-                type="button"
-                className="admin-report-modal__primary"
-                onClick={handleReportReplySubmit}
-                disabled={reportModalSubmitting}
-              >
-                {reportModalSubmitting ? 'Sending...' : 'Send Reply & Resolve'}
-              </button>
+              <>
+                <button type="button" className="admin-report-modal__secondary" onClick={closeReportModal}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="admin-report-modal__primary"
+                  onClick={handleReportReplySubmit}
+                  disabled={reportModalSubmitting}
+                >
+                  {reportModalSubmitting ? 'Sending...' : 'Send Reply & Resolve'}
+                </button>
+              </>
             ) : (
               <button type="button" className="admin-report-modal__primary" onClick={closeReportModal}>
                 Close
@@ -1885,18 +1938,20 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
           )}
 
           <div className="admin-report-modal__actions">
-            <button type="button" className="admin-report-modal__secondary" onClick={closeGameReportModal}>
-              Cancel
-            </button>
             {gameReportModalMode === 'reply' ? (
-              <button
-                type="button"
-                className="admin-report-modal__primary"
-                onClick={handleGameReportReplySubmit}
-                disabled={gameReportModalSubmitting}
-              >
-                {gameReportModalSubmitting ? 'Sending...' : 'Send Reply & Resolve'}
-              </button>
+              <>
+                <button type="button" className="admin-report-modal__secondary" onClick={closeGameReportModal}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="admin-report-modal__primary"
+                  onClick={handleGameReportReplySubmit}
+                  disabled={gameReportModalSubmitting}
+                >
+                  {gameReportModalSubmitting ? 'Sending...' : 'Send Reply & Resolve'}
+                </button>
+              </>
             ) : (
               <button type="button" className="admin-report-modal__primary" onClick={closeGameReportModal}>
                 Close

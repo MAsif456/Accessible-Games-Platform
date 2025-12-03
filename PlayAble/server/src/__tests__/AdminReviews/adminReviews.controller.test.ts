@@ -4,11 +4,11 @@ import {
   adminDeleteReview,
   adminListReviews,
   adminReplyToReview,
-} from '../reviews.controller';
+} from '../../controllers/reviews.controller';
 import {
   adminListReviewReports,
   adminResolveReviewReport,
-} from '../reviewReports.controller';
+} from '../../controllers/reviewReports.controller';
 import Review from '../../models/review';
 import { ReportModel } from '../../models/report';
 import ReviewReport from '../../models/reviewReport';

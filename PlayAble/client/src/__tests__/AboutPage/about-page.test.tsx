@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import AboutUs from '../../src/pages/AboutUs';
+import AboutUs from '../../pages/AboutUs';
 
 describe('About Us Page - Acceptance Criteria', () => {
   const mockNavigate = jest.fn();

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import SkipLink from '../../src/components/navigation/SkipLink';
-import useGlobalKeyboardNavigation from '../../src/hooks/useGlobalKeyboardNavigation';
+import SkipLink from '../../components/navigation/SkipLink';
+import useGlobalKeyboardNavigation from '../../hooks/useGlobalKeyboardNavigation';
 
 const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
 

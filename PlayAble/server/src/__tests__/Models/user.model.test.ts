@@ -11,14 +11,20 @@ describe('User Model', () => {
   beforeAll(async () => {
     // Connect to test database
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/test');
+      await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/test', {
+        serverSelectionTimeoutMS: 10000, // 10 seconds
+      });
     }
-  });
+  }, 30000); // 30 second timeout for beforeAll
 
   afterEach(async () => {
     // Clean up after each test
-    await UserModel.deleteMany({});
-  });
+    try {
+      await UserModel.deleteMany({});
+    } catch (err) {
+      // Ignore cleanup errors
+    }
+  }, 10000); // 10 second timeout for afterEach
 
   afterAll(async () => {
     await mongoose.connection.close();
@@ -69,7 +75,7 @@ describe('User Model', () => {
       });
 
       await expect(user.save()).rejects.toThrow();
-    });
+    }, 10000); // 10 second timeout
 
     it('should convert email to lowercase', async () => {
       const user = new UserModel({

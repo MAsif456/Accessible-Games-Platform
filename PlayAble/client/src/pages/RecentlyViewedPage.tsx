@@ -11,10 +11,12 @@ import type { AppPath } from '../App';
  * @interface RecentlyViewedPageProps
  * @property {function} [onNavigate] - Optional navigation callback
  * @property {function} [onGameClick] - Optional game click handler
+ * @property {function} [showPrompt] - Optional notification callback
  */
 interface RecentlyViewedPageProps {
   onNavigate?: (path: AppPath) => void;
   onGameClick?: (gameId: string) => void;
+  showPrompt?: (message: string, type?: 'success' | 'error') => void;
 }
 
 /**
@@ -49,6 +51,7 @@ interface RecentlyViewedPageProps {
 const RecentlyViewedPage: React.FC<RecentlyViewedPageProps> = ({
   onNavigate,
   onGameClick,
+  showPrompt,
 }) => {
   const { isAuthenticated } = useAuth();
   const { isFavourite, toggleFavourite } = useFavouritesNav();
@@ -71,10 +74,14 @@ const RecentlyViewedPage: React.FC<RecentlyViewedPageProps> = ({
     setIsClearing(true);
     try {
       await clearRecentlyViewed();
-      alert('Recently viewed history cleared.');
+      if (showPrompt) {
+        showPrompt('Recently viewed history cleared.', 'success');
+      }
     } catch (err) {
       console.error(err);
-      alert('Failed to clear recently viewed history.');
+      if (showPrompt) {
+        showPrompt('Failed to clear recently viewed history.', 'error');
+      }
     } finally {
       setIsClearing(false);
       setShowConfirm(false);

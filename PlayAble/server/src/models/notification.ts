@@ -11,7 +11,8 @@ export type NotificationType =
   | 'report_resolved' 
   | 'review_deleted' 
   | 'review_liked'
-  | 'review_created';
+  | 'review_created'
+  | 'review_reported';
 
 /**
  * Mongoose document interface for notifications.
@@ -60,7 +61,7 @@ const notificationSchema = new Schema<NotificationDocument>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     type: { 
       type: String, 
-      enum: ['report_submitted', 'report_resolved', 'review_deleted', 'review_liked', 'review_created'], 
+      enum: ['report_submitted', 'report_resolved', 'review_deleted', 'review_liked', 'review_created', 'review_reported'], 
       required: true 
     },
     title: { type: String, required: true },

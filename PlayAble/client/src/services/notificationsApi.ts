@@ -14,7 +14,7 @@ export interface Notification {
   /** Unique identifier for the notification */
   id: string;
   /** Type of notification */
-  type: 'report_submitted' | 'report_resolved' | 'review_deleted' | 'review_liked' | 'review_created';
+  type: 'report_submitted' | 'report_resolved' | 'review_deleted' | 'review_liked' | 'review_created' | 'review_reported';
   /** Notification title */
   title: string;
   /** Notification message/content */
@@ -148,6 +148,51 @@ export async function markAllNotificationsAsRead(): Promise<void> {
 
   if (!response.ok) {
     throw new Error('Failed to mark all notifications as read');
+  }
+}
+
+/**
+ * Marks a notification as unread.
+ * @param {string} notificationId - The notification ID
+ * @returns {Promise<Notification>} The updated notification
+ */
+export async function markNotificationAsUnread(notificationId: string): Promise<Notification> {
+  const response = await apiPatch(
+    `/api/notifications/${notificationId}/unread`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to mark notification as unread');
+  }
+
+  const data = await response.json();
+  return data.notification;
+}
+
+/**
+ * Marks all notifications as unread for the authenticated user.
+ * @returns {Promise<void>}
+ */
+export async function markAllNotificationsAsUnread(): Promise<void> {
+  const response = await apiPatch('/api/notifications/unread-all', {}, { headers: getAuthHeaders() });
+
+  if (!response.ok) {
+    throw new Error('Failed to mark all notifications as unread');
+  }
+}
+
+/**
+ * Deletes all notifications for the authenticated user.
+ * @returns {Promise<void>}
+ */
+export async function deleteAllNotifications(): Promise<void> {
+  const { apiDelete } = await import('../utils/apiHelper');
+  const response = await apiDelete('/api/notifications', { headers: getAuthHeaders() });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete all notifications');
   }
 }
 

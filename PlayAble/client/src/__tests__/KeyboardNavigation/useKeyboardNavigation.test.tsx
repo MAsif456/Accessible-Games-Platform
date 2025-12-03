@@ -1,7 +1,7 @@
 import { act, render } from '@testing-library/react';
 import React, { useEffect } from 'react';
 import '@testing-library/jest-dom';
-import useKeyboardNavigation from '../../src/hooks/navigation/useKeyboardNavigation';
+import useKeyboardNavigation from '../../hooks/navigation/useKeyboardNavigation';
 
 type NavApi = ReturnType<typeof useKeyboardNavigation<HTMLElement>>;
 

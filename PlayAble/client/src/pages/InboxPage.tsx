@@ -5,6 +5,9 @@ import {
   fetchNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  markNotificationAsUnread,
+  markAllNotificationsAsUnread,
+  deleteAllNotifications,
   getUnreadNotificationCount,
 } from '../services/notificationsApi';
 import { getReportById, type Report } from '../services/reportApi';
@@ -34,6 +37,9 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
   const [reviewDetails, setReviewDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [isMarkingUnread, setIsMarkingUnread] = useState(false);
 
   // Load notifications on mount and when filters change
   useEffect(() => {
@@ -182,6 +188,42 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     }
   };
 
+  const handleMarkAllAsUnread = async () => {
+    try {
+      setIsMarkingUnread(true);
+      await markAllNotificationsAsUnread();
+      // Refresh notifications from server to get updated state
+      const updatedNotifications = await fetchNotifications();
+      setNotifications(updatedNotifications);
+      const count = await getUnreadNotificationCount();
+      setUnreadCount(count);
+      if (onUnreadCountChange) {
+        onUnreadCountChange(count);
+      }
+    } catch (err) {
+      console.error('Error marking all as unread', err);
+    } finally {
+      setIsMarkingUnread(false);
+    }
+  };
+
+  const handleClearInbox = async () => {
+    try {
+      setIsClearing(true);
+      await deleteAllNotifications();
+      setNotifications([]);
+      setUnreadCount(0);
+      if (onUnreadCountChange) {
+        onUnreadCountChange(0);
+      }
+      setShowClearConfirm(false);
+    } catch (err) {
+      console.error('Error clearing inbox', err);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   const handleViewReport = (notification: Notification) => {
     if (notification.reportId && notification.metadata?.reportType) {
       const reportType = notification.metadata.reportType;
@@ -241,6 +283,8 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
         return '❤️';
       case 'review_created':
         return '✓';
+      case 'review_reported':
+        return '⚠️';
       default:
         return '📬';
     }
@@ -258,6 +302,8 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
         return 'Review Liked';
       case 'review_created':
         return 'Review Created';
+      case 'review_reported':
+        return 'Review Reported';
       default:
         return 'Notification';
     }
@@ -299,15 +345,38 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
             {unreadCount} unread
           </div>
         )}
-        {unreadCount > 0 && (
-          <button
-            className="inbox-mark-all-read"
-            onClick={handleMarkAllAsRead}
-            aria-label="Mark all notifications as read"
-          >
-            Mark all as read
-          </button>
-        )}
+        <div className="inbox-header__actions">
+          {notifications.length > 0 && (
+            <>
+              {notifications.some(n => n.read) && (
+                <button
+                  className="inbox-mark-all-unread"
+                  onClick={handleMarkAllAsUnread}
+                  disabled={isMarkingUnread}
+                  aria-label="Mark all notifications as unread"
+                >
+                  {isMarkingUnread ? 'Marking...' : 'Mark all as unread'}
+                </button>
+              )}
+              {unreadCount > 0 && (
+                <button
+                  className="inbox-mark-all-read"
+                  onClick={handleMarkAllAsRead}
+                  aria-label="Mark all notifications as read"
+                >
+                  Mark all as read
+                </button>
+              )}
+              <button
+                className="inbox-clear"
+                onClick={() => setShowClearConfirm(true)}
+                aria-label="Clear all notifications"
+              >
+                Clear inbox
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="inbox-filters">
@@ -325,6 +394,7 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
             <option value="review_deleted">Review Deleted</option>
             <option value="review_liked">Review Liked</option>
             <option value="review_created">Review Created</option>
+            <option value="review_reported">Review Reported</option>
           </select>
         </div>
 
@@ -588,8 +658,34 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
             )}
 
             <div className="inbox-detail__actions">
+              {selectedNotification.read && (
+                <button
+                  type="button"
+                  className="inbox-detail__action inbox-detail__action--secondary"
+                  onClick={async () => {
+                    try {
+                      const updated = await markNotificationAsUnread(selectedNotification.id);
+                      setNotifications(prev =>
+                        prev.map(n => (n.id === selectedNotification.id ? updated : n))
+                      );
+                      const count = await getUnreadNotificationCount();
+                      setUnreadCount(count);
+                      if (onUnreadCountChange) {
+                        onUnreadCountChange(count);
+                      }
+                      setSelectedNotification(updated);
+                    } catch (err) {
+                      console.error('Error marking notification as unread', err);
+                    }
+                  }}
+                  aria-label="Mark as unread"
+                >
+                  Mark as unread
+                </button>
+              )}
               {selectedNotification.type === 'review_deleted' && selectedNotification.gameId && (
                 <button
+                  type="button"
                   className="inbox-detail__action"
                   onClick={() => handleViewGame(selectedNotification)}
                   aria-label="View game"
@@ -599,6 +695,7 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
               )}
               {selectedNotification.type === 'review_liked' && selectedNotification.reviewId && selectedNotification.gameId && (
                 <button
+                  type="button"
                   className="inbox-detail__action"
                   onClick={() => handleViewGame(selectedNotification)}
                   aria-label="View game"
@@ -610,6 +707,39 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
           </div>
         </Modal>
       )}
+
+      <Modal
+        isOpen={showClearConfirm}
+        titleId="clear-inbox-title"
+        descriptionId="clear-inbox-description"
+        onClose={() => !isClearing && setShowClearConfirm(false)}
+      >
+        <h2 id="clear-inbox-title" className="dialog__title">
+          Clear Inbox?
+        </h2>
+        <p id="clear-inbox-description" className="dialog__message">
+          Are you sure you want to delete all notifications? This action cannot be undone.
+          {notifications.length > 0 && ` All ${notifications.length} notification${notifications.length !== 1 ? 's' : ''} will be permanently deleted.`}
+        </p>
+        <div className="dialog__actions">
+          <button
+            type="button"
+            className="dialog__button dialog__button--secondary"
+            onClick={() => setShowClearConfirm(false)}
+            disabled={isClearing}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="dialog__button dialog__button--primary"
+            onClick={handleClearInbox}
+            disabled={isClearing}
+          >
+            {isClearing ? 'Clearing...' : 'Clear Inbox'}
+          </button>
+        </div>
+      </Modal>
     </main>
   );
 };

@@ -55,6 +55,8 @@ export interface ReportDocument extends Document {
   resolvedAt?: Date;
   /** Admin who resolved the report */
   resolvedBy?: Schema.Types.ObjectId;
+  /** Outcome for review reports: 'kept' or 'deleted' */
+  outcome?: 'kept' | 'deleted';
   /** Timestamp when the report was created */
   createdAt: Date;
 }
@@ -91,6 +93,7 @@ const reportSchema = new Schema<ReportDocument>(
     adminReplies: { type: [adminReplySchema], default: [] },
     resolvedAt: { type: Date },
     resolvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    outcome: { type: String, enum: ['kept', 'deleted'] },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
