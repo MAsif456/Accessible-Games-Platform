@@ -209,3 +209,4 @@ https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Technologie
 
 ###### Suliman Salih (c23049129)
 
+**Version**: v1.0.0 - Core functionality complete.
