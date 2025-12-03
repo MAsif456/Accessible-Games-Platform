@@ -4,6 +4,8 @@ import GameCard from '../components/GameCard';
 import Pagination from '../components/ui/Pagination';
 import { useBrowseGames } from '../hooks/useBrowseGames';
 import { useFavouritesNav } from '../context/FavouritesContext';
+import { useAuth } from '../context/AuthContext';
+import { applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 import { GameDto } from '../services/api';
 
 // Public props for the browse page. The actual routing state (currentPath, currentPage,
@@ -58,6 +60,50 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
 
   // Lightweight favourites API used by cards to render and toggle favourites.
   const { favouriteIds, toggleFavourite, isFavourite } = useFavouritesNav();
+  const { userSettings } = useAuth();
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   // Core browse data (games list, filters, metadata, errors) comes from a dedicated hook
   // so that pagination, filtering and server integration stay encapsulated.
@@ -180,7 +226,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                   }}
                 >
                   <span aria-hidden="true" className="browse-page__search-clear-icon">
-                    A-
+                    ×
                   </span>
                   <span className="browse-page__search-clear-label">Clear</span>
                 </button>
@@ -225,7 +271,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 >
                   <span className="browse-page__active-chip-label">Genre: {genre}</span>
                   <span className="browse-page__active-chip-close" aria-hidden="true">
-                    A-
+                    ×
                   </span>
                   <span className="sr-only">Remove genre filter {genre}</span>
                 </button>
@@ -239,7 +285,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 >
                   <span className="browse-page__active-chip-label">Accessibility: {tag}</span>
                   <span className="browse-page__active-chip-close" aria-hidden="true">
-                    A-
+                    ×
                   </span>
                   <span className="sr-only">Remove accessibility filter {tag}</span>
                 </button>
@@ -252,7 +298,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 >
                   <span className="browse-page__active-chip-label">Sort By: {sortLabel}</span>
                   <span className="browse-page__active-chip-close" aria-hidden="true">
-                    A-
+                    ×
                   </span>
                   <span className="sr-only">Remove sort by filter</span>
                 </button>
@@ -324,7 +370,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
               onClick={close}
               aria-label="Close filters"
             >
-              A-
+              ×
             </button>
           </header>
 

@@ -17,7 +17,7 @@ import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useFavouritesNav } from '../context/FavouritesContext';
 import type { AppPath } from '../App';
-import { buildAccessibilitySections } from '../utils/accessibility';
+import { buildAccessibilitySections, applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 import { useVoiceRecording } from '../hooks/useVoiceRecording';
 import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 
@@ -44,7 +44,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   onOpenGameReport,
   onOpenReviewReport,
 }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, userSettings } = useAuth();
   const navigate = useNavigate();
   const { toggleFavourite, isFavourite } = useFavouritesNav();
 
@@ -128,6 +128,49 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
       setWrittenReview(combined);
     }
   }, [voiceTranscript, isVoiceRecording]);
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   const minReviewLength = 10;
 

@@ -109,7 +109,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                 onClick={() => reviewsTable.setSearchTerm('')}
               >
                 <span className="browse-page__search-clear-icon" aria-hidden="true">
-                  A-
+                  ×
                 </span>
                 <span className="browse-page__search-clear-label">Clear</span>
               </button>
@@ -250,7 +250,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                 onClick={() => reportedTable.setSearchTerm('')}
               >
                 <span className="browse-page__search-clear-icon" aria-hidden="true">
-                  A-
+                  ×
                 </span>
                 <span className="browse-page__search-clear-label">Clear</span>
               </button>
@@ -376,7 +376,7 @@ const ReviewsSection: React.FC<ReviewsSectionProps> = ({
               onClick={() => resolvedTable.setSearchTerm('')}
             >
               <span className="browse-page__search-clear-icon" aria-hidden="true">
-                A-
+                ×
               </span>
               <span className="browse-page__search-clear-label">Clear</span>
             </button>
