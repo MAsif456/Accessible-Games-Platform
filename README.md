@@ -33,7 +33,7 @@ npm install
 ```
 
 ## Usage
-User features:  
+### User features:  
 
 - **Create account / sign in**: use the "Sign In" / “Register" links in the navbar.  
 
@@ -51,7 +51,7 @@ User features:
 
 - **Favourites / Recently viewed**: add/remove favourites on cards; your recently viewed games list updates automatically.  
 
-Admin features:  
+### Admin features:  
 
 - **Login email**= "admin@playable.com", login password= "admin123".
 
@@ -205,7 +205,7 @@ https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Technologie
 
 ## Authors
 
-##### Mohammad Asif (c23042139)
+###### Mohammad Asif (c23042139)
 
-##### Suliman Salih (c23049129)
+###### Suliman Salih (c23049129)
 
