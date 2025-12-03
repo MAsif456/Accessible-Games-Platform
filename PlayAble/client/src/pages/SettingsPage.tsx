@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { settingsApi, UserSettings } from '../services/settingsApi';
 import { useAuth } from '../context/AuthContext';
 import '../styles/index.css';
@@ -21,7 +22,24 @@ type ToggleableSetting =
 
 const SettingsPage = () => {
   const { user, userSettings, updateUserSettingsState } = useAuth();
-  const [activeSection, setActiveSection] = useState<SettingsSection>('voice');
+  const navigate = useNavigate();
+  const params = useParams<{ section: string }>();
+  
+  // Get active section from URL parameter, default to 'voice'
+  const getActiveSection = (): SettingsSection => {
+    const section = params.section;
+    if (section === 'keyboard' || section === 'visual' || section === 'voice') {
+      return section;
+    }
+    return 'voice';
+  };
+  
+  const activeSection = getActiveSection();
+  
+  // Function to navigate to a section
+  const setActiveSection = (section: SettingsSection) => {
+    navigate(`/settings/${section}`, { replace: true });
+  };
   const [settings, setSettings] = useState<UserSettings>({
     voiceInput: true,
     captions: true,

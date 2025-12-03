@@ -1,4 +1,5 @@
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
 import * as adminReportsService from '../../src/services/adminReportsService';
@@ -85,7 +86,11 @@ function setupAdminApp() {
     error: null,
   });
 
-  return render(<App />);
+  return render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
 }
 
 const clickAdminButton = async () => {

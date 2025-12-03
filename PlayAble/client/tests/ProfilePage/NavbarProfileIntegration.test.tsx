@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
 import * as api from '../../src/services/api';
@@ -26,7 +27,11 @@ test('My Account dropdown shows Profile and Inbox and navigates to Profile', asy
 
   (api.getGames as jest.Mock).mockResolvedValue({ games: [], totalPages: 1, totalResults: 0 });
 
-  render(<App />);
+  render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
 
   const myAccountButton = await screen.findByRole('button', { name: /my account/i });
   fireEvent.click(myAccountButton);

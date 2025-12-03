@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   GameDto,
   getCachedGame,
@@ -43,6 +44,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   onOpenReviewReport,
 }) => {
   const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const { toggleFavourite, isFavourite } = useFavouritesNav();
 
   const [game, setGame] = useState<GameDto | null>(null);
@@ -320,6 +322,14 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   };
 
   const handleToggleLike = async (review: ReviewDto, nextLiked: boolean) => {
+    if (!isAuthenticated) {
+      if (onNavigate) {
+        onNavigate('/signin');
+      } else {
+        navigate('/signin');
+      }
+      return;
+    }
     try {
       // Optimistic update of like count and local liked set
       setReviews(prev =>
@@ -376,7 +386,9 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     if (onOpenGameReport) {
       onOpenGameReport(dbId);
     } else if (onNavigate) {
-      onNavigate('/report/game');
+      onNavigate(`/report/game/${dbId}`);
+    } else {
+      navigate(`/report/game/${dbId}`);
     }
   };
 
@@ -385,13 +397,25 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     if (onOpenReviewReport && game) {
       const dbId = (game as any)._id ?? game.id;
       onOpenReviewReport(reviewId, dbId);
-    } else if (onNavigate) {
-      onNavigate('/report/review');
+    } else if (onNavigate && game) {
+      const dbId = (game as any)._id ?? game.id;
+      onNavigate(`/report/review/${dbId}/${reviewId}`);
+    } else if (game) {
+      const dbId = (game as any)._id ?? game.id;
+      navigate(`/report/review/${dbId}/${reviewId}`);
     }
   };
 
   const handleToggleFavourite = async () => {
     if (!game) return;
+    if (!isAuthenticated) {
+      if (onNavigate) {
+        onNavigate('/signin');
+      } else {
+        navigate('/signin');
+      }
+      return;
+    }
     try {
       await toggleFavourite(game.id);
     } catch (err) {
@@ -704,7 +728,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                     if (onNavigate) {
                       onNavigate('/signin');
                     } else {
-                      window.location.href = '/signin';
+                      navigate('/signin');
                     }
                   }}
                 >

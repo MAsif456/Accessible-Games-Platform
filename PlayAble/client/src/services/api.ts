@@ -118,6 +118,37 @@ function findCachedGame(gameId: string): GameDto | undefined {
   return undefined;
 }
 
+/**
+ * Retry a fetch request with exponential backoff for rate limiting
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries = 2,
+  baseDelay = 1000
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url, options);
+    
+    // If rate limited (429), retry with backoff
+    if (res.status === 429 && attempt < maxRetries) {
+      const retryAfter = res.headers.get('Retry-After');
+      const delay = retryAfter 
+        ? parseInt(retryAfter, 10) * 1000 
+        : baseDelay * Math.pow(2, attempt);
+      
+      console.warn(`Rate limited (429). Retrying after ${delay}ms... (attempt ${attempt + 1}/${maxRetries + 1})`);
+      await new Promise(resolve => setTimeout(resolve, Math.min(delay, 10000))); // Max 10 seconds
+      continue;
+    }
+    
+    return res;
+  }
+  
+  // Final attempt - return the response even if it's 429
+  return await fetch(url, options);
+}
+
 export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGamesResponse> {
   const query = new URLSearchParams();
 
@@ -133,20 +164,40 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
   if (params.sort) query.set('sort', params.sort);
 
   try {
-    const res = await fetch(`/api/games?${query.toString()}`);
+    const res = await fetchWithRetry(`/api/games?${query.toString()}`);
+    
+    if (res.status === 429) {
+      // Rate limited - throw a specific error that can be handled by the UI
+      const errorData = await res.json().catch(() => ({}));
+      const retryAfter = res.headers.get('Retry-After');
+      const error = new Error(`Rate limit exceeded. Please try again later.${retryAfter ? ` (Retry after ${retryAfter}s)` : ''}`) as Error & { status: number; retryAfter?: string };
+      error.status = 429;
+      error.retryAfter = retryAfter || undefined;
+      throw error;
+    }
+    
     if (!res.ok) {
       throw new Error(`Failed to fetch games: ${res.status}`);
     }
 
     const data: PaginatedGamesResponse = await res.json();
-    if (Array.isArray(data?.games) && data.games.length) {
+    if (Array.isArray(data?.games)) {
+      // Cache games if we have any, but return the API response even if empty
+      if (data.games.length > 0) {
       data.games.forEach(cacheGame);
+      }
       return data;
     }
-  } catch (error) {
+  } catch (error: any) {
+    // Only fall back to offline data if it's not a rate limit error
+    if (error?.status === 429) {
+      // Re-throw rate limit errors so the UI can handle them appropriately
+      throw error;
+    }
     console.error('Failed to fetch games, falling back to offline data.', error);
   }
 
+  // Fallback to offline data only if API call completely fails (not rate limited)
   FALLBACK_GAMES.forEach(cacheGame);
   return {
     games: FALLBACK_GAMES,

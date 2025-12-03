@@ -13,6 +13,10 @@ import Review from '../../models/review';
 import { ReportModel } from '../../models/report';
 import ReviewReport from '../../models/reviewReport';
 
+jest.mock('../../services/notificationService', () => ({
+  createNotification: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../../models/review', () => ({
   __esModule: true,
   default: {
@@ -95,15 +99,33 @@ describe('Admin reviews controller', () => {
   });
 
   it('deletes a review by id (admin)', async () => {
-    const req = { params: { id: new mongoose.Types.ObjectId().toHexString() } } as unknown as Request;
+    const reviewId = new mongoose.Types.ObjectId().toHexString();
+    const req = { params: { id: reviewId } } as unknown as Request;
     const res = makeRes();
 
-    const deleteSpy = jest.fn();
-    mockReviewModel.findById = jest.fn().mockResolvedValue({ deleteOne: deleteSpy });
+    const mockReview = {
+      userId: new mongoose.Types.ObjectId(),
+      gameId: { title: 'Test Game', slug: 'test-game' },
+      body: 'Test review body',
+    };
+    
+    // Mock the chain: findById().populate().lean()
+    // populate() returns an object with lean() method, which returns a promise
+    const mockLean = jest.fn().mockResolvedValue(mockReview);
+    const mockPopulate = jest.fn().mockReturnValue({ lean: mockLean });
+    const mockFindById = jest.fn().mockReturnValue({ populate: mockPopulate });
+    const mockFindByIdAndDelete = jest.fn().mockResolvedValue({});
+    
+    // Set up mocks directly on Review (the default export)
+    (Review as any).findById = mockFindById;
+    (Review as any).findByIdAndDelete = mockFindByIdAndDelete;
 
     await adminDeleteReview(req, res);
 
-    expect(deleteSpy).toHaveBeenCalled();
+    expect(mockFindById).toHaveBeenCalledWith(reviewId);
+    expect(mockPopulate).toHaveBeenCalledWith('gameId', 'title slug');
+    expect(mockLean).toHaveBeenCalled();
+    expect(mockFindByIdAndDelete).toHaveBeenCalledWith(reviewId);
     expect(res.status).toHaveBeenCalledWith(204);
   });
 

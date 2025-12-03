@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReportForm from '../components/report/ReportForm';
 import { useGameReportDetails, useReviewReportDetails } from '../hooks/useReportDetails';
 import type { ReportType } from '../services/reportApi';
@@ -33,8 +33,16 @@ const REPORT_CONFIG: Record<ReportType, { pageTitle: string }> = {
 const ReportPage: React.FC<ReportPageProps> = ({ onShowToast, initialType, initialGameId, initialReviewId, onBack }) => {
   const rawParams = useParams();
   const params = rawParams as RouteParams;
+  const navigate = useNavigate();
 
-  const routeType = (params.reportType as ReportType) || 'general';
+  // Validate reportType from route params
+  const validReportTypes: ReportType[] = ['general', 'game', 'review'];
+  const routeTypeParam = params.reportType as ReportType;
+  const routeType: ReportType = validReportTypes.includes(routeTypeParam) 
+    ? routeTypeParam 
+    : 'general';
+  
+  // Use initialType if provided, otherwise use validated routeType
   const type: ReportType = initialType || routeType;
 
   const gameIdFromRoute = params.gameId;
@@ -53,7 +61,8 @@ const ReportPage: React.FC<ReportPageProps> = ({ onShowToast, initialType, initi
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const config = REPORT_CONFIG[type];
+  // Ensure config exists, default to general if type is invalid
+  const config = REPORT_CONFIG[type] || REPORT_CONFIG.general;
 
   const handleReportSubmitted = () => {
     if (onShowToast) {
@@ -64,18 +73,9 @@ const ReportPage: React.FC<ReportPageProps> = ({ onShowToast, initialType, initi
   const handleBackClick = () => {
     if (onBack) {
       onBack();
-      return;
-    }
-
-    const state = window.history.state as { idx?: number } | null;
-
-    if (state && typeof state.idx === 'number' && state.idx > 0) {
-      window.history.back();
-      return;
-    }
-
-    if (window.location.pathname !== '/') {
-      window.history.pushState(null, '', '/');
+    } else {
+      // Fallback: navigate to home if no back handler
+      navigate('/');
     }
   };
 

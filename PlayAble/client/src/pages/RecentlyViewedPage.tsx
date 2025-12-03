@@ -90,9 +90,8 @@ const RecentlyViewedPage: React.FC<RecentlyViewedPageProps> = ({
   const handleCardClick = (id: string) => {
     if (onGameClick) {
       onGameClick(id);
-    }
-    if (onNavigate) {
-      onNavigate('/game-details');
+    } else if (onNavigate) {
+      onNavigate(`/game/${id}`);
     }
   };
 

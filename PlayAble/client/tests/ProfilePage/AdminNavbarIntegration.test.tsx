@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
 
@@ -32,7 +33,11 @@ test('admin user sees Admin button and can navigate to Admin Management page', a
     user: adminUser,
   } as any);
 
-  render(<App />);
+  render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
 
   // Admin button should appear in navbar for admin user
   await clickAdminButton();

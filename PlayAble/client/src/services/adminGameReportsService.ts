@@ -1,5 +1,5 @@
 import { getAuthHeaders } from './api';
-import { apiPost } from '../utils/apiHelper';
+import { apiPost, apiGet } from '../utils/apiHelper';
 
 export type GameReportStatus = 'open' | 'resolved';
 
@@ -49,8 +49,10 @@ const withAuth = (init: RequestInit = {}): RequestInit => ({
  * @param status - Report status filter ('open' or 'resolved')
  */
 export async function fetchGameReports(status: GameReportStatus): Promise<AdminGameReport[]> {
-  const response = await fetch(`/api/admin/game-reports?status=${status}`, withAuth());
+  const response = await apiGet(`/api/admin/game-reports?status=${status}`, withAuth());
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch game reports:', response.status, errorText);
     throw new Error('Failed to load game reports');
   }
   const data = (await response.json()) as GameReportsResponse;

@@ -46,7 +46,7 @@ describe('JWT Security - Acceptance Criteria', () => {
     jest.clearAllMocks();
     // Clear blacklist between tests
     const auth = require('../../../middleware/auth');
-    auth.tokenBlacklist = new Set();
+    auth.resetTokenBlacklist();
   });
 
   /**
