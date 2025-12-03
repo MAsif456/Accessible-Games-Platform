@@ -35,31 +35,31 @@ npm install
 ## Usage
 User features:  
 
-- Create account / sign in: use the “Sign In” / “Register” links in the navbar.  
+- **Create account / sign in**: use the "Sign In" / “Register" links in the navbar.  
 
-- Browse games: go to Browse, search/filter by genre or accessibility, paginate through results.  
+- **Browse games**: go to Browse, search/filter by genre or accessibility, paginate through results.  
 
-- Game details: click a game card to view details, accessibility info, and reviews.  
+- **Game details**: click a game card to view details, accessibility info, and reviews.  
 
-- Add a review: on a game’s details page, sign in, then submit a review; you can like/unlike reviews.  
+- **Add a review**: on a game’s details page, sign in, then submit a review; you can like/unlike reviews.  
 
-- Report a game: from the game page, open “Report” and submit a game issue.  
+- **Report a game**: from the game page, open “Report” and submit a game issue.  
 
-- Report a review: from the game page’s reviews list, choose “Report” on a specific review.  
+- **Report a review**: from the game page’s reviews list, choose “Report” on a specific review.  
 
-- General report: use the “Report anything to us here” link/footer.  
+- **General report**: use the “Report anything to us here” link/footer.  
 
-- Favourites / Recently viewed: add/remove favourites on cards; your recently viewed games list updates automatically.  
+- **Favourites / Recently viewed**: add/remove favourites on cards; your recently viewed games list updates automatically.  
 
 Admin features:  
 
-- Login email= "admin@playable.com", login password= "admin123".
+- **Login email**= "admin@playable.com", login password= "admin123".
 
-- Reviews Management: view/reply/delete reviews; resolve reported reviews (keep/delete) and add admin replies.  
+- **Reviews Management**: view/reply/delete reviews; resolve reported reviews (keep/delete) and add admin replies.  
 
-- Reports: handle general and game reports (reply/resolve).  
+- **Reports**: handle general and game reports (reply/resolve).  
 
-- Games Management: view catalogue stats, search/paginate games, add/edit/delete games.  
+- **Games Management**: view catalogue stats, search/paginate games, add/edit/delete games.  
 
 
 ## Development
@@ -146,7 +146,7 @@ MongoDB Atlas is used for production with secure connection handling, while loca
 
 The project is deployed using Render, with separate services for the frontend and backend.
 
-Frontend Deployment
+### Frontend Deployment
 
 The React client is deployed as a Static Site.
 Render automatically runs:
@@ -164,7 +164,7 @@ Live Frontend URL:
 https://playable-frontend.onrender.com
 
 
-Backend Deployment
+### Backend Deployment
 
 The Express server is deployed as a Web Service using the Node environment.
 
@@ -177,13 +177,13 @@ npm start
 
 ```
 
-Environment variables such as MONGODB_URI, FRONTEND_URL, and COOKIE_SECRET must be configured in the Render Dashboard.
+Environment variables such as `MONGODB_URI`, `FRONTEND_URL`, and `COOKIE_SECRET` are configured in the Render Dashboard.
 
 Live Backend API URL:
 https://playable-backend-no79.onrender.com
 
 
-Automatic Deployments
+### Automatic Deployments
 
 Whenever changes are pushed to the main branch on GitLab, Render automatically redeploys both services, ensuring the latest version is always live.
 
