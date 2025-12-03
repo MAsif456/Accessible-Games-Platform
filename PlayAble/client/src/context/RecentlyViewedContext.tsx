@@ -26,14 +26,11 @@ export interface RecentlyViewedGameDto {
 }
 
 /**
-<<<<<<< HEAD
  * Server shape for recently viewed list.
-=======
  * API response structure for recently viewed endpoint.
  * @interface RecentlyViewedResponse
  * @property {RecentlyViewedGameDto[]} games - Array of recently viewed games
  * @property {number} total - Total count of recently viewed games
->>>>>>> 9db0d0b43cd08182e37ea7ca5a87b25280c4f3d4
  */
 interface RecentlyViewedResponse {
   games: RecentlyViewedGameDto[];

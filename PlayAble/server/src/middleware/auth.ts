@@ -17,7 +17,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 /**
  * In-memory token blacklist for logout functionality.
  */
-export let tokenBlacklist = new Set<string>();
+let tokenBlacklist = new Set<string>();
 
 const getTokenBlacklist = (): Set<string> => {
   const exported = (module as any).exports?.tokenBlacklist;

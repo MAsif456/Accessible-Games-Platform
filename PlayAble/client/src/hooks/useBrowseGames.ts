@@ -183,6 +183,8 @@ function useGamesMetadata() {
 
   useEffect(() => {
     let mounted = true;
+
+    // If we already have cached metadata, use it immediately
     if (metadataCache.data) {
       setMetadata(metadataCache.data);
       setLoading(false);
@@ -192,9 +194,14 @@ function useGamesMetadata() {
     }
 
     const promise = metadataCache.promise || getGamesMetadata();
+
     // Guard against mocks that return undefined/non-promise values
     if (!promise || typeof (promise as any).then !== 'function') {
-      const fallback = metadataCache.data || { genres: [], accessibilityTags: [], releaseYears: [] };
+      const fallback = metadataCache.data || {
+        genres: [],
+        accessibilityTags: [],
+        releaseYears: [],
+      };
       metadataCache.data = fallback;
       if (mounted) {
         setMetadata(fallback);

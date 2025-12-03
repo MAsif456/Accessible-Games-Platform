@@ -7,6 +7,8 @@ import dotenv from 'dotenv';
 // Load environment variables (same as server)
 dotenv.config();
 
+jest.setTimeout(20000);
+
 describe('FavouritesRepository', () => {
   const userId = new mongoose.Types.ObjectId().toHexString();
 

@@ -67,6 +67,26 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
   const canSubmit =
     (hasValidDescription || hasVoiceTranscript) &&
     (!requiresContact || (contactEmail && EMAIL_REGEX.test(contactEmail)));
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  const getDescriptionError = () => {
+    if (!hasSubmitted) return null;
+    if (trimmedDescription.length === 0 && !hasVoiceTranscript) {
+      return `Please provide at least ${MIN_CHARS} characters or add a voice recording.`;
+    }
+    if (trimmedDescription.length > 0 && trimmedDescription.length < MIN_CHARS) {
+      return `Please provide at least ${MIN_CHARS} characters.`;
+    }
+    if (trimmedDescription.length > MAX_CHARS) {
+      return `Please keep your report under ${MAX_CHARS} characters.`;
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    setFieldError(getDescriptionError());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trimmedDescription, hasVoiceTranscript, hasSubmitted]);
 
   // Start voice recording - check if voice navigation is active first
   const handleStartRecording = async () => {
@@ -128,19 +148,15 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasSubmitted(true);
 
-    if (trimmedDescription && trimmedDescription.length < MIN_CHARS) {
-      setFieldError(`Please provide at least ${MIN_CHARS} characters.`);
-      return;
-    }
-
-    if (trimmedDescription.length > MAX_CHARS) {
-      setFieldError(`Please keep your report under ${MAX_CHARS} characters.`);
+    const descriptionError = getDescriptionError();
+    if (descriptionError) {
+      setFieldError(descriptionError);
       return;
     }
 
     if (!canSubmit) {
-      setFieldError(`Please provide at least ${MIN_CHARS} characters or add a voice recording.`);
       return;
     }
 
@@ -183,6 +199,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       setDescription('');
       baseDescriptionTextRef.current = '';
       clearVoiceTranscript();
+      setHasSubmitted(false);
 
       // Call the onSuccess callback if provided
       if (onSuccess) {
@@ -325,7 +342,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
         <button
           type="submit"
           className="report-form__submit"
-          disabled={isSubmitting || isVoiceRecording || !canSubmit}
+          disabled={isSubmitting || isVoiceRecording}
         >
           {isSubmitting ? 'Submitting...' : 'Submit Report'}
         </button>

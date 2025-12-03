@@ -1,4 +1,5 @@
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
 import * as adminReportsService from '../../src/services/adminReportsService';
@@ -28,6 +29,20 @@ jest.mock('../../src/services/api', () => ({
   getGames: jest.fn(),
   getReviewStats: jest.fn(),
   getAuthHeaders: jest.fn(() => ({})),
+  getGamesMetadata: jest.fn().mockResolvedValue({
+    genres: [],
+    accessibilityTags: [],
+    platforms: [],
+    featureGroups: [],
+    tags: [],
+    modes: [],
+    inputMethods: [],
+    publishers: [],
+    developers: [],
+    themes: [],
+    languages: [],
+    releaseYears: [],
+  }),
 }));
 jest.mock('../../src/hooks/adminReviews');
 jest.mock('../../src/hooks/useAdminReviewActions');
@@ -85,7 +100,11 @@ function setupAdminApp() {
     error: null,
   });
 
-  return render(<App />);
+  return render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
 }
 
 const clickAdminButton = async () => {

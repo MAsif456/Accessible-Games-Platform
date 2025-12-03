@@ -9,6 +9,16 @@ export interface AccountMenuProps {
   unreadNotificationCount?: number;
 }
 
+
+/**
+ * A React component that renders a dropdown menu for the user profile.
+ * It receives the following props:
+ * - isOpen: a boolean indicating whether the menu is open or not.
+ * - onToggle: a function to toggle the menu.
+ * - onNavigate: a function to navigate to a given path.
+ * - onRequestLogout: a function to request logout.
+ * - unreadNotificationCount: an optional number indicating the number of unread notifications.
+ */
 const NavbarAccountMenu: React.FC<AccountMenuProps> = ({
   isOpen,
   onToggle,

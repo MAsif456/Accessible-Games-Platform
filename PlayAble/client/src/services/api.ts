@@ -124,6 +124,40 @@ function findCachedGame(gameId: string): GameDto | undefined {
   return undefined;
 }
 
+/**
+ * Retry a fetch request with exponential backoff for rate limiting.
+ * Kept internal to getGames; callers still see the same getGames API.
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries = 2,
+  baseDelay = 1000
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url, options);
+
+    // If rate limited (429), retry with backoff
+    if (res.status === 429 && attempt < maxRetries) {
+      const retryAfterHeader = res.headers.get('Retry-After');
+      const delay = retryAfterHeader
+        ? parseInt(retryAfterHeader, 10) * 1000
+        : baseDelay * Math.pow(2, attempt);
+
+      console.warn(
+        `Rate limited (429). Retrying after ${delay}ms... (attempt ${attempt + 1}/${maxRetries + 1})`
+      );
+      await new Promise(resolve => setTimeout(resolve, Math.min(delay, 10000))); // Max 10 seconds
+      continue;
+    }
+
+    return res;
+  }
+
+  // Final attempt - return the response even if it's 429
+  return await fetch(url, options);
+}
+
 export async function getGames(
   params: GetGamesParams = {},
   options?: { signal?: AbortSignal }
@@ -142,25 +176,51 @@ export async function getGames(
   if (params.sort) query.set('sort', params.sort);
 
   try {
-    // Support aborting via caller-provided signal while preserving robust error handling
-    const res = await fetch(`/api/games?${query.toString()}`, { signal: options?.signal });
+    // Use retry-aware fetch, but still allow callers to abort via signal
+    const res = await fetchWithRetry(`/api/games?${query.toString()}`, {
+      signal: options?.signal,
+    });
+
+    if (res.status === 429) {
+      // Rate limited - throw a specific error that can be handled by the UI
+      const errorData = await res.json().catch(() => ({}));
+      const retryAfter = res.headers.get('Retry-After');
+      const error = new Error(
+        `Rate limit exceeded. Please try again later.${
+          retryAfter ? ` (Retry after ${retryAfter}s)` : ''
+        }`
+      ) as Error & { status: number; retryAfter?: string; data?: unknown };
+      error.status = 429;
+      error.retryAfter = retryAfter || undefined;
+      (error as any).data = errorData;
+      throw error;
+    }
+
     if (!res.ok) {
       throw new Error(`Failed to fetch games: ${res.status}`);
     }
 
     const data: PaginatedGamesResponse = await res.json();
-    if (Array.isArray(data?.games) && data.games.length) {
-      data.games.forEach(cacheGame);
+    if (Array.isArray(data?.games)) {
+      // Cache games when we have them
+      if (data.games.length > 0) {
+        data.games.forEach(cacheGame);
+      }
       return data;
     }
-  } catch (error) {
+  } catch (error: any) {
     // If this request was actively aborted, just rethrow so callers can handle it
     if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error;
+    }
+    // Re-throw rate limit errors so the UI can handle them appropriately
+    if (error?.status === 429) {
       throw error;
     }
     console.error('Failed to fetch games, falling back to offline data.', error);
   }
 
+  // Fallback to offline data only if API call completely fails (not rate limited)
   FALLBACK_GAMES.forEach(cacheGame);
   return {
     games: FALLBACK_GAMES,

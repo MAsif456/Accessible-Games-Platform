@@ -4,7 +4,7 @@
  * @module adminReportsService
  */
 import { getAuthHeaders } from './api';
-import { apiPost } from '../utils/apiHelper';
+import { apiPost, apiGet } from '../utils/apiHelper';
 
 /** Possible statuses for a general report */
 export type GeneralReportStatus = 'open' | 'resolved';
@@ -83,8 +83,12 @@ function withAuth(init: RequestInit = {}): RequestInit {
  * @throws {Error} If the API request fails
  */
 export async function fetchGeneralReports(status: GeneralReportStatus): Promise<AdminGeneralReport[]> {
-  const response = await fetch(`/api/admin/general-reports?status=${status}`, withAuth());
-  if (!response.ok) throw new Error('Failed to load reports');
+  const response = await apiGet(`/api/admin/general-reports?status=${status}`, withAuth());
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch general reports:', response.status, errorText);
+    throw new Error('Failed to load reports');
+  }
   const data = (await response.json()) as ReportsResponse;
   return data.reports || [];
 }

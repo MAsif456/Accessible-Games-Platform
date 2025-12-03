@@ -27,6 +27,7 @@ jest.mock('../../models/user', () => ({
   __esModule: true,
   default: {
     find: jest.fn(),
+    findById: jest.fn(),
   },
 }));
 
@@ -46,6 +47,7 @@ const mockReviewModel = Review as unknown as {
 
 const mockUserModel = User as unknown as {
   find: jest.Mock;
+  findById: jest.Mock;
 };
 
 const mockGameModel = Game as unknown as {
@@ -73,6 +75,17 @@ const makeRes = () => {
 describe('reviews.controller (public endpoints)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // default user lookup
+    const userLean = jest.fn().mockResolvedValue({ name: 'Sam', email: 'sam@example.com' });
+    const userSelect = jest.fn().mockReturnValue({ lean: userLean });
+    mockUserModel.findById.mockReturnValue({ select: userSelect });
+
+    // default game lookup
+    mockGameModel.findById.mockReturnValue({
+      select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue({ title: 'Game', slug: 'game' }) }),
+      lean: jest.fn().mockResolvedValue({ _id: new mongoose.Types.ObjectId(), title: 'Game' }),
+    });
   });
 
   it('returns 400 when listing reviews with invalid game id', async () => {
@@ -142,6 +155,9 @@ describe('reviews.controller (public endpoints)', () => {
     const gameId = new mongoose.Types.ObjectId().toHexString();
     const createdReview = { _id: new mongoose.Types.ObjectId(), body: 'Hello world', authorName: 'Sam' };
     mockReviewModel.create.mockResolvedValue(createdReview);
+    const userLean = jest.fn().mockResolvedValue({ name: 'Sam', email: '' });
+    const userSelect = jest.fn().mockReturnValue({ lean: userLean });
+    mockUserModel.findById.mockReturnValue({ select: userSelect });
 
     const req = {
       params: { id: gameId },
@@ -173,11 +189,14 @@ describe('reviews.controller (public endpoints)', () => {
       publicId: 'rev_1234',
       authorName: 'Jane',
       gameId,
+      userId: new mongoose.Types.ObjectId(),
       body: 'Content',
       createdAt: new Date(),
     };
     mockReviewModel.findById.mockReturnValue({ lean: jest.fn().mockResolvedValue(reviewDoc) });
     mockGameModel.findById.mockReturnValue({ lean: jest.fn().mockResolvedValue({ _id: gameId, title: 'Game' }) });
+    const userSelect = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue({ name: 'Jane', email: '' }) });
+    mockUserModel.findById.mockReturnValue({ select: userSelect });
 
     const req = { params: { id: reviewId.toHexString() } } as unknown as Request;
     const res = makeRes();

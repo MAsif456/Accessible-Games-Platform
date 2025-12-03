@@ -1,4 +1,4 @@
-import { getPaginatedGames, getGamesMetadata, resetGamesMetadataCache } from '../../../services/games.service';
+import { getPaginatedGames, getGamesMetadata, resetGamesMetadataCache } from '../../services/games.service';
 
 jest.mock('../../models', () => {
   const distinct = jest.fn();

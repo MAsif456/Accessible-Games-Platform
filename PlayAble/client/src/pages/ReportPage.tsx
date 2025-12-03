@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReportForm from '../components/report/ReportForm';
 import { useGameReportDetails, useReviewReportDetails } from '../hooks/useReportDetails';
 import type { ReportType } from '../services/reportApi';
@@ -64,11 +64,17 @@ const ReportPage: React.FC<ReportPageProps> = ({
 }) => {
   const rawParams = useParams();
   const params = rawParams as RouteParams;
+  const navigate = useNavigate();
 
-  // Determine the report type: prefer explicit initialType, fall back to route,
-  // and default to general if none is provided.
-  const routeType = (params.reportType as ReportType) || 'general';
-  const type: ReportType = initialType || routeType;
+  // Validate reportType from route params and default to 'general' when invalid
+  const validReportTypes: ReportType[] = ['general', 'game', 'review'];
+  const routeTypeParam = params.reportType as ReportType | undefined;
+  const safeRouteType: ReportType = routeTypeParam && validReportTypes.includes(routeTypeParam)
+    ? routeTypeParam
+    : 'general';
+
+  // Prefer explicit initialType when provided, otherwise use validated routeType
+  const type: ReportType = initialType || safeRouteType;
 
   const gameIdFromRoute = params.gameId;
   const reviewIdFromRoute = params.reviewId;
@@ -89,7 +95,8 @@ const ReportPage: React.FC<ReportPageProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const config = REPORT_CONFIG[type];
+  // Ensure config exists, default to general if type is invalid
+  const config = REPORT_CONFIG[type] || REPORT_CONFIG.general;
 
   /** Notify the caller that the report was successfully submitted. */
   const handleReportSubmitted = () => {
@@ -105,18 +112,9 @@ const ReportPage: React.FC<ReportPageProps> = ({
   const handleBackClick = () => {
     if (onBack) {
       onBack();
-      return;
-    }
-
-    const state = window.history.state as { idx?: number } | null;
-
-    if (state && typeof state.idx === 'number' && state.idx > 0) {
-      window.history.back();
-      return;
-    }
-
-    if (window.location.pathname !== '/') {
-      window.history.pushState(null, '', '/');
+    } else {
+      // Fallback: navigate to home if no back handler
+      navigate('/');
     }
   };
 

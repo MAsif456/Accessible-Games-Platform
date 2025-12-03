@@ -127,10 +127,9 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
       {
         $addFields: {
           resolvedValue: {
-            $cond: [
-              { $ne: ['$status', null] },
+            $or: [
               { $eq: ['$status', 'resolved'] },
-              { $ifNull: ['$resolved', false] },
+              { $eq: ['$resolved', true] },
             ],
           },
           reviewRef: {
@@ -284,13 +283,17 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           doc.reviewRef?.toString?.() ?? doc.review?.toString?.() ?? doc.reviewDoc?._id?.toString?.();
         const friendlyReviewId =
           doc.reviewDoc?.publicId || (rawReviewId ? `rev_${rawReviewId.slice(0, 8)}` : undefined);
+        const latestAdminReply =
+          Array.isArray(doc.adminReplies) && doc.adminReplies.length
+            ? doc.adminReplies[doc.adminReplies.length - 1]?.message
+            : undefined;
 
         return {
           _id: doc._id.toString(),
           reviewId: rawReviewId,
           reviewPublicId: friendlyReviewId,
           reportReason: doc.description || doc.transcript || 'No details provided.',
-          adminReply: doc.adminReply || doc.reviewDoc?.adminReply,
+          adminReply: doc.adminReply || latestAdminReply || doc.reviewDoc?.adminReply,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt,
           resolved: typeof doc.resolved === 'boolean' ? doc.resolved : !!doc.resolvedValue,
@@ -312,6 +315,7 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           reviewId: rawReviewId,
           reviewPublicId: friendlyReviewId,
           reportReason: doc.reasonText,
+          adminReply: doc.adminReply || doc.review?.adminReply,
           createdAt: doc.createdAt,
           updatedAt: doc.updatedAt,
           resolved: !!doc.resolved,
@@ -412,11 +416,8 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
     const reportDoc = report as any;
 
     // Support both new ReportModel (status field) and legacy ReviewReport (resolved boolean)
-    if (typeof reportDoc.status !== 'undefined') {
-      reportDoc.status = 'resolved';
-    } else {
-      reportDoc.resolved = true;
-    }
+    reportDoc.status = 'resolved';
+    reportDoc.resolved = true;
 
     reportDoc.resolvedAt = new Date();
     reportDoc.resolvedBy = user?.id ? new mongoose.Types.ObjectId(user.id) : undefined;

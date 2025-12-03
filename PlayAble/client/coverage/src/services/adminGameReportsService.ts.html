@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">78.48% </span>
+                <span class="strong">79.01% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>62/79</span>
+                <span class='fraction'>64/81</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">78.48% </span>
+                <span class="strong">79.01% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>62/79</span>
+                <span class='fraction'>64/81</span>
             </div>
         
             
@@ -142,7 +142,9 @@
 <a name='L77'></a><a href='#L77'>77</a>
 <a name='L78'></a><a href='#L78'>78</a>
 <a name='L79'></a><a href='#L79'>79</a>
-<a name='L80'></a><a href='#L80'>80</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -179,12 +181,12 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -193,13 +195,15 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -222,7 +226,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { getAuthHeaders } from './api';
-import { apiPost } from '../utils/apiHelper';
+import { apiPost, apiGet } from '../utils/apiHelper';
 &nbsp;
 export type GameReportStatus = 'open' | 'resolved';
 &nbsp;
@@ -272,11 +276,13 @@ const withAuth = (init: RequestInit = {}): RequestInit =&gt; ({
  * @param status - Report status filter ('open' or 'resolved')
  */
 export async function fetchGameReports(status: GameReportStatus): Promise&lt;AdminGameReport[]&gt; {
-  const response = await fetch(`/api/admin/game-reports?status=${status}`, withAuth());
-<span class="cstat-no" title="statement not covered" ><span class="branch-0 cbranch-no" title="branch not covered" >  if (!response.ok) {</span></span>
+  const response = await apiGet(`/api/admin/game-reports?status=${status}`, withAuth());
+  if (!response.ok) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
+<span class="cstat-no" title="statement not covered" >    const errorText = await response.text();</span>
+<span class="cstat-no" title="statement not covered" >    console.error('Failed to fetch game reports:', response.status, errorText);</span>
 <span class="cstat-no" title="statement not covered" >    throw new Error('Failed to load game reports');</span>
 <span class="cstat-no" title="statement not covered" >  }</span>
-<span class="cstat-no" title="statement not covered" >  const data = (await response.json()) as GameReportsResponse;</span>
+  const data = (await response.json()) as GameReportsResponse;
   return data.reports || [];
 }
 &nbsp;
@@ -307,7 +313,7 @@ export <span class="fstat-no" title="function not covered" >async function reply
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-02T20:44:33.809Z
+                at 2025-12-03T17:04:10.380Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

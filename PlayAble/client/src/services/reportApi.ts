@@ -94,7 +94,11 @@ export interface GetReportResponse {
  * @throws {Error} If the API request fails
  */
 export async function submitReport(payload: SubmitReportPayload): Promise<SubmitReportResponse> {
-  const response = await apiPost('/api/reports', payload);
+  const response = await apiPost('/api/reports', payload, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
 
   if (!response.ok) {
     throw new Error('Failed to submit report');

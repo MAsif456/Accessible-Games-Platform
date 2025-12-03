@@ -1,0 +1,17 @@
+image: node:18
+
+stages:
+  - deploy
+
+pages:
+  stage: deploy
+  script:
+    - npm install
+    - npm install jsdoc -g
+    - jsdoc -c jsdoc.json -d public
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
+    - 39-as-a-developer-i-want-to-automatically-generate-a-complete-documentation-site-from-all-existing

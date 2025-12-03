@@ -115,6 +115,12 @@ const Navbar: React.FC<NavbarProps> = ({
     }, 300);
   };
 
+
+/**
+ * Handles voice button mouse up event.
+ * If we were holding and muted during the hold, restore the microphone.
+ * If there was a hold timer that hadn't fired yet, clear it.
+ */
   const handleVoiceButtonMouseUp = () => {
     // Clear hold timer if it hasn't fired yet
     if (holdTimeoutRef.current) {
@@ -132,6 +138,12 @@ const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
+
+/**
+ * Handles mouse leave event on voice button.
+ * If mouse leaves while holding, treats it as a mouse up event.
+ * If microphone was muted during hold, restores previous state.
+ */
   const handleVoiceButtonMouseLeave = () => {
     // If mouse leaves while holding, treat as mouse up
     if (holdTimeoutRef.current) {
@@ -148,6 +160,12 @@ const Navbar: React.FC<NavbarProps> = ({
     isHoldingRef.current = false;
   };
 
+
+/**
+ * Handles search input key down event.
+ * If the key is 'Enter', prevents default form submission and calls onSearchSubmit instead.
+ * @param {React.KeyboardEvent<HTMLInputElement>} event - Keyboard event.
+ */
   const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();

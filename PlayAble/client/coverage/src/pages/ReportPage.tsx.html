@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">27.27% </span>
+                <span class="strong">27.52% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>60/220</span>
+                <span class='fraction'>60/218</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">27.27% </span>
+                <span class="strong">27.52% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>60/220</span>
+                <span class='fraction'>60/218</span>
             </div>
         
             
@@ -281,9 +281,7 @@
 <a name='L216'></a><a href='#L216'>216</a>
 <a name='L217'></a><a href='#L217'>217</a>
 <a name='L218'></a><a href='#L218'>218</a>
-<a name='L219'></a><a href='#L219'>219</a>
-<a name='L220'></a><a href='#L220'>220</a>
-<a name='L221'></a><a href='#L221'>221</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L219'></a><a href='#L219'>219</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -341,8 +339,6 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -504,7 +500,7 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReportForm from '../components/report/ReportForm';
 import { useGameReportDetails, useReviewReportDetails } from '../hooks/useReportDetails';
 import type { ReportType } from '../services/reportApi';
@@ -569,11 +565,17 @@ const ReportPage: React.FC&lt;ReportPageProps&gt; = <span class="fstat-no" title
 <span class="cstat-no" title="statement not covered" >}) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  const rawParams = useParams();</span>
 <span class="cstat-no" title="statement not covered" >  const params = rawParams as RouteParams;</span>
+<span class="cstat-no" title="statement not covered" >  const navigate = useNavigate();</span>
 <span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  // Determine the report type: prefer explicit initialType, fall back to route,</span>
-<span class="cstat-no" title="statement not covered" >  // and default to general if none is provided.</span>
-<span class="cstat-no" title="statement not covered" >  const routeType = (params.reportType as ReportType) || 'general';</span>
-<span class="cstat-no" title="statement not covered" >  const type: ReportType = initialType || routeType;</span>
+<span class="cstat-no" title="statement not covered" >  // Validate reportType from route params and default to 'general' when invalid</span>
+<span class="cstat-no" title="statement not covered" >  const validReportTypes: ReportType[] = ['general', 'game', 'review'];</span>
+<span class="cstat-no" title="statement not covered" >  const routeTypeParam = params.reportType as ReportType | undefined;</span>
+<span class="cstat-no" title="statement not covered" >  const safeRouteType: ReportType = routeTypeParam &amp;&amp; validReportTypes.includes(routeTypeParam)</span>
+<span class="cstat-no" title="statement not covered" >    ? routeTypeParam</span>
+<span class="cstat-no" title="statement not covered" >    : 'general';</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  // Prefer explicit initialType when provided, otherwise use validated routeType</span>
+<span class="cstat-no" title="statement not covered" >  const type: ReportType = initialType || safeRouteType;</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >  const gameIdFromRoute = params.gameId;</span>
 <span class="cstat-no" title="statement not covered" >  const reviewIdFromRoute = params.reviewId;</span>
@@ -594,7 +596,8 @@ const ReportPage: React.FC&lt;ReportPageProps&gt; = <span class="fstat-no" title
 <span class="cstat-no" title="statement not covered" >    window.scrollTo({ top: 0, behavior: 'smooth' });</span>
 <span class="cstat-no" title="statement not covered" >  }, []);</span>
 <span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  const config = REPORT_CONFIG[type];</span>
+<span class="cstat-no" title="statement not covered" >  // Ensure config exists, default to general if type is invalid</span>
+<span class="cstat-no" title="statement not covered" >  const config = REPORT_CONFIG[type] || REPORT_CONFIG.general;</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >  /** Notify the caller that the report was successfully submitted. */</span>
 <span class="cstat-no" title="statement not covered" >  const handleReportSubmitted = () =&gt; {</span>
@@ -610,18 +613,9 @@ const ReportPage: React.FC&lt;ReportPageProps&gt; = <span class="fstat-no" title
 <span class="cstat-no" title="statement not covered" >  const handleBackClick = () =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    if (onBack) {</span>
 <span class="cstat-no" title="statement not covered" >      onBack();</span>
-<span class="cstat-no" title="statement not covered" >      return;</span>
-<span class="cstat-no" title="statement not covered" >    }</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >    const state = window.history.state as { idx?: number } | null;</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >    if (state &amp;&amp; typeof state.idx === 'number' &amp;&amp; state.idx &gt; 0) {</span>
-<span class="cstat-no" title="statement not covered" >      window.history.back();</span>
-<span class="cstat-no" title="statement not covered" >      return;</span>
-<span class="cstat-no" title="statement not covered" >    }</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >    if (window.location.pathname !== '/') {</span>
-<span class="cstat-no" title="statement not covered" >      window.history.pushState(null, '', '/');</span>
+<span class="cstat-no" title="statement not covered" >    } else {</span>
+<span class="cstat-no" title="statement not covered" >      // Fallback: navigate to home if no back handler</span>
+<span class="cstat-no" title="statement not covered" >      navigate('/');</span>
 <span class="cstat-no" title="statement not covered" >    }</span>
 <span class="cstat-no" title="statement not covered" >  };</span>
 <span class="cstat-no" title="statement not covered" ></span>
@@ -730,7 +724,7 @@ export default ReportPage;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-02T20:44:33.809Z
+                at 2025-12-03T17:04:10.380Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

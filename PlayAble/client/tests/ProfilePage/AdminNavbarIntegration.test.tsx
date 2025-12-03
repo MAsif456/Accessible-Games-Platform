@@ -1,6 +1,28 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
+
+jest.mock('../../src/services/api', () => ({
+  __esModule: true,
+  getGames: jest.fn().mockResolvedValue({ games: [], total: 0 }),
+  getReviewStats: jest.fn().mockResolvedValue({ totalReviews: 0 }),
+  getAuthHeaders: jest.fn(() => ({})),
+  getGamesMetadata: jest.fn().mockResolvedValue({
+    genres: [],
+    accessibilityTags: [],
+    platforms: [],
+    featureGroups: [],
+    tags: [],
+    modes: [],
+    inputMethods: [],
+    publishers: [],
+    developers: [],
+    themes: [],
+    languages: [],
+    releaseYears: [],
+  }),
+}));
 
 // Helper to locate and click the Admin button by its visible text
 const clickAdminButton = async () => {
@@ -32,7 +54,11 @@ test('admin user sees Admin button and can navigate to Admin Management page', a
     user: adminUser,
   } as any);
 
-  render(<App />);
+  render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
 
   // Admin button should appear in navbar for admin user
   await clickAdminButton();

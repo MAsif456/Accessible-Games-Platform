@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import * as api from '../../src/services/api';
 import settingsApi from '../../src/services/settingsApi';
@@ -94,9 +95,11 @@ function mockAuthenticatedUser() {
 // Helper to render the app with providers
 function renderWithProviders(ui: React.ReactElement) {
   return render(
-    <AuthProvider>
-      <FavouritesProvider>{ui}</FavouritesProvider>
-    </AuthProvider>
+    <MemoryRouter>
+      <AuthProvider>
+        <FavouritesProvider>{ui}</FavouritesProvider>
+      </AuthProvider>
+    </MemoryRouter>
   );
 }
 

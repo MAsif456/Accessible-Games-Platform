@@ -29,6 +29,7 @@ jest.mock('../../models/report', () => ({
 jest.mock('../../models/reviewReport', () => ({
   __esModule: true,
   default: {
+    find: jest.fn().mockResolvedValue([]),
     aggregate: jest.fn(),
     findById: jest.fn(),
   },
@@ -46,6 +47,7 @@ const mockReportModel = ReportModel as unknown as {
 };
 
 const mockLegacyReviewReport = ReviewReport as unknown as {
+  find: jest.Mock;
   aggregate: jest.Mock;
   findById: jest.Mock;
 };
@@ -218,19 +220,22 @@ describe('reviewReports.controller additional coverage', () => {
       const req = { params: { id: resolvedId }, body: {} } as unknown as Request;
       const res = makeRes();
 
-      mockReportModel.findOne.mockResolvedValue({ resolved: true });
+      mockReportModel.findOne.mockResolvedValue({
+        resolved: true,
+        toObject: jest.fn().mockReturnValue({ _id: resolvedId, resolved: true }),
+      });
       mockLegacyReviewReport.findById.mockResolvedValue(null);
 
       await adminResolveReviewReport(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ message: 'Report is already resolved' });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ resolved: true }));
     });
 
     it('resolves a legacy review report without deleting the review', async () => {
       const reportId = new mongoose.Types.ObjectId().toHexString();
       const reviewId = new mongoose.Types.ObjectId().toHexString();
-      const save = jest.fn();
+      const save = jest.fn().mockResolvedValue(undefined);
 
       mockReportModel.findOne.mockResolvedValue(null);
       mockLegacyReviewReport.findById.mockResolvedValue({
@@ -238,7 +243,13 @@ describe('reviewReports.controller additional coverage', () => {
         resolved: false,
         save,
         toObject: jest.fn().mockReturnValue({ _id: reportId, outcome: 'kept' }),
+        deleteOne: jest.fn(),
       });
+      const createdReport = {
+        save: jest.fn().mockResolvedValue(undefined),
+        toObject: jest.fn().mockReturnValue({ _id: reportId, resolved: true, outcome: 'kept' }),
+      };
+      mockReportModel.create.mockResolvedValue(createdReport as any);
       mockReviewModel.findByIdAndDelete.mockResolvedValue(null);
 
       const req = {
@@ -251,7 +262,7 @@ describe('reviewReports.controller additional coverage', () => {
       await adminResolveReviewReport(req, res);
 
       expect(mockReviewModel.findByIdAndDelete).not.toHaveBeenCalled();
-      expect(save).toHaveBeenCalled();
+      expect(createdReport.save).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(200);
     });
   });
