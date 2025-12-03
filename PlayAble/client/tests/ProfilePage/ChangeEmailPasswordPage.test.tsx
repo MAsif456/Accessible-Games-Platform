@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ChangeEmailPasswordPage from '../../src/pages/ChangeEmailPasswordPage';
-import { AuthProvider } from '../../src/context/AuthContext';
+import * as AuthContextModule from '../../src/context/AuthContext';
 import authService from '../../src/services/authService';
 
 // Mock authService
@@ -16,28 +16,30 @@ const mockUser = {
   bio: 'Test bio',
 };
 
+const mockUpdateUser = jest.fn();
+
+// Mock AuthContext to provide user directly
+jest.spyOn(AuthContextModule, 'useAuth').mockReturnValue({
+  user: mockUser,
+  isLoading: false,
+  isAuthenticated: true,
+  signup: jest.fn(),
+  login: jest.fn(),
+  logout: jest.fn(),
+  updateUser: mockUpdateUser,
+  userSettings: null,
+  refreshUserSettings: jest.fn(),
+  updateUserSettingsState: jest.fn(),
+});
+
 const renderChangePage = (onNavigate = jest.fn()) => {
-  // Setup localStorage
-  window.localStorage.setItem('user', JSON.stringify(mockUser));
-  window.localStorage.setItem('token', 'fake-token');
-
-  // Mock getCurrentUser
-  (authService.getCurrentUser as jest.Mock).mockResolvedValue({
-    success: true,
-    user: mockUser,
-  });
-
-  return render(
-    <AuthProvider>
-      <ChangeEmailPasswordPage onNavigate={onNavigate} />
-    </AuthProvider>
-  );
+  return render(<ChangeEmailPasswordPage onNavigate={onNavigate} />);
 };
 
 describe('ChangeEmailPasswordPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    localStorage.clear();
+    mockUpdateUser.mockClear();
   });
 
   describe('Rendering', () => {
@@ -49,7 +51,7 @@ describe('ChangeEmailPasswordPage', () => {
       });
 
       expect(screen.getByText('Change Email Address')).toBeInTheDocument();
-      expect(screen.getByText('Change Password')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /change password/i })).toBeInTheDocument();
       expect(screen.getByLabelText('New Email Address')).toBeInTheDocument();
       expect(screen.getByLabelText('Current Password')).toBeInTheDocument();
       expect(screen.getByLabelText('New Password')).toBeInTheDocument();
@@ -122,7 +124,7 @@ describe('ChangeEmailPasswordPage', () => {
       fireEvent.click(screen.getByRole('button', { name: /update email address/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/new email address must be different/i)).toBeInTheDocument();
+        expect(screen.getByText(/new email address must be different from your current email/i)).toBeInTheDocument();
       });
     });
 

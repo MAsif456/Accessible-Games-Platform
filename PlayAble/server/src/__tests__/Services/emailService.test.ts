@@ -69,16 +69,20 @@ describe('Email Service', () => {
 
   describe('Real Email Mode - Successful Sending', () => {
     it('should send email with nodemailer', async () => {
-      // Set up environment and mock BEFORE resetting modules
+      // Clear cache first
+      jest.resetModules();
+
+      // Set up environment variables
       process.env.USE_MOCK_EMAIL = 'false';
       process.env.EMAIL_USER = 'sender@example.com';
       process.env.EMAIL_PASS = 'password123';
 
+      // Set up mock AFTER clearing cache
       const mockSendMail = jest.fn().mockResolvedValue({ messageId: 'test-id' });
-      (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail: mockSendMail });
+      const nodemailerMock = require('nodemailer');
+      (nodemailerMock.createTransport as jest.Mock).mockReturnValue({ sendMail: mockSendMail });
 
-      // Now reset modules and reimport with the correct env vars
-      jest.resetModules();
+      // Import after everything is set up
       const { sendEmail } = require('../../services/emailService');
 
       const result = await sendEmail('recipient@example.com', 'Test', 'Body');
