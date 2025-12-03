@@ -168,7 +168,7 @@ function AppContent({ PAGE_SIZE }: { PAGE_SIZE: number }) {
         showPrompt={(msg, type) => {
           if (msg && msg.startsWith('Welcome to Accessible Games Platform')) {
             lastAuthEvent.current = 'signup';
-          } else if (msg && msg === 'Login successful!') {
+          } else if (msg && (msg.startsWith('Welcome Back') || msg === 'Login successful!')) {
             lastAuthEvent.current = 'login';
             // Redirect to intended destination after login
             setTimeout(() => {

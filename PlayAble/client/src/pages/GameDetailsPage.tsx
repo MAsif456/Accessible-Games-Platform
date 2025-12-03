@@ -386,7 +386,9 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     if (onOpenGameReport) {
       onOpenGameReport(dbId);
     } else if (onNavigate) {
-      onNavigate('/report/game');
+      onNavigate(`/report/game/${dbId}`);
+    } else {
+      navigate(`/report/game/${dbId}`);
     }
   };
 
@@ -395,8 +397,12 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     if (onOpenReviewReport && game) {
       const dbId = (game as any)._id ?? game.id;
       onOpenReviewReport(reviewId, dbId);
-    } else if (onNavigate) {
-      onNavigate('/report/review');
+    } else if (onNavigate && game) {
+      const dbId = (game as any)._id ?? game.id;
+      onNavigate(`/report/review/${dbId}/${reviewId}`);
+    } else if (game) {
+      const dbId = (game as any)._id ?? game.id;
+      navigate(`/report/review/${dbId}/${reviewId}`);
     }
   };
 
