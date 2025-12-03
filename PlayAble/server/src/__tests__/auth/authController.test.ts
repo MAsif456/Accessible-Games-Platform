@@ -19,15 +19,15 @@ import {
   resetPassword,
   updateProfile,
   updateEmailAndPassword,
-} from '../../../controllers/authController';
+} from '../../controllers/authController';
 import { UserModel } from '../../models';
-import { sendEmail } from '../../../services/emailService';
-import { blacklistToken } from '../../../middleware/auth';
+import { sendEmail } from '../../services/emailService';
+import { blacklistToken } from '../../middleware/auth';
 
 // Mock dependencies
 jest.mock('../../models');
-jest.mock('../../../services/emailService');
-jest.mock('../../../middleware/auth');
+jest.mock('../../services/emailService');
+jest.mock('../../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 

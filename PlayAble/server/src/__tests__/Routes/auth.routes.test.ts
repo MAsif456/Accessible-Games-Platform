@@ -8,7 +8,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import authRouter from '../../routes/auth';
+import authRouter from '../../routes/authRoutes';
 import UserModel from '../../models/user';
 import { sendEmail } from '../../services/emailService';
 

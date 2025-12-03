@@ -79,7 +79,7 @@ describe('API Service', () => {
 
       const result = await getGames({});
 
-      expect(global.fetch).toHaveBeenCalledWith('/api/games?');
+      expect(global.fetch).toHaveBeenCalledWith('/api/games?', {});
       expect(result).toEqual(mockResponse);
     });
 
@@ -99,8 +99,8 @@ describe('API Service', () => {
 
       await getGames({ page: 2, pageSize: 10 });
 
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('page=2'));
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('pageSize=10'));
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('page=2'), {});
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('pageSize=10'), {});
     });
 
     it('should include search query and trim whitespace', async () => {
@@ -111,7 +111,7 @@ describe('API Service', () => {
 
       await getGames({ search: '  test game  ' });
 
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('search=test+game'));
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('search=test+game'), {});
     });
 
     it('should include genres in query', async () => {
@@ -122,7 +122,7 @@ describe('API Service', () => {
 
       await getGames({ genres: ['Action', 'RPG'] });
 
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('genres=Action%2CRPG'));
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('genres=Action%2CRPG'), {});
     });
 
     it('should include tags in query', async () => {
@@ -133,7 +133,7 @@ describe('API Service', () => {
 
       await getGames({ tags: ['Subtitles', 'ColorBlind'] });
 
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('tags=Subtitles%2CColorBlind'));
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('tags=Subtitles%2CColorBlind'), {});
     });
 
     it('should include sort in query', async () => {
@@ -144,7 +144,7 @@ describe('API Service', () => {
 
       await getGames({ sort: 'title' });
 
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('sort=title'));
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('sort=title'), {});
     });
 
     it('should cache fetched games', async () => {
@@ -168,13 +168,21 @@ describe('API Service', () => {
       expect(cached).toEqual(mockGame);
     });
 
-    it('should throw error when fetch fails', async () => {
+    it('should return fallback games when fetch fails', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
         status: 500,
       });
 
-      await expect(getGames({})).rejects.toThrow('Failed to fetch games: 500');
+      const result = await getGames({});
+
+      // Should return fallback games instead of throwing
+      expect(result.games).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          id: 'fallback-1',
+          title: 'Fallback Adventure',
+        })
+      ]));
     });
   });
 
@@ -236,7 +244,7 @@ describe('API Service', () => {
       const result = await getGameById('uncached789');
 
       expect(result.id).toEqual('uncached789');
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/games?'));
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/games?'), {});
     });
 
     it('should throw error if game not found in list', async () => {

@@ -87,25 +87,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const storedUser = authService.getStoredUser();
         const token = authService.getToken();
 
-        if (storedUser && token) {
-          // Verifies token validity by fetching current user from the backend.
-          try {
-            const response = await authService.getCurrentUser();
-            if (response.success && response.user) {
-              const currentUser = response.user as User;
-              setUser(currentUser);
-              await loadUserSettings(currentUser.id);
-            } else {
-              // Handles expired or invalid tokens by logging out.
-              authService.logout();
+          if (storedUser && token) {
+            // Verifies token validity by fetching current user from the backend.
+            try {
+              const response = await authService.getCurrentUser();
+              if (response.success && response.user) {
+                const currentUser = response.user as User;
+                setUser(currentUser);
+                await loadUserSettings(currentUser.id);
+              } else {
+                // Handles expired or invalid tokens by logging out.
+                authService.logout();
+                updateUserSettingsState(null);
+              }
+            } catch (error) {
+              console.error('Token verification failed, falling back to stored user.', error);
+              setUser(storedUser as User);
               updateUserSettingsState(null);
             }
-          } catch (error) {
-            // Handles token verification failure by logging out.
-            authService.logout();
-            updateUserSettingsState(null);
+          } else if (storedUser) {
+            setUser(storedUser as User);
           }
-        }
       } catch (error) {
         console.error('Auth initialisation error:', error);
       } finally {

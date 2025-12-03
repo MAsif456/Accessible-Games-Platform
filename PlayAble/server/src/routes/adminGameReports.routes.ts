@@ -6,9 +6,10 @@
  */
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import { protect, authorize } from '../../middleware/auth';
+import { protect, authorize } from '../middleware/auth';
 import { ReportModel } from '../models/report';
 import User from '../models/user';
+import { createNotification } from '../services/notificationService';
 
 const router = Router();
 
@@ -120,6 +121,37 @@ router.post('/:id/reply', protect, authorize('admin'), async (req, res) => {
       .populate('game', 'title slug')
       .populate('resolvedBy', 'name')
       .lean();
+
+    // Create notification for the reporter when admin replies
+    if (report.reporterId) {
+      try {
+        const reportCode = formatGameReportCode(report._id);
+        const adminName = adminUser?.name || 'Admin';
+        const gameTitle = populated?.game?.title || report.game?.title || 'the game';
+        const gameSlug = populated?.game?.slug || report.game?.slug;
+        
+        await createNotification(
+          report.reporterId,
+          'report_resolved',
+          'Your Game Report Has Been Resolved',
+          `${adminName} has replied to your report about "${gameTitle}" (${reportCode}). Click to view the response.`,
+          {
+            reportId: report._id,
+            gameId: report.game,
+            metadata: {
+              reportCode,
+              reportType: 'game',
+              adminName,
+              gameTitle,
+              gameSlug,
+            },
+          }
+        );
+      } catch (notifError) {
+        // Don't fail the reply if notification creation fails
+        console.error('Error creating notification for admin reply', notifError);
+      }
+    }
 
     return res.json({ success: true, report: populated ? toDto(populated) : toDto(report) });
   } catch (error) {

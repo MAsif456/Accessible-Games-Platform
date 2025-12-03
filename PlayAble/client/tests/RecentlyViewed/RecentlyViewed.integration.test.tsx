@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import * as api from '../../src/services/api';
 import settingsApi from '../../src/services/settingsApi';
@@ -46,7 +47,7 @@ const mockGames: api.GameDto[] = [
     description: 'First test game',
     thumbnailUrl: '/game-one.png',
     genres: ['Action'],
-    accessibilityTags: ['Vision'],
+    accessibilityTags: ['Visual'],
     releaseYear: 2020,
   },
   {
@@ -58,7 +59,7 @@ const mockGames: api.GameDto[] = [
     description: 'Second test game',
     thumbnailUrl: '/game-two.png',
     genres: ['Puzzle'],
-    accessibilityTags: ['Motor'],
+    accessibilityTags: ['Visual'],
     releaseYear: 2021,
   },
 ];
@@ -94,9 +95,11 @@ function mockAuthenticatedUser() {
 // Helper to render the app with providers
 function renderWithProviders(ui: React.ReactElement) {
   return render(
-    <AuthProvider>
-      <FavouritesProvider>{ui}</FavouritesProvider>
-    </AuthProvider>
+    <MemoryRouter>
+      <AuthProvider>
+        <FavouritesProvider>{ui}</FavouritesProvider>
+      </AuthProvider>
+    </MemoryRouter>
   );
 }
 
@@ -215,7 +218,7 @@ describe('Recently Viewed integration', () => {
         expect(screen.getByText(genre)).toBeInTheDocument();
       });
       game.accessibilityTags.forEach(tag => {
-        expect(screen.getByText(tag)).toBeInTheDocument();
+        expect(screen.getAllByText(tag).length).toBeGreaterThan(0);
       });
 
       // Image alt should be the game title

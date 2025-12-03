@@ -10,12 +10,12 @@ import jwt from 'jsonwebtoken';
 import recentlyViewedRouter from '../../routes/recentlyViewed.routes';
 import UserModel from '../../models/user';
 import GameModel from '../../models/game';
-import { protect } from '../../../middleware/auth';
+import { protect } from '../../middleware/auth';
 
 // Mock dependencies
 jest.mock('../../models/user');
 jest.mock('../../models/game');
-jest.mock('../../../middleware/auth');
+jest.mock('../../middleware/auth');
 
 const app = express();
 app.use(express.json());

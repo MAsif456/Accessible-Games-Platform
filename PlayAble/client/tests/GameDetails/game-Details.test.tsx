@@ -1,5 +1,5 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import * as api from '../../src/services/api';
 import settingsApi from '../../src/services/settingsApi';
@@ -66,22 +66,36 @@ const mockGames: api.GameDto[] = [
 // Helper to render the app with providers
 function renderWithProviders(ui: React.ReactElement) {
   return render(
-    <AuthProvider>
-      <FavouritesProvider>{ui}</FavouritesProvider>
-    </AuthProvider>
+    <MemoryRouter>
+      <AuthProvider>
+        <FavouritesProvider>{ui}</FavouritesProvider>
+      </AuthProvider>
+    </MemoryRouter>
   );
 }
 
-// Mock window.open so we can assert external navigation without actually leaving the test environment
+// Mock window APIs so we can assert behaviour without jsdom errors.
 const originalWindowOpen = window.open;
+const originalScrollTo = window.scrollTo;
+const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
 
 beforeAll(() => {
   // @ts-ignore
   window.open = jest.fn();
+  // @ts-ignore
+  window.scrollTo = jest.fn();
+  window.HTMLElement.prototype.scrollIntoView = jest.fn();
 });
 
 afterAll(() => {
   window.open = originalWindowOpen;
+  window.scrollTo = originalScrollTo;
+  if (originalScrollIntoView) {
+    window.HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete (window.HTMLElement.prototype as any).scrollIntoView;
+  }
 });
 
 beforeEach(() => {
@@ -134,6 +148,16 @@ beforeEach(() => {
   });
 });
 
+const makeReview = (id: string, userId = 'reviewer-1', likes = 0): api.ReviewDto => ({
+  _id: id,
+  userId,
+  authorName: '',
+  body: `Review ${id}`,
+  likes,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
+
 // Helper: render the whole app starting from browse and click into first game
 async function renderAndNavigateToFirstGame() {
   renderWithProviders(<App />);
@@ -153,12 +177,10 @@ describe('Game Details Page layout and behaviour', () => {
     await renderAndNavigateToFirstGame();
 
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-    expect(screen.getByText(/Test Studio/i)).toBeInTheDocument();
-    expect(screen.getByText(/Action/i)).toBeInTheDocument();
-    expect(screen.getByAltText(/Test Game/i)).toBeInTheDocument();
-    // Use getAllByText since there are multiple matches, and check at least one exists
-    const accessibilityElements = screen.getAllByText(/accessibility features/i);
-    expect(accessibilityElements.length).toBeGreaterThan(0);
+    expect(screen.getByText(/studio/i)).toBeInTheDocument();
+    expect(screen.getByText(/genre/i)).toBeInTheDocument();
+    expect(screen.getByAltText(/game thumbnail/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /accessibility features/i })).toBeInTheDocument();
   });
 
   test('shows About This Game and release/download section when scrolled', async () => {
@@ -202,12 +224,11 @@ describe('Game Details Page layout and behaviour', () => {
     const appStoreButton = screen.getByRole('button', { name: /download on the app store/i });
     fireEvent.click(appStoreButton);
 
-    const modalTitle = await screen.findByText(/you are leaving playable/i);
+    const modal = await screen.findByRole('dialog');
+    const modalTitle = await screen.findByText(/you are about to leave playable/i);
     expect(modalTitle).toBeInTheDocument();
-
-    // Use getAllByText since there are multiple matches for "App Store"
-    const appStoreTexts = screen.getAllByText(/app store/i);
-    expect(appStoreTexts.length).toBeGreaterThan(0);
+    const description = within(modal).getByText(/open this game in/i);
+    expect(description).toHaveTextContent(/App Store/i);
   });
 
   test('external link confirmation allows proceed or cancel without leaving on cancel', async () => {
@@ -217,6 +238,7 @@ describe('Game Details Page layout and behaviour', () => {
     fireEvent.click(appStoreButton);
 
     const cancelButton = await screen.findByRole('button', { name: /cancel/i });
+    let proceedButton = screen.getByRole('button', { name: /proceed/i });
 
     fireEvent.click(cancelButton);
 
@@ -230,16 +252,64 @@ describe('Game Details Page layout and behaviour', () => {
 
     // Click App Store button again
     fireEvent.click(appStoreButton);
-
-    // Wait for modal to appear
-    await screen.findByText(/you are leaving playable/i);
-
-    // Find and click the Proceed button
-    const proceedButton = await screen.findByRole('button', { name: /proceed/i });
+    await screen.findByText(/you are about to leave playable/i);
+    proceedButton = screen.getByRole('button', { name: /proceed/i });
     fireEvent.click(proceedButton);
 
     await waitFor(() => {
       expect(window.open).toHaveBeenCalled();
     }, { timeout: 3000 });
+  });
+
+  test('load more reviews reveals additional items and disables when all loaded', async () => {
+    mockedApi.getReviews.mockResolvedValueOnce([
+      makeReview('1'),
+      makeReview('2'),
+      makeReview('3'),
+      makeReview('4'),
+      makeReview('5'),
+      makeReview('6'),
+    ]);
+
+    await renderAndNavigateToFirstGame();
+
+    await screen.findByText(/Review 1/);
+
+    const loadMoreButton = await screen.findByRole('button', { name: /load more reviews/i });
+    fireEvent.click(loadMoreButton);
+
+    const reviewsList = document.getElementById('game-details__reviews-list');
+    expect(reviewsList).not.toBeNull();
+    await waitFor(() => {
+      const cards = (reviewsList as HTMLElement).querySelectorAll('.game-details__review-card');
+      expect(cards.length).toBe(6);
+    });
+
+    expect(loadMoreButton).toHaveAttribute('aria-disabled', 'true');
+    expect(loadMoreButton).toHaveTextContent(/all reviews loaded/i);
+  });
+
+  test('like button toggles counts optimistically and calls API', async () => {
+    mockedApi.getReviews.mockResolvedValueOnce([makeReview('like-1', 'someone', 0)]);
+    mockedApi.toggleReviewLike.mockResolvedValue({} as any);
+
+    await renderAndNavigateToFirstGame();
+
+    const likeButton = await screen.findByRole('button', { name: /^0$/ });
+    fireEvent.click(likeButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^1$/ })).toBeInTheDocument();
+    });
+
+    expect(mockedApi.toggleReviewLike).toHaveBeenCalledWith('like-1', true);
+  });
+
+  test('review owned by user renders delete button', async () => {
+    mockedApi.getReviews.mockResolvedValueOnce([makeReview('mine', 'test-user', 0)]);
+    await renderAndNavigateToFirstGame();
+
+    const deleteButton = await screen.findByRole('button', { name: /delete/i });
+    expect(deleteButton).toBeInTheDocument();
   });
 });

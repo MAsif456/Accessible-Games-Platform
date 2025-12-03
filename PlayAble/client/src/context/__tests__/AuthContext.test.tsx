@@ -185,7 +185,7 @@ describe('AuthContext', () => {
       expect(authService.logout).toHaveBeenCalled();
     });
 
-    it('should handle getCurrentUser failure by logging out', async () => {
+    it('should handle getCurrentUser failure by falling back to stored user', async () => {
       (authService.getStoredUser as jest.Mock).mockReturnValue(mockUser);
       (authService.getToken as jest.Mock).mockReturnValue('token');
       (authService.getCurrentUser as jest.Mock).mockRejectedValue(new Error('Network error'));
@@ -203,10 +203,11 @@ describe('AuthContext', () => {
       );
 
       await waitFor(() => {
-        expect(authService.logout).toHaveBeenCalled();
+        expect(screen.getByTestId('user')).toHaveTextContent('logged-in');
       });
 
-      expect(screen.getByTestId('user')).toHaveTextContent('null');
+      // New behavior: falls back to stored user instead of logging out
+      expect(authService.logout).not.toHaveBeenCalled();
     });
 
     it('should not load user if no stored user or token', async () => {

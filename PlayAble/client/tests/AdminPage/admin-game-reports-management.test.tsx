@@ -1,9 +1,8 @@
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
-import * as gamesAdminService from '../../src/services/gamesAdminService';
 import * as api from '../../src/services/api';
-import * as adminReportsService from '../../src/services/adminReportsService';
 import * as adminGameReportsService from '../../src/services/adminGameReportsService';
 import * as adminReviewsHooks from '../../src/hooks/adminReviews';
 import * as adminReviewActionsHook from '../../src/hooks/useAdminReviewActions';
@@ -25,7 +24,12 @@ jest.mock('../../src/services/adminReportsService', () => ({
 }));
 
 jest.mock('../../src/services/adminGameReportsService');
-jest.mock('../../src/services/api');
+jest.mock('../../src/services/api', () => ({
+  __esModule: true,
+  getGames: jest.fn(),
+  getReviewStats: jest.fn(),
+  getAuthHeaders: jest.fn(() => ({})),
+}));
 jest.mock('../../src/hooks/adminReviews');
 jest.mock('../../src/hooks/useAdminReviewActions');
 
@@ -69,6 +73,7 @@ function setupAdminApp() {
   } as any);
 
   jest.spyOn(api, 'getGames').mockResolvedValue({ games: [], total: 0 } as any);
+  jest.spyOn(api, 'getReviewStats').mockResolvedValue({ totalReviews: 0 } as any);
 
   mockReviewsTable.mockReturnValue(makeTableState());
   mockReportedTable.mockReturnValue(makeTableState());
@@ -80,7 +85,11 @@ function setupAdminApp() {
     error: null,
   });
 
-  return render(<App />);
+  return render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
 }
 
 const clickAdminButton = async () => {

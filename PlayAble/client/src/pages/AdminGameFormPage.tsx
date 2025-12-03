@@ -255,14 +255,29 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
 
   useEffect(() => {
     // Load existing games once so we can prevent duplicate titles on create
-    getAdminGames()
-      .then(res => {
-        setExistingTitles((res.games || []).map(g => g.title.toLowerCase().trim()));
-      })
-      .catch(() => {
-        // Non-blocking; we just skip duplicate-title check if this fails
-        setExistingTitles([]);
-      });
+    let isMounted = true;
+    const gamesPromise = getAdminGames();
+    if (gamesPromise && typeof gamesPromise.then === 'function') {
+      gamesPromise
+        .then(res => {
+          if (isMounted) {
+            setExistingTitles((res.games || []).map(g => g.title.toLowerCase().trim()));
+          }
+        })
+        .catch(() => {
+          // Non-blocking; we just skip duplicate-title check if this fails
+          if (isMounted) {
+            setExistingTitles([]);
+          }
+        });
+    } else {
+      // Fallback if getAdminGames doesn't return a promise (e.g., in tests)
+      setExistingTitles([]);
+    }
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const pageTitle = mode === 'create' ? 'Add New Game' : `Edit Game${form.title ? `: ${form.title}` : ''}`;

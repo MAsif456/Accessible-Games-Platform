@@ -1,21 +1,16 @@
 import '@testing-library/jest-dom';
+import { TextEncoder, TextDecoder } from 'util';
 
 // Polyfill TextEncoder/TextDecoder for libraries like react-router in Jest/jsdom
-import { TextEncoder, TextDecoder } from 'util';
-// @ts-ignore
-if (!global.TextEncoder) {
-  // @ts-ignore
-  global.TextEncoder = TextEncoder;
+if (!(global as any).TextEncoder) {
+  (global as any).TextEncoder = TextEncoder;
 }
-// @ts-ignore
-if (!global.TextDecoder) {
-  // @ts-ignore
-  global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+
+if (!(global as any).TextDecoder) {
+  (global as any).TextDecoder = TextDecoder as typeof globalThis.TextDecoder;
 }
 
 // Mock window.scrollTo in jsdom to avoid "not implemented" errors during tests
-// @ts-ignore
-if (typeof window !== 'undefined' && !window.scrollTo) {
-  // @ts-ignore
-  window.scrollTo = jest.fn();
+if (typeof window !== 'undefined' && !(window as any).scrollTo) {
+  (window as any).scrollTo = jest.fn();
 }
