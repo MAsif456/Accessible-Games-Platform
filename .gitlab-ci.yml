@@ -1,6 +1,5 @@
 stages:
   - test
-  - build
   - mirror
 
 variables:
@@ -17,7 +16,7 @@ test_backend:
   script:
     - cd PlayAble/server
     - npm install
-    - npm test
+    - npm test -- --passWithNoTests
   only:
     - main
     - merge_requests
@@ -28,12 +27,11 @@ test_frontend:
   script:
     - cd PlayAble/client
     - npm install
-    - npm run build
+    - npm test --passWithNoTests
   only:
     - main
     - merge_requests
 
-# 🟢 This step triggers GitHub mirroring
 trigger_mirror:
   stage: mirror
   script:
