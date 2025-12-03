@@ -11,6 +11,18 @@ import { useAuth } from './AuthContext';
 import { settingsApi, UserSettings } from '../services/settingsApi';
 import { applyAccessibilityPreferences } from '../utils/accessibility';
 
+/**
+ * Browser Speech Recognition API interface.
+ * @typedef {Object} BrowserSpeechRecognition
+ * @property {() => void} start - Starts speech recognition
+ * @property {() => void} stop - Stops speech recognition
+ * @property {((event: any) => void) | null} onresult - Handler for recognition results
+ * @property {((event: any) => void) | null} onerror - Handler for recognition errors
+ * @property {(() => void) | null} onend - Handler for recognition end
+ * @property {boolean} continuous - Whether recognition should continue after each result
+ * @property {boolean} interimResults - Whether to return interim (partial) results
+ * @property {string} lang - Language code for recognition
+ */
 type BrowserSpeechRecognition = {
   start: () => void;
   stop: () => void;
@@ -22,10 +34,35 @@ type BrowserSpeechRecognition = {
   lang: string;
 };
 
+/**
+ * Constructor type for creating Speech Recognition instances.
+ * @typedef {new () => BrowserSpeechRecognition} SpeechRecognitionConstructor
+ */
 type SpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
+/**
+ * Possible states for voice assistant listening.
+ * @typedef {'idle' | 'awaiting' | 'listening' | 'processing' | 'error'} ListeningState
+ */
 type ListeningState = 'idle' | 'awaiting' | 'listening' | 'processing' | 'error';
 
+/**
+ * Value provided by the VoiceAssistantContext.
+ * 
+ * @interface VoiceAssistantContextValue
+ * @property {(() => void)} [forceStopRecognition] - Forcefully stops recognition
+ * @property {boolean} voiceInputEnabled - Whether voice input is enabled
+ * @property {boolean} microphoneActive - Whether microphone is active
+ * @property {ListeningState} listeningState - Current listening state
+ * @property {string} statusMessage - Current status message for the user
+ * @property {boolean} isIndicatorVisible - Whether the voice indicator is visible
+ * @property {string} lastHeardPhrase - The last phrase heard by the assistant
+ * @property {boolean} recognitionSupported - Whether speech recognition is supported
+ * @property {() => void} activateFromVoiceButton - Activates voice assistant from button
+ * @property {() => void} cancelListening - Cancels current listening session
+ * @property {(value: boolean) => void} applyVoiceInputPreference - Applies voice input preference
+ * @property {(value: boolean) => void} applyMicrophonePreference - Applies microphone preference
+ */
 interface VoiceAssistantContextValue {
   forceStopRecognition?: () => void;
   voiceInputEnabled: boolean;
@@ -41,6 +78,14 @@ interface VoiceAssistantContextValue {
   applyMicrophonePreference: (value: boolean) => void;
 }
 
+/**
+ * Props for the VoiceAssistantProvider component.
+ * 
+ * @interface VoiceAssistantProviderProps
+ * @property {React.ReactNode} children - Child components to wrap
+ * @property {(path: string) => void} onNavigate - Callback function for navigation
+ * @property {(value: string) => void} setSearchTerm - Callback function to set search term
+ */
 interface VoiceAssistantProviderProps {
   children: React.ReactNode;
   onNavigate: (path: string) => void;
@@ -56,15 +101,34 @@ declare global {
 
 const VoiceAssistantContext = createContext<VoiceAssistantContextValue | undefined>(undefined);
 
-// I use a delay before resetting to idle so users have time to see status messages and visual feedback
+/**
+ * Delay in milliseconds before resetting voice assistant to idle state.
+ * Gives users time to see status messages and visual feedback.
+ * @constant {number}
+ */
 const VOICE_RESET_DELAY = 1000;
-// I provide Safari-specific instructions because Safari requires user interaction before starting recognition
+
+/**
+ * Safari-specific hint message for activating voice assistant.
+ * Safari requires user interaction before starting recognition.
+ * @constant {string}
+ */
 const SAFARI_LISTENING_HINT =
   'Tap the Voice button or press Ctrl + Shift + V to activate listening in Safari.';
 
-// I support multiple wake word variations to make activation more natural and forgiving
+/**
+ * Supported wake words for activating the voice assistant.
+ * Multiple variations make activation more natural and forgiving.
+ * @constant {string[]}
+ */
 const WAKE_WORDS = ['hey assistant', 'hey', 'assistant'];
 
+/**
+ * Navigation commands configuration.
+ * Maps voice command patterns to navigation paths and announcements.
+ * 
+ * @type {Array<{matchers: string[], path: string, announcement: string}>}
+ */
 const navigationCommands: {
   matchers: string[];
   path: string;
@@ -320,6 +384,14 @@ const genreSearchMap: { [key: string]: string } = {
   'idle': 'idle',
 };
 
+/**
+ * Extracts a search term from a voice command.
+ * Handles various command patterns including genre searches, accessibility filters,
+ * and general search queries. Maps natural language to search terms.
+ * 
+ * @param {string} command - The voice command to parse
+ * @returns {string | null} The extracted search term, or null if no search term found
+ */
 const extractSearchTerm = (command: string): string | null => {
   const normalized = command.trim().toLowerCase();
 
@@ -395,6 +467,24 @@ const extractSearchTerm = (command: string): string | null => {
   return null;
 };
 
+/**
+ * VoiceAssistantProvider Component
+ * 
+ * React context provider for voice assistant functionality. Manages speech recognition,
+ * command processing, navigation, and settings control through voice commands.
+ * 
+ * Features:
+ * - Wake word detection ("Hey Assistant", "Hey", "Assistant")
+ * - Navigation commands (settings, profile, favorites, etc.)
+ * - Search functionality via voice
+ * - Settings control (high contrast, dark mode, microphone, etc.)
+ * - Safari-specific handling for user interaction requirements
+ * - Continuous listening with automatic restart
+ * 
+ * @component
+ * @param {VoiceAssistantProviderProps} props - Component props
+ * @returns {JSX.Element} The provider component
+ */
 export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
   children,
   onNavigate,
@@ -555,6 +645,14 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     [user?.id, userSettings, updateUserSettingsState]
   );
 
+  /**
+   * Processes a voice command and executes the appropriate action.
+   * Handles navigation commands, search queries, settings toggles, and cancel commands.
+   * 
+   * @param {string} commandRaw - The raw voice command text
+   * @param {boolean} [wasActivatedFromButton=false] - Whether command was activated from button press
+   * @returns {void}
+   */
   const processCommand = useCallback(
     (commandRaw: string, wasActivatedFromButton = false) => {
       const command = commandRaw.trim();
@@ -732,6 +830,14 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     [onNavigate, resetToIdle, setSearchTerm, updateSetting]
   );
 
+  /**
+   * Handles speech recognition results.
+   * Detects wake words, activates listening, and processes commands.
+   * Supports natural activation phrases where wake word and command are spoken together.
+   * 
+   * @param {string} transcript - The recognized speech transcript
+   * @returns {void}
+   */
   const handleSpeech = useCallback(
     (transcript: string) => {
       if (!canListen || !transcript) return;
@@ -942,6 +1048,13 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     }
   }, [canListen, ensureRecognitionUnlocked, isSafari, recognitionSupported, voiceInputEnabled, listeningState]);
 
+  /**
+   * Activates voice assistant from button press or keyboard shortcut.
+   * Validates that voice input and microphone are enabled before activating.
+   * Sets up Safari activation state for proper recognition handling.
+   * 
+   * @returns {void}
+   */
   const activateFromVoiceButton = useCallback(() => {
     if (!voiceInputEnabled) {
       setStatusMessage('Turn Voice Input on in Accessibility Settings');
@@ -1060,6 +1173,12 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
     [clearHideTimer]
   );
 
+  /**
+   * Cancels the current listening session.
+   * Stops recognition, resets state to idle, and hides the indicator.
+   * 
+   * @returns {void}
+   */
   const cancelListening = useCallback(() => {
     setStatusMessage('Listening cancelled');
     setListeningState('idle');
@@ -1127,6 +1246,17 @@ export const VoiceAssistantProvider: React.FC<VoiceAssistantProviderProps> = ({
   return <VoiceAssistantContext.Provider value={value}>{children}</VoiceAssistantContext.Provider>;
 };
 
+/**
+ * Hook to access the VoiceAssistantContext.
+ * 
+ * @returns {VoiceAssistantContextValue} The voice assistant context value
+ * @throws {Error} If used outside of VoiceAssistantProvider
+ * 
+ * @example
+ * ```tsx
+ * const { voiceInputEnabled, activateFromVoiceButton } = useVoiceAssistant();
+ * ```
+ */
 export const useVoiceAssistant = () => {
   const context = useContext(VoiceAssistantContext);
   if (!context) {

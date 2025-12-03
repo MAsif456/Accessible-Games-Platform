@@ -4,12 +4,47 @@
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 
+/**
+ * Options for configuring keyboard navigation behavior.
+ * 
+ * @interface UseKeyboardNavigationOptions
+ * @property {'horizontal' | 'vertical' | 'both'} [direction='both'] - Navigation direction
+ * @property {boolean} [loop=true] - Whether to loop navigation at boundaries
+ * @property {boolean} [selectOnFocus=false] - Whether to activate items on focus
+ */
 export interface UseKeyboardNavigationOptions {
   direction?: 'horizontal' | 'vertical' | 'both';
   loop?: boolean;
   selectOnFocus?: boolean;
 }
 
+/**
+ * useKeyboardNavigation Hook
+ * 
+ * Custom React hook for managing keyboard navigation within a list or grid of focusable elements.
+ * Provides arrow key navigation, Home/End key support, and optional Enter/Space activation.
+ * 
+ * Features:
+ * - Arrow key navigation (horizontal, vertical, or both)
+ * - Home/End key support for jumping to first/last item
+ * - Optional looping at boundaries
+ * - Optional activation on focus (Enter/Space)
+ * - Prevents default browser scrolling for handled keys
+ * 
+ * @template T - Type extending HTMLElement for the items array
+ * @param {T[]} items - Array of focusable HTML elements
+ * @param {UseKeyboardNavigationOptions} [options={}] - Configuration options
+ * @returns {Object} Navigation state and control functions
+ * 
+ * @example
+ * ```tsx
+ * const items = useRef<HTMLButtonElement[]>([]);
+ * const { currentIndex, handleKeyDown, setFocus } = useKeyboardNavigation(items.current, {
+ *   direction: 'horizontal',
+ *   loop: true
+ * });
+ * ```
+ */
 export function useKeyboardNavigation<T extends HTMLElement>(
   items: T[],
   options: UseKeyboardNavigationOptions = {}
@@ -27,13 +62,25 @@ export function useKeyboardNavigation<T extends HTMLElement>(
   useEffect(() => {    currentIndexRef.current = currentIndex;
   }, [currentIndex]);
 
-  // Focus a specific item
+  /**
+   * Sets focus to a specific item by index.
+   * Updates the current index state to match the focused item.
+   * 
+   * @param {number} index - The index of the item to focus
+   * @returns {void}
+   */
   const setFocus = useCallback((index: number) => {
     if (items[index]) {
       items[index].focus();      setCurrentIndex(index);    }
   }, [items]);
 
-  // Navigate to next/previous/first/last item
+  /**
+   * Moves focus to the next, previous, first, or last item.
+   * Respects loop configuration - loops to beginning/end if enabled, otherwise stops at boundaries.
+   * 
+   * @param {'next' | 'previous' | 'first' | 'last'} direction - Direction to move focus
+   * @returns {void}
+   */
   const moveFocus = useCallback((direction: 'next' | 'previous' | 'first' | 'last') => {
     if (!items.length) return;
 
@@ -128,7 +175,13 @@ export function useKeyboardNavigation<T extends HTMLElement>(
     return handled;
   }, [items, direction, moveFocus, selectOnFocus]);
 
-  // Set initial focus on mount or when items change
+  /**
+   * Initializes focus to a specific item index.
+   * Typically called on mount or when the items array changes.
+   * 
+   * @param {number} [startIndex=0] - The index to set initial focus to
+   * @returns {void}
+   */
   const initializeFocus = useCallback((startIndex = 0) => {
     if (items.length > 0) {
       setFocus(startIndex);

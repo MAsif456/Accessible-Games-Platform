@@ -15,6 +15,15 @@ import { getReviewById } from '../services/api';
 import Modal from '../components/ui/Modal';
 import type { AppPath } from '../App';
 
+/**
+ * Props for the InboxPage component.
+ * 
+ * @interface InboxPageProps
+ * @property {((path: AppPath) => void)} [onNavigate] - Callback function to handle navigation
+ * @property {((gameId: string) => void)} [onOpenGameReport] - Callback to open a game report modal
+ * @property {((reviewId: string, gameId: string) => void)} [onOpenReviewReport] - Callback to open a review report modal
+ * @property {((count: number) => void)} [onUnreadCountChange] - Callback to notify parent of unread count changes
+ */
 interface InboxPageProps {
   onNavigate?: (path: AppPath) => void;
   onOpenGameReport?: (gameId: string) => void;
@@ -22,6 +31,26 @@ interface InboxPageProps {
   onUnreadCountChange?: (count: number) => void;
 }
 
+/**
+ * InboxPage Component
+ * 
+ * Main component for displaying and managing user notifications. Provides a comprehensive
+ * interface for viewing, filtering, sorting, and managing notifications including reports,
+ * review updates, and other user activity notifications.
+ * 
+ * Features:
+ * - Display notifications with read/unread status
+ * - Filter by type and read status
+ * - Search notifications by content
+ * - Sort by newest/oldest
+ * - Mark notifications as read/unread
+ * - View detailed notification information
+ * - Clear all notifications
+ * 
+ * @component
+ * @param {InboxPageProps} props - Component props
+ * @returns {JSX.Element} The rendered inbox page
+ */
 const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onOpenReviewReport, onUnreadCountChange }) => {
   const { user, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -41,7 +70,13 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
   const [isClearing, setIsClearing] = useState(false);
   const [isMarkingUnread, setIsMarkingUnread] = useState(false);
 
-  // Load notifications on mount and when filters change
+  /**
+   * Loads notifications from the API when the component mounts or when authentication state changes.
+   * Also updates the unread notification count and notifies the parent component.
+   * 
+   * @effect
+   * @dependencies isAuthenticated
+   */
   useEffect(() => {
     if (!isAuthenticated) {
       setLoading(false);
@@ -72,7 +107,14 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     loadNotifications();
   }, [isAuthenticated]);
 
-  // Filter and sort notifications
+  /**
+   * Filters and sorts notifications based on current filter and sort settings.
+   * Applies type filter, read status filter, search term filter, and date sorting.
+   * 
+   * @type {Notification[]}
+   * @memoized
+   * @dependencies notifications, filterType, filterRead, searchTerm, sortOrder
+   */
   const filteredAndSortedNotifications = useMemo(() => {
     let filtered = [...notifications];
 
@@ -112,6 +154,16 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     return filtered;
   }, [notifications, filterType, filterRead, searchTerm, sortOrder]);
 
+  /**
+   * Handles clicking on a notification to view its details.
+   * Marks the notification as read if it's currently unread.
+   * Fetches report or review details if the notification references them.
+   * Opens a modal to display the full notification information.
+   * 
+   * @async
+   * @param {Notification} notification - The notification that was clicked
+   * @returns {Promise<void>}
+   */
   const handleNotificationClick = async (notification: Notification) => {
     // Mark as read if not already read
     if (!notification.read) {
@@ -167,6 +219,14 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     }
   };
 
+  /**
+   * Marks all notifications as read.
+   * Refreshes the notification list from the server to get updated state.
+   * Updates the unread count and notifies the parent component.
+   * 
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleMarkAllAsRead = async () => {
     try {
       await markAllNotificationsAsRead();
@@ -188,6 +248,14 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     }
   };
 
+  /**
+   * Marks all notifications as unread.
+   * Refreshes the notification list from the server to get updated state.
+   * Updates the unread count and notifies the parent component.
+   * 
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleMarkAllAsUnread = async () => {
     try {
       setIsMarkingUnread(true);
@@ -207,6 +275,14 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     }
   };
 
+  /**
+   * Deletes all notifications from the inbox.
+   * Clears the local notification list and resets the unread count.
+   * Closes the confirmation dialog after successful deletion.
+   * 
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleClearInbox = async () => {
     try {
       setIsClearing(true);
@@ -224,6 +300,13 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     }
   };
 
+  /**
+   * Handles viewing a report associated with a notification.
+   * Navigates to the appropriate report page or opens a report modal based on report type.
+   * Closes the notification detail modal after navigation.
+   * 
+   * @param {Notification} notification - The notification containing report information
+   */
   const handleViewReport = (notification: Notification) => {
     if (notification.reportId && notification.metadata?.reportType) {
       const reportType = notification.metadata.reportType;
@@ -238,6 +321,13 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     setSelectedNotification(null);
   };
 
+  /**
+   * Handles viewing a game associated with a notification.
+   * Navigates to the game details page if a game slug is available.
+   * Closes the notification detail modal after navigation.
+   * 
+   * @param {Notification} notification - The notification containing game information
+   */
   const handleViewGame = (notification: Notification) => {
     if (notification.gameId && onNavigate) {
       // Navigate to game details - we'll need to pass gameId somehow
@@ -251,6 +341,14 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     setSelectedNotification(null);
   };
 
+  /**
+   * Formats a date string into a human-readable relative time or absolute date.
+   * Returns relative times for recent dates (e.g., "5 minutes ago", "2 hours ago")
+   * and absolute dates for older dates (e.g., "03/12/2024").
+   * 
+   * @param {string} dateString - ISO date string to format
+   * @returns {string} Formatted date string
+   */
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
@@ -271,6 +369,13 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     });
   };
 
+  /**
+   * Returns an emoji icon for a notification type.
+   * Used for visual identification of notification types in the UI.
+   * 
+   * @param {Notification['type']} type - The notification type
+   * @returns {string} Emoji icon string
+   */
   const getNotificationIcon = (type: Notification['type']): string => {
     switch (type) {
       case 'report_submitted':
@@ -290,6 +395,13 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
     }
   };
 
+  /**
+   * Returns a human-readable label for a notification type.
+   * Used for displaying notification type information in the UI.
+   * 
+   * @param {Notification['type']} type - The notification type
+   * @returns {string} Human-readable label
+   */
   const getNotificationTypeLabel = (type: Notification['type']): string => {
     switch (type) {
       case 'report_submitted':

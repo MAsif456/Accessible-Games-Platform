@@ -1,11 +1,37 @@
 import { useEffect, useCallback } from 'react';
 
 /**
- * Global keyboard navigation - automatically handles arrow keys, Home/End, etc.
- * Works across the whole app without manual setup for each page.
+ * useGlobalKeyboardNavigation Hook
+ * 
+ * Custom React hook for providing global keyboard navigation across the entire application.
+ * Automatically handles arrow keys, Home/End, Enter/Space, and Escape without requiring
+ * manual setup on each page. Detects navigation context (navbar, grid, menu, etc.) and
+ * applies appropriate navigation behavior.
+ * 
+ * Features:
+ * - Context-aware navigation (navbar, grid, menu, toolbar, footer)
+ * - Automatic focusable element detection
+ * - Arrow key navigation with looping
+ * - Home/End key support
+ * - Enter/Space activation
+ * - Escape key for closing dropdowns
+ * - Ignores text input fields to allow normal typing
+ * 
+ * @returns {Object} Utility functions for finding focusable elements and navigation context
+ * 
+ * @example
+ * ```tsx
+ * const { findFocusableElements } = useGlobalKeyboardNavigation();
+ * // Navigation works automatically across the app
+ * ```
  */
 export function useGlobalKeyboardNavigation() {
-  // Find all focusable elements currently visible
+  /**
+   * Finds all focusable elements currently visible in the document.
+   * Filters out hidden, disabled, and non-visible elements.
+   * 
+   * @returns {HTMLElement[]} Array of focusable HTML elements
+   */
   const findFocusableElements = useCallback((): HTMLElement[] => {
     const selectors = [
       'a[href]:not([tabindex="-1"]):not([disabled])',
@@ -34,12 +60,24 @@ export function useGlobalKeyboardNavigation() {
         !element.hasAttribute('hidden')
       );    });  }, []);
 
-  // Get focusable elements within a container
+  /**
+   * Gets all focusable elements within a specific container element.
+   * 
+   * @param {Element} container - The container element to search within
+   * @returns {HTMLElement[]} Array of focusable elements within the container
+   */
   const findElementsInContainer = useCallback((container: Element): HTMLElement[] => {
     const allElements = findFocusableElements();
     return allElements.filter(element => container.contains(element));  }, [findFocusableElements]);
 
-  // Work out what kind of navigation context we're in (navbar, grid, etc.)
+  /**
+   * Determines the navigation context for a given element.
+   * Identifies whether the element is part of a navbar, grid, menu, toolbar, or footer.
+   * Returns context information including container and navigation direction.
+   * 
+   * @param {HTMLElement} element - The element to determine context for
+   * @returns {{type: string, container: Element, direction: string} | null} Navigation context or null
+   */
   const getNavigationContext = useCallback((element: HTMLElement) => {
     // Determine if element is part of a navigation group
     const navbar = element.closest('.navbar__nav-list, [role="menubar"]');
@@ -54,7 +92,15 @@ export function useGlobalKeyboardNavigation() {
     if (toolbar) return { type: 'toolbar', container: toolbar, direction: 'horizontal' };
     if (menu) return { type: 'menu', container: menu, direction: 'vertical' };      return null;  }, []);
 
-  // Move focus to another element, with looping at boundaries
+  /**
+   * Moves focus within a navigation context.
+   * Handles looping at boundaries and supports multiple navigation directions.
+   * 
+   * @param {HTMLElement} currentElement - The currently focused element
+   * @param {'next' | 'previous' | 'up' | 'down' | 'first' | 'last'} direction - Direction to navigate
+   * @param {{type: string, container: Element, direction: string}} context - Navigation context
+   * @returns {boolean} True if navigation was successful, false otherwise
+   */
   const navigateInContext = useCallback((
     currentElement: HTMLElement, 
     direction: 'next' | 'previous' | 'up' | 'down' | 'first' | 'last',

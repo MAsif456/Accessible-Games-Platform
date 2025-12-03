@@ -153,6 +153,14 @@ const mockReview = {
   },
 };
 
+/**
+ * Renders a component with all necessary providers for testing.
+ * 
+ * @param {React.ReactElement} ui - The component to render
+ * @param {{isAuthenticated: boolean}} [authState={isAuthenticated: true}] - Authentication state
+ * @param {Object} [props={}] - Additional props to pass to the component
+ * @returns {RenderResult} The rendered component
+ */
 const renderWithProviders = (ui: React.ReactElement, authState = { isAuthenticated: true }, props = {}) => {
   const mockAuth = {
     user: authState.isAuthenticated ? { id: 'test-user', name: 'Test User', role: 'user' } : null,
@@ -168,6 +176,10 @@ const renderWithProviders = (ui: React.ReactElement, authState = { isAuthenticat
   return render(<AuthProvider>{React.cloneElement(ui, props)}</AuthProvider>);
 };
 
+/**
+ * Test suite for InboxPage component.
+ * Tests authentication, loading states, notification display, filtering, sorting, and interactions.
+ */
 describe('InboxPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
