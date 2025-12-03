@@ -84,7 +84,7 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
               : 'Too many requests. Please wait a moment and try again.'
             );
           } else {
-            setError('Failed to load games');
+          setError('Failed to load games');
           }
         }
       } finally {

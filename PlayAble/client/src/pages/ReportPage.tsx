@@ -35,7 +35,14 @@ const ReportPage: React.FC<ReportPageProps> = ({ onShowToast, initialType, initi
   const params = rawParams as RouteParams;
   const navigate = useNavigate();
 
-  const routeType = (params.reportType as ReportType) || 'general';
+  // Validate reportType from route params
+  const validReportTypes: ReportType[] = ['general', 'game', 'review'];
+  const routeTypeParam = params.reportType as ReportType;
+  const routeType: ReportType = validReportTypes.includes(routeTypeParam) 
+    ? routeTypeParam 
+    : 'general';
+  
+  // Use initialType if provided, otherwise use validated routeType
   const type: ReportType = initialType || routeType;
 
   const gameIdFromRoute = params.gameId;
@@ -54,7 +61,8 @@ const ReportPage: React.FC<ReportPageProps> = ({ onShowToast, initialType, initi
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const config = REPORT_CONFIG[type];
+  // Ensure config exists, default to general if type is invalid
+  const config = REPORT_CONFIG[type] || REPORT_CONFIG.general;
 
   const handleReportSubmitted = () => {
     if (onShowToast) {

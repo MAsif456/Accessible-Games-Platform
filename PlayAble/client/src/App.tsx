@@ -22,6 +22,7 @@ import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
 import AdminGameFormPage from './pages/AdminGameFormPage';
 import GameDetailsPage from './pages/GameDetailsPage';
 import ReportPage from './pages/ReportPage';
+import NotFoundPage from './pages/NotFoundPage';
 import { getUnreadNotificationCount } from './services/notificationsApi';
 
 export type AppPath = string;
@@ -222,7 +223,19 @@ function AppContent({ PAGE_SIZE }: { PAGE_SIZE: number }) {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const type = (reportType as 'general' | 'game' | 'review') || 'general';
+    // Infer report type from URL path if reportType param is not present
+    // Validate that reportType is one of the valid values
+    const validReportTypes = ['general', 'game', 'review'] as const;
+    type ValidReportType = typeof validReportTypes[number];
+    
+    let type: ValidReportType = 'general';
+    if (reportType && validReportTypes.includes(reportType as ValidReportType)) {
+      type = reportType as ValidReportType;
+    } else if (location.pathname.startsWith('/report/review/')) {
+      type = 'review';
+    } else if (location.pathname.startsWith('/report/game/')) {
+      type = 'game';
+    }
 
     const handleBack = () => {
       if (location.key !== 'default') {
@@ -444,14 +457,10 @@ function AppContent({ PAGE_SIZE }: { PAGE_SIZE: number }) {
               </ProtectedRoute>
             } />
 
-            {/* 404 fallback */}
+            {/* 404 fallback - must be last route */}
             <Route path="*" element={
               <main id="main-content" tabIndex={-1}>
-                <div style={{ padding: '2rem', textAlign: 'center' }}>
-                  <h1>Page Not Found</h1>
-                  <p>The page you're looking for doesn't exist.</p>
-                  <button onClick={() => navigate('/')}>Go Home</button>
-                </div>
+                <NotFoundPage onNavigate={handleNavigate} />
               </main>
             } />
           </Routes>

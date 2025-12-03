@@ -184,7 +184,7 @@ export async function getGames(params: GetGamesParams = {}): Promise<PaginatedGa
     if (Array.isArray(data?.games)) {
       // Cache games if we have any, but return the API response even if empty
       if (data.games.length > 0) {
-        data.games.forEach(cacheGame);
+      data.games.forEach(cacheGame);
       }
       return data;
     }
