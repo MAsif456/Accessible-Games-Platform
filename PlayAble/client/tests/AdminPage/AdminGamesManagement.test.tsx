@@ -1,5 +1,6 @@
 // filepath: client/tests/AdminPage/AdminGamesManagement.test.tsx
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import authService from '../../src/services/authService';
 import * as gamesAdminService from '../../src/services/gamesAdminService';
@@ -106,7 +107,11 @@ function setupAdminApp() {
     error: null,
   });
 
-  return render(<App />);
+  return render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
 }
 
 const mockGame = {

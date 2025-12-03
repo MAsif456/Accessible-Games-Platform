@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import SettingsPage from '../../pages/SettingsPage';
 import { AuthProvider } from '../../context/AuthContext';
 import { DEFAULT_HIGH_CONTRAST_THEME } from '../../utils/accessibility';
@@ -60,8 +61,17 @@ const { useAuth } = require('../../context/AuthContext');
 const mockApplyVoiceInputPreference = jest.fn();
 const mockApplyMicrophonePreference = jest.fn();
 
-const renderWithProviders = (ui: React.ReactElement) => {
-  return render(<AuthProvider>{ui}</AuthProvider>);
+const renderWithProviders = (ui: React.ReactElement, initialEntries: string[] = ['/settings/voice']) => {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <AuthProvider>
+        <Routes>
+          <Route path="/settings/:section" element={ui} />
+          <Route path="/settings" element={ui} />
+        </Routes>
+      </AuthProvider>
+    </MemoryRouter>
+  );
 };
 
 describe('SettingsPage', () => {

@@ -124,13 +124,21 @@ export const securityLoggingMiddleware = (
   next: NextFunction
 ): void => {
   // Log suspicious activity (optional - can be enhanced)
-  const url = `${req.method} ${req.originalUrl}`;
+  // Check both original URL and decoded URL for patterns
+  const originalUrl = req.originalUrl || req.url || '';
+  const decodedUrl = decodeURIComponent(originalUrl);
+  const url = `${req.method} ${originalUrl}`;
   const lower = url.toLowerCase();
+  const decodedLower = decodedUrl.toLowerCase();
   const suspicious =
     lower.includes('<script') ||
     lower.includes('javascript:') ||
     lower.includes('union select') ||
-    lower.includes(' or 1=1');
+    lower.includes(' or 1=1') ||
+    decodedLower.includes('<script') ||
+    decodedLower.includes('javascript:') ||
+    decodedLower.includes('union select') ||
+    decodedLower.includes(' or 1=1');
 
   if (suspicious) {
     console.warn('[SECURITY] Suspicious pattern detected', {

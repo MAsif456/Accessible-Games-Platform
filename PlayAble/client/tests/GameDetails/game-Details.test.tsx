@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../../src/App';
 import * as api from '../../src/services/api';
 import settingsApi from '../../src/services/settingsApi';
@@ -65,9 +66,11 @@ const mockGames: api.GameDto[] = [
 // Helper to render the app with providers
 function renderWithProviders(ui: React.ReactElement) {
   return render(
-    <AuthProvider>
-      <FavouritesProvider>{ui}</FavouritesProvider>
-    </AuthProvider>
+    <MemoryRouter>
+      <AuthProvider>
+        <FavouritesProvider>{ui}</FavouritesProvider>
+      </AuthProvider>
+    </MemoryRouter>
   );
 }
 

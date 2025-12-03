@@ -5,8 +5,8 @@
  *
  * Given a user makes repeated requests to API endpoints,
  * When they exceed the defined threshold:
- * - 100 requests per 15 minutes for unauthenticated users (general API)
- * - 5 failed login attempts per 15 minutes (login endpoint)
+ * - 1000 requests per 15 minutes for unauthenticated users (general API) - increased for development
+ * - 50 failed login attempts per 15 minutes (login endpoint) - increased for development
  * Then subsequent requests must return:
  * - 429 Too Many Requests status code
  * - Retry-After header (seconds until limit resets)
@@ -80,18 +80,18 @@ describe('Rate Limiting - Acceptance Criteria', () => {
         expect(response.headers).toHaveProperty('ratelimit-remaining');
         expect(response.headers).toHaveProperty('ratelimit-reset');
 
-        // Verify limit is 100
-        expect(response.headers['ratelimit-limit']).toBe('100');
+        // Verify limit is 1000 (increased for development)
+        expect(response.headers['ratelimit-limit']).toBe('1000');
       }
     });
 
-    test('should return 429 when limit is exceeded (101st request)', async () => {
-      // Make 100 successful requests
-      for (let i = 1; i <= 100; i++) {
+    test('should return 429 when limit is exceeded (1001st request)', async () => {
+      // Make 1000 successful requests
+      for (let i = 1; i <= 1000; i++) {
         await request(app).get('/api/test');
       }
 
-      // 101st request should be rate limited
+      // 1001st request should be rate limited
       const response = await request(app).get('/api/test');
 
       // Verify 429 status code
@@ -125,7 +125,7 @@ describe('Rate Limiting - Acceptance Criteria', () => {
       const response = await request(app).get('/api/test');
 
       // Verify all required headers
-      expect(response.headers).toHaveProperty('x-ratelimit-limit', '100');
+      expect(response.headers).toHaveProperty('x-ratelimit-limit', '1000');
       expect(response.headers).toHaveProperty('x-ratelimit-remaining');
       expect(response.headers).toHaveProperty('x-ratelimit-reset');
 
@@ -141,7 +141,7 @@ describe('Rate Limiting - Acceptance Criteria', () => {
 
     test('should show X-RateLimit-Remaining = 0 when limit exceeded', async () => {
       // Exceed the limit
-      for (let i = 1; i <= 100; i++) {
+      for (let i = 1; i <= 1000; i++) {
         await request(app).get('/api/test');
       }
 
@@ -153,15 +153,15 @@ describe('Rate Limiting - Acceptance Criteria', () => {
   });
 
   /**
-   * Acceptance Criterion 2: Login Rate Limit (5 failed attempts/15 min)
+   * Acceptance Criterion 2: Login Rate Limit (50 failed attempts/15 min) - increased for development
    *
    * Verifies:
-   * - Allows up to 5 failed login attempts
-   * - Returns 429 on 6th failed attempt
+   * - Allows up to 50 failed login attempts
+   * - Returns 429 on 51st failed attempt
    * - Only counts failed attempts (skipSuccessfulRequests)
    * - Includes security-specific error message
    */
-  describe('Login Rate Limit (5 failed attempts/15 minutes)', () => {
+  describe('Login Rate Limit (50 failed attempts/15 minutes)', () => {
     beforeEach(() => {
       app.post('/api/auth/login', loginLimiter, (req, res) => {
         // Simulate failed login (always return 401)
@@ -181,19 +181,19 @@ describe('Rate Limiting - Acceptance Criteria', () => {
         expect(response.body.message).toBe('Invalid credentials');
 
         // Check rate limit headers
-        expect(response.headers).toHaveProperty('ratelimit-limit', '5');
+        expect(response.headers).toHaveProperty('ratelimit-limit', '50');
       }
     });
 
-    test('should return 429 after 5 failed login attempts', async () => {
-      // Make 5 failed attempts
-      for (let i = 1; i <= 5; i++) {
+    test('should return 429 after 50 failed login attempts', async () => {
+      // Make 50 failed attempts
+      for (let i = 1; i <= 50; i++) {
         await request(app)
           .post('/api/auth/login')
           .send({ email: 'test@test.com', password: 'wrong' });
       }
 
-      // 6th attempt should be rate limited
+      // 51st attempt should be rate limited
       const response = await request(app)
         .post('/api/auth/login')
         .send({ email: 'test@test.com', password: 'wrong' });
@@ -204,13 +204,13 @@ describe('Rate Limiting - Acceptance Criteria', () => {
       // Verify login-specific error
       expect(response.body).toHaveProperty('code', 'LOGIN_RATE_LIMIT_EXCEEDED');
       expect(response.body).toHaveProperty('securityNote');
-      expect(response.body.message).toContain('Too many login attempts');
+      expect(response.body.message).toContain('Too many failed login attempts');
       expect(response.body.securityNote).toContain('Multiple failed login attempts detected');
     });
 
     test('should include Retry-After header for login rate limit', async () => {
       // Exceed login limit
-      for (let i = 1; i <= 6; i++) {
+      for (let i = 1; i <= 51; i++) {
         await request(app)
           .post('/api/auth/login')
           .send({ email: 'test@test.com', password: 'wrong' });
@@ -234,50 +234,50 @@ describe('Rate Limiting - Acceptance Criteria', () => {
         .post('/api/auth/login')
         .send({ email: 'test@test.com', password: 'wrong' });
 
-      expect(response.headers).toHaveProperty('x-ratelimit-limit', '5');
+        expect(response.headers).toHaveProperty('x-ratelimit-limit', '50');
       expect(response.headers).toHaveProperty('x-ratelimit-remaining');
       expect(response.headers).toHaveProperty('x-ratelimit-reset');
     });
   });
 
   /**
-   * Acceptance Criterion 3: Signup Rate Limit (3 attempts/hour)
+   * Acceptance Criterion 3: Signup Rate Limit (30 attempts/hour) - increased for development
    *
    * Verifies:
-   * - Allows up to 3 signup attempts
-   * - Returns 429 on 4th attempt
+   * - Allows up to 30 signup attempts
+   * - Returns 429 on 31st attempt
    * - Includes appropriate headers
    */
-  describe('Signup Rate Limit (3 attempts/hour)', () => {
+  describe('Signup Rate Limit (30 attempts/hour)', () => {
     beforeEach(() => {
       app.post('/api/auth/signup', signupLimiter, (req, res) => {
         res.status(201).json({ success: true, message: 'Account created' });
       });
     });
 
-    test('should allow up to 3 signup attempts', async () => {
-      for (let i = 1; i <= 3; i++) {
+    test('should allow up to 30 signup attempts', async () => {
+      for (let i = 1; i <= 30; i++) {
         const response = await request(app)
           .post('/api/auth/signup')
           .send({ email: `user${i}@test.com`, password: 'password' });
 
         expect(response.status).toBe(201);
-        expect(response.headers['ratelimit-limit']).toBe('3');
+        expect(response.headers['ratelimit-limit']).toBe('30');
       }
     });
 
-    test('should return 429 after 3 signup attempts', async () => {
-      // Make 3 signup attempts
-      for (let i = 1; i <= 3; i++) {
+    test('should return 429 after 30 signup attempts', async () => {
+      // Make 30 signup attempts
+      for (let i = 1; i <= 30; i++) {
         await request(app)
           .post('/api/auth/signup')
           .send({ email: `user${i}@test.com`, password: 'password' });
       }
 
-      // 4th attempt should be rate limited
+      // 31st attempt should be rate limited
       const response = await request(app)
         .post('/api/auth/signup')
-        .send({ email: 'user4@test.com', password: 'password' });
+        .send({ email: 'user31@test.com', password: 'password' });
 
       expect(response.status).toBe(429);
       expect(response.body.code).toBe('SIGNUP_RATE_LIMIT_EXCEEDED');
@@ -286,40 +286,40 @@ describe('Rate Limiting - Acceptance Criteria', () => {
   });
 
   /**
-   * Acceptance Criterion 4: Password Reset Rate Limit (3 requests/hour)
+   * Acceptance Criterion 4: Password Reset Rate Limit (30 requests/hour) - increased for development
    *
    * Verifies:
-   * - Allows up to 3 password reset requests
-   * - Returns 429 on 4th request
+   * - Allows up to 30 password reset requests
+   * - Returns 429 on 31st request
    * - Includes appropriate headers
    */
-  describe('Password Reset Rate Limit (3 requests/hour)', () => {
+  describe('Password Reset Rate Limit (30 requests/hour)', () => {
     beforeEach(() => {
       app.post('/api/auth/request-password-reset', passwordResetLimiter, (req, res) => {
         res.json({ success: true, message: 'Reset email sent' });
       });
     });
 
-    test('should allow up to 3 password reset requests', async () => {
-      for (let i = 1; i <= 3; i++) {
+    test('should allow up to 30 password reset requests', async () => {
+      for (let i = 1; i <= 30; i++) {
         const response = await request(app)
           .post('/api/auth/request-password-reset')
           .send({ email: 'test@test.com' });
 
         expect(response.status).toBe(200);
-        expect(response.headers['ratelimit-limit']).toBe('3');
+        expect(response.headers['ratelimit-limit']).toBe('30');
       }
     });
 
-    test('should return 429 after 3 password reset requests', async () => {
-      // Make 3 requests
-      for (let i = 1; i <= 3; i++) {
+    test('should return 429 after 30 password reset requests', async () => {
+      // Make 30 requests
+      for (let i = 1; i <= 30; i++) {
         await request(app)
           .post('/api/auth/request-password-reset')
           .send({ email: 'test@test.com' });
       }
 
-      // 4th request should be rate limited
+      // 31st request should be rate limited
       const response = await request(app)
         .post('/api/auth/request-password-reset')
         .send({ email: 'test@test.com' });
@@ -341,12 +341,12 @@ describe('Rate Limiting - Acceptance Criteria', () => {
       app.use('/api', generalApiLimiter);
       app.get('/api/test', (req, res) => res.json({ success: true }));
 
-      // 1. Verify general API limit exists (100 req/15 min)
+      // 1. Verify general API limit exists (1000 req/15 min) - increased for development
       const apiResponse = await request(app).get('/api/test');
-      expect(apiResponse.headers['ratelimit-limit']).toBe('100');
+      expect(apiResponse.headers['ratelimit-limit']).toBe('1000');
 
       // 2. Verify 429 status code on excess requests
-      for (let i = 1; i <= 100; i++) {
+      for (let i = 1; i <= 1000; i++) {
         await request(app).get('/api/test');
       }
       const exceededResponse = await request(app).get('/api/test');
@@ -365,20 +365,20 @@ describe('Rate Limiting - Acceptance Criteria', () => {
       expect(exceededResponse.headers['x-ratelimit-remaining']).toBe('0');
     });
 
-    test('login rate limit should meet acceptance criteria (5 attempts/15 min)', async () => {
+    test('login rate limit should meet acceptance criteria (50 attempts/15 min)', async () => {
       app.post('/api/auth/login', loginLimiter, (req, res) => {
         res.status(401).json({ success: false });
       });
 
-      // Verify limit is 5
+      // Verify limit is 50 (increased for development)
       const loginResponse = await request(app)
         .post('/api/auth/login')
         .send({ email: 'test@test.com', password: 'wrong' });
 
-      expect(loginResponse.headers['ratelimit-limit']).toBe('5');
+      expect(loginResponse.headers['ratelimit-limit']).toBe('50');
 
-      // Verify 429 after 5 attempts
-      for (let i = 1; i <= 5; i++) {
+      // Verify 429 after 50 attempts
+      for (let i = 1; i <= 50; i++) {
         await request(app)
           .post('/api/auth/login')
           .send({ email: 'test@test.com', password: 'wrong' });
