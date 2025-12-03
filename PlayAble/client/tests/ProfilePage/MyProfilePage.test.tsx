@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import MyProfilePage from '../../src/pages/MyProfilePage';
 import { AuthProvider } from '../../src/context/AuthContext';

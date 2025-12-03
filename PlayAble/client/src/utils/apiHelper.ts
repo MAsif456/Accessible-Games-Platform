@@ -79,10 +79,10 @@ export const apiFetch = async (
 ): Promise<Response> => {
   const { method = 'GET', headers = {}, ...restOptions } = options;
 
-  // Prepare headers
-  const requestHeaders: HeadersInit = {
+  // Prepare headers as a mutable record so we can safely assign custom keys
+  const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...headers,
+    ...(headers as Record<string, string>),
   };
 
   // Add CSRF token for state-changing requests
@@ -138,6 +138,21 @@ export const apiPut = async (
   return apiFetch(url, {
     ...options,
     method: 'PUT',
+    body: data ? JSON.stringify(data) : undefined,
+  });
+};
+
+/**
+ * Helper for PATCH requests (CSRF protected)
+ */
+export const apiPatch = async (
+  url: string,
+  data?: any,
+  options: RequestInit = {}
+): Promise<Response> => {
+  return apiFetch(url, {
+    ...options,
+    method: 'PATCH',
     body: data ? JSON.stringify(data) : undefined,
   });
 };

@@ -15,7 +15,7 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { UserModel, IUser } from '../src/models';
+import { UserModel, IUser } from '../models';
 import { sendEmail } from '../services/emailService';
 import { blacklistToken } from '../middleware/auth';
 
@@ -42,7 +42,8 @@ const JWT_EXPIRES_IN = 60 * 60 * 24 * 365; // 1 year in seconds
  */
 const generateToken = (userId: string): string => {
   return jwt.sign(
-    { id: userId },    JWT_SECRET!,
+    { id: userId },
+    JWT_SECRET!,
     {
       expiresIn: JWT_EXPIRES_IN,
       algorithm: 'HS256' // Explicitly specify HMAC SHA-256
@@ -106,7 +107,8 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       success: false,
       message: 'Error creating account. Please try again.',
       error: error.message,
-    });  }
+    });
+  }
 };
 
 /**
@@ -161,7 +163,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       success: false,
       message: 'Error logging in. Please try again.',
       error: error.message,
-    });  }
+    });
+  }
 };
 
 /**
@@ -178,7 +181,7 @@ export const requestPasswordReset = async (req: Request, res: Response): Promise
   resetCodes[email] = { code, expires: Date.now() + 15 * 60 * 1000 };
   
   const emailSubject = 'Password Reset Request - PlayAble';
-  const emailBody = `Dear ${user.fullName || 'User'},
+  const emailBody = `Dear ${user.name || 'User'},
 
 We have received a request to reset the password for your PlayAble account associated with this email address.
 
@@ -224,7 +227,8 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
   }
   user.passwordHash = newPassword;
   await user.save();
-  delete resetCodes[email];  res.json({ success: true });
+  delete resetCodes[email];
+  res.json({ success: true });
 };
 
 /**
@@ -261,7 +265,8 @@ export const getMe = async (req: Request & { user?: { id: string } }, res: Respo
       success: false,
       message: 'Error fetching user data',
       error: error.message,
-    });  }
+    });
+  }
 };
 
 /**
@@ -287,7 +292,8 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       success: false,
       message: 'Error logging out',
       error: error.message,
-    });  }
+    });
+  }
 };
 
 /**
@@ -332,7 +338,8 @@ export const updateProfile = async (
     console.error('Update profile error:', error);
     res
       .status(500)
-      .json({ success: false, message: 'Error updating profile', error: error.message });  }
+      .json({ success: false, message: 'Error updating profile', error: error.message });
+  }
 };
 
 /**
@@ -405,3 +412,4 @@ export const updateEmailAndPassword = async (
     });
   }
 };
+

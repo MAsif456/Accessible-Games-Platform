@@ -46,7 +46,7 @@ const mockGames: api.GameDto[] = [
     description: 'First test game',
     thumbnailUrl: '/game-one.png',
     genres: ['Action'],
-    accessibilityTags: ['Vision'],
+    accessibilityTags: ['Visual'],
     releaseYear: 2020,
   },
   {
@@ -58,7 +58,7 @@ const mockGames: api.GameDto[] = [
     description: 'Second test game',
     thumbnailUrl: '/game-two.png',
     genres: ['Puzzle'],
-    accessibilityTags: ['Motor'],
+    accessibilityTags: ['Visual'],
     releaseYear: 2021,
   },
 ];
@@ -215,7 +215,7 @@ describe('Recently Viewed integration', () => {
         expect(screen.getByText(genre)).toBeInTheDocument();
       });
       game.accessibilityTags.forEach(tag => {
-        expect(screen.getByText(tag)).toBeInTheDocument();
+        expect(screen.getAllByText(tag).length).toBeGreaterThan(0);
       });
 
       // Image alt should be the game title

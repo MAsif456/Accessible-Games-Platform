@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { GameDto } from '../services/api';
+import { getReviewStats } from '../services/api';
 import type { AdminResolvedReviewReport } from '../services/adminReviewsService';
 import {
   AdminGeneralReport,
@@ -19,6 +20,9 @@ import { useReviewsTable, useReportedReviewsTable, useResolvedReportedReviewsTab
 import useAdminReviewActions, { ADMIN_REPLY_MIN_CHARS, ADMIN_REPLY_MAX_CHARS } from '../hooks/useAdminReviewActions';
 
 // Consistent date formatting function for tests and display
+/**
+ * Formats a date string or Date object into DD/MM/YYYY for table readability and stable tests.
+ */
 const formatDate = (dateString: string | Date): string => {
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
   const day = date.getDate().toString().padStart(2, '0');
@@ -43,11 +47,59 @@ interface AdminPageProps {
   showPrompt?: (message: string, type?: 'success' | 'error') => void;
 }
 
+/**
+ * AdminPage brings together the admin dashboards (reports, reviews, games) with shared pagination,
+ * filtering, and modal management.
+ */
 const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [primaryTab, setPrimaryTab] = useState<PrimaryTab>('general-reports');
   const [generalSubTab, setGeneralSubTab] = useState<GeneralSubTab>('general');
   const [reviewsSubTab, setReviewsSubTab] = useState<ReviewsSubTab>('reviews');
   const [gamesSubTab, setGamesSubTab] = useState<GamesSubTab>('games');
+  const [activeReviewsCount, setActiveReviewsCount] = useState<number | null>(null);
+  const [loadingActiveReviews, setLoadingActiveReviews] = useState(false);
+  const [activeReviewsError, setActiveReviewsError] = useState<string | null>(null);
+
+  const refreshActiveReviews = useCallback(() => {
+    let isMounted = true;
+    setLoadingActiveReviews(true);
+    setActiveReviewsError(null);
+
+    Promise.resolve(getReviewStats())
+      .then(result => {
+        if (!isMounted) return;
+        const total = result?.totalReviews;
+        if (typeof total === 'number') {
+          setActiveReviewsCount(total);
+        } else {
+          setActiveReviewsError('Unable to load review count');
+          setActiveReviewsCount(null);
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setActiveReviewsError('Unable to load review count');
+        setActiveReviewsCount(null);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingActiveReviews(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    refreshActiveReviews();
+  }, [refreshActiveReviews]);
+  const activeReviewsAriaLabel = loadingActiveReviews
+    ? 'Loading active reviews'
+    : activeReviewsCount === null
+      ? 'Active reviews count unavailable'
+      : `${activeReviewsCount} published reviews`;
 
   // Reviews management state via hooks
   const reviewsTable = useReviewsTable();
@@ -65,6 +117,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     onRefreshReviews: reviewsTable.refresh,
     onRefreshReported: reportedTable.refresh,
     onRefreshResolved: resolvedTable.refresh,
+    onRefreshStats: refreshActiveReviews,
   });
 
   // Local modal state
@@ -103,6 +156,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [resolvedReportsError, setResolvedReportsError] = useState<string | null>(null);
   const [generalReportsSearch, setGeneralReportsSearch] = useState('');
   const [resolvedReportsSearch, setResolvedReportsSearch] = useState('');
+  const [generalReportsPage, setGeneralReportsPage] = useState(1);
+  const [resolvedGeneralReportsPage, setResolvedGeneralReportsPage] = useState(1);
+  const GENERAL_REPORTS_PAGE_SIZE = 10;
   const [activeReport, setActiveReport] = useState<AdminGeneralReport | null>(null);
   const [reportModalMode, setReportModalMode] = useState<'reply' | 'view'>('reply');
   const [reportReplyMessage, setReportReplyMessage] = useState('');
@@ -118,6 +174,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [resolvedGameReportsError, setResolvedGameReportsError] = useState<string | null>(null);
   const [gameReportsSearch, setGameReportsSearch] = useState('');
   const [resolvedGameReportsSearch, setResolvedGameReportsSearch] = useState('');
+  const [gameReportsPage, setGameReportsPage] = useState(1);
+  const [resolvedGameReportsPage, setResolvedGameReportsPage] = useState(1);
+  const GAME_REPORTS_PAGE_SIZE = 10;
   const [activeGameReport, setActiveGameReport] = useState<AdminGameReport | null>(null);
   const [gameReportModalMode, setGameReportModalMode] = useState<'reply' | 'view'>('reply');
   const [gameReportReplyMessage, setGameReportReplyMessage] = useState('');
@@ -187,11 +246,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const pageGames = useMemo(() => {
     const start = (gamesPage - 1) * GAMES_PAGE_SIZE;
     return filteredGames.slice(start, start + GAMES_PAGE_SIZE);
-  }, [filteredGames, gamesPage]);
+  }, [GAMES_PAGE_SIZE, filteredGames, gamesPage]);
 
   useEffect(() => {
     setGamesPage(1);
   }, [gamesSearchTerm]);
+
+  useEffect(() => {
+    if (gamesPage > totalGamesPages) {
+      setGamesPage(totalGamesPages);
+    }
+  }, [gamesPage, totalGamesPages]);
 
   const loadGeneralReports = useCallback(async () => {
     setGeneralReportsLoading(true);
@@ -207,6 +272,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     }
   }, []);
 
+  /**
+   * Retrieves resolved general reports to populate the Resolved tab.
+   */
   const loadResolvedReports = useCallback(async () => {
     setResolvedReportsLoading(true);
     setResolvedReportsError(null);
@@ -226,6 +294,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     loadResolvedReports();
   }, [loadGeneralReports, loadResolvedReports]);
 
+  /**
+   * Fetches open game-related reports for the Reported Games tab.
+   */
   const loadGameReports = useCallback(async () => {
     setGameReportsLoading(true);
     setGameReportsError(null);
@@ -240,6 +311,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     }
   }, []);
 
+  /**
+   * Fetches resolved game reports for the Resolved Reported Games tab.
+   */
   const loadResolvedGameReports = useCallback(async () => {
     setResolvedGameReportsLoading(true);
     setResolvedGameReportsError(null);
@@ -331,6 +405,81 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     [resolvedGameReports, resolvedGameReportsSearch]
   );
 
+  const generalReportsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredGeneralReports.length / GENERAL_REPORTS_PAGE_SIZE)
+  );
+  const resolvedGeneralReportsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredResolvedReports.length / GENERAL_REPORTS_PAGE_SIZE)
+  );
+  const paginatedGeneralReports = useMemo(() => {
+    const start = (generalReportsPage - 1) * GENERAL_REPORTS_PAGE_SIZE;
+    return filteredGeneralReports.slice(start, start + GENERAL_REPORTS_PAGE_SIZE);
+  }, [GENERAL_REPORTS_PAGE_SIZE, filteredGeneralReports, generalReportsPage]);
+  const paginatedResolvedGeneralReports = useMemo(() => {
+    const start = (resolvedGeneralReportsPage - 1) * GENERAL_REPORTS_PAGE_SIZE;
+    return filteredResolvedReports.slice(start, start + GENERAL_REPORTS_PAGE_SIZE);
+  }, [GENERAL_REPORTS_PAGE_SIZE, filteredResolvedReports, resolvedGeneralReportsPage]);
+
+  const gameReportsTotalPages = Math.max(1, Math.ceil(filteredGameReports.length / GAME_REPORTS_PAGE_SIZE));
+  const resolvedGameReportsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredResolvedGameReports.length / GAME_REPORTS_PAGE_SIZE)
+  );
+  const paginatedGameReports = useMemo(() => {
+    const start = (gameReportsPage - 1) * GAME_REPORTS_PAGE_SIZE;
+    return filteredGameReports.slice(start, start + GAME_REPORTS_PAGE_SIZE);
+  }, [GAME_REPORTS_PAGE_SIZE, filteredGameReports, gameReportsPage]);
+  const paginatedResolvedGameReports = useMemo(() => {
+    const start = (resolvedGameReportsPage - 1) * GAME_REPORTS_PAGE_SIZE;
+    return filteredResolvedGameReports.slice(start, start + GAME_REPORTS_PAGE_SIZE);
+  }, [GAME_REPORTS_PAGE_SIZE, filteredResolvedGameReports, resolvedGameReportsPage]);
+
+  useEffect(() => {
+    setGeneralReportsPage(1);
+  }, [generalReportsSearch]);
+
+  useEffect(() => {
+    setResolvedGeneralReportsPage(1);
+  }, [resolvedReportsSearch]);
+
+  useEffect(() => {
+    setGameReportsPage(1);
+  }, [gameReportsSearch]);
+
+  useEffect(() => {
+    setResolvedGameReportsPage(1);
+  }, [resolvedGameReportsSearch]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredGeneralReports.length / GENERAL_REPORTS_PAGE_SIZE));
+    if (generalReportsPage > maxPage) {
+      setGeneralReportsPage(maxPage);
+    }
+  }, [GENERAL_REPORTS_PAGE_SIZE, filteredGeneralReports.length, generalReportsPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredResolvedReports.length / GENERAL_REPORTS_PAGE_SIZE));
+    if (resolvedGeneralReportsPage > maxPage) {
+      setResolvedGeneralReportsPage(maxPage);
+    }
+  }, [GENERAL_REPORTS_PAGE_SIZE, filteredResolvedReports.length, resolvedGeneralReportsPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredGameReports.length / GAME_REPORTS_PAGE_SIZE));
+    if (gameReportsPage > maxPage) {
+      setGameReportsPage(maxPage);
+    }
+  }, [GAME_REPORTS_PAGE_SIZE, filteredGameReports.length, gameReportsPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredResolvedGameReports.length / GAME_REPORTS_PAGE_SIZE));
+    if (resolvedGameReportsPage > maxPage) {
+      setResolvedGameReportsPage(maxPage);
+    }
+  }, [GAME_REPORTS_PAGE_SIZE, filteredResolvedGameReports.length, resolvedGameReportsPage]);
+
   const closeReportModal = () => {
     setActiveReport(null);
     setReportReplyMessage('');
@@ -409,13 +558,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
 
   const renderGeneralReportsSection = () => {
     const isResolved = generalSubTab === 'resolved';
-    const reports = isResolved ? filteredResolvedReports : filteredGeneralReports;
+    const reports = isResolved ? paginatedResolvedGeneralReports : paginatedGeneralReports;
     const loading = isResolved ? resolvedReportsLoading : generalReportsLoading;
     const error = isResolved ? resolvedReportsError : generalReportsError;
     const searchValue = isResolved ? resolvedReportsSearch : generalReportsSearch;
     const handleSearch = isResolved ? setResolvedReportsSearch : setGeneralReportsSearch;
     const searchInputId = isResolved ? 'resolved-reports-search' : 'general-reports-search';
     const dateLabel = isResolved ? 'Resolved On' : 'Date';
+    const totalPages = isResolved ? resolvedGeneralReportsTotalPages : generalReportsTotalPages;
+    const currentPage = isResolved ? resolvedGeneralReportsPage : generalReportsPage;
+    const onPageChange = isResolved ? setResolvedGeneralReportsPage : setGeneralReportsPage;
 
     return (
       <section
@@ -510,6 +662,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="admin-pagination">
+            <Pagination
+              page={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+              ariaLabel={isResolved ? 'Resolved general reports pagination' : 'General reports pagination'}
+            />
+          </div>
+        )}
       </section>
     );
   };
@@ -1273,35 +1436,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </table>
           </div>
 
-          <nav className="admin-pagination" aria-label="Games pagination">
-            <button
-              type="button"
-              className="admin-pagination__button"
-              onClick={() => setGamesPage(p => Math.max(1, p - 1))}
-              disabled={gamesPage === 1}
-            >
-              Previous
-            </button>
-            <ol className="admin-pagination__list">
-              <li>
-                <button
-                  type="button"
-                  className="admin-pagination__page admin-pagination__page--current"
-                  aria-current="page"
-                >
-                  {gamesPage}
-                </button>
-              </li>
-            </ol>
-            <button
-              type="button"
-              className="admin-pagination__button"
-              onClick={() => setGamesPage(p => Math.min(totalGamesPages, p + 1))}
-              disabled={gamesPage === totalGamesPages}
-            >
-              Next
-            </button>
-          </nav>
+          {totalGamesPages > 1 && (
+            <div className="admin-pagination">
+              <Pagination
+                page={gamesPage}
+                totalPages={totalGamesPages}
+                onPageChange={setGamesPage}
+                ariaLabel="Games pagination"
+              />
+            </div>
+          )}
         </section>
       );
     }
@@ -1365,7 +1509,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     </td>
                   </tr>
                 ) : (
-                  filteredGameReports.map(report => (
+                  paginatedGameReports.map(report => (
                     <tr key={report.id}>
                       <td>{report.reportCode}</td>
                       <td>{report.gameTitle || 'Unknown game'}</td>
@@ -1391,6 +1535,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
               </tbody>
             </table>
           </div>
+
+          {gameReportsTotalPages > 1 && (
+            <div className="admin-pagination">
+              <Pagination
+                page={gameReportsPage}
+                totalPages={gameReportsTotalPages}
+                onPageChange={setGameReportsPage}
+                ariaLabel="Reported game issues pagination"
+              />
+            </div>
+          )}
         </section>
       );
     }
@@ -1453,7 +1608,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                   </td>
                 </tr>
               ) : (
-                filteredResolvedGameReports.map(report => (
+                paginatedResolvedGameReports.map(report => (
                   <tr key={report.id}>
                     <td>{report.reportCode}</td>
                     <td>{report.gameTitle || 'Unknown game'}</td>
@@ -1491,6 +1646,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </tbody>
           </table>
         </div>
+
+        {resolvedGameReportsTotalPages > 1 && (
+          <div className="admin-pagination">
+            <Pagination
+              page={resolvedGameReportsPage}
+              totalPages={resolvedGameReportsTotalPages}
+              onPageChange={setResolvedGameReportsPage}
+              ariaLabel="Resolved game issues pagination"
+            />
+          </div>
+        )}
       </section>
     );
   };
@@ -1795,10 +1961,22 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             <div className="admin-stat-card__header">
               <h2 className="admin-stat-card__title">Active Reviews</h2>
             </div>
-            <p className="admin-stat-card__value" aria-label="4 published reviews">
-              4
+            <p
+              className={
+                'admin-stat-card__value' +
+                (loadingActiveReviews ? ' admin-stat-card__value--skeleton' : '')
+              }
+              aria-label={
+                loadingActiveReviews
+                  ? 'Loading active reviews count'
+                  : activeReviewsAriaLabel
+              }
+            >
+              {loadingActiveReviews ? '—' : activeReviewsCount ?? '--'}
             </p>
-            <p className="admin-stat-card__meta">Published reviews</p>
+            <p className="admin-stat-card__meta">
+              {activeReviewsError ? activeReviewsError : 'Published reviews'}
+            </p>
           </article>
         </section>
       </header>

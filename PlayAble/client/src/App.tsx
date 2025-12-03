@@ -22,6 +22,9 @@ import ChangeEmailPasswordPage from './pages/ChangeEmailPasswordPage';
 import AdminGameFormPage from './pages/AdminGameFormPage';
 import GameDetailsPage from './pages/GameDetailsPage';
 import ReportPage from './pages/ReportPage';
+import { getUnreadNotificationCount } from './services/notificationsApi';
+
+export type AppPath = string;
 
 const PAGE_SIZE = 9;
 
@@ -45,6 +48,7 @@ function AppContent({ PAGE_SIZE }: { PAGE_SIZE: number }) {
   const [prompt, setPrompt] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const promptTimeout = useRef<number | null>(null);
   const lastAuthEvent = useRef<'signup' | 'login' | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   // Enable global keyboard navigation
   useGlobalKeyboardNavigation();
@@ -76,7 +80,9 @@ function AppContent({ PAGE_SIZE }: { PAGE_SIZE: number }) {
 
   // Game click handler
   const handleGameClick = useCallback((gameId: string) => {
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    }
     navigate(`/game/${gameId}`);
   }, [navigate]);
 
@@ -298,7 +304,7 @@ function AppContent({ PAGE_SIZE }: { PAGE_SIZE: number }) {
           currentPath={location.pathname}
           onNavigate={handleNavigate}
           onLogout={handleLogout}
-          unreadNotificationCount={0}
+          unreadNotificationCount={unreadNotificationCount}
         />
 
         <div className="App__content">

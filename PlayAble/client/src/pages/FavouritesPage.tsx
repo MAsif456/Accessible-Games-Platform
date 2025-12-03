@@ -35,7 +35,9 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate, onGameClick
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages || newPage === page) return;
     fetchFavourites(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const hasFavourites = total > 0;
