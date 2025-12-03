@@ -322,6 +322,14 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   };
 
   const handleToggleLike = async (review: ReviewDto, nextLiked: boolean) => {
+    if (!isAuthenticated) {
+      if (onNavigate) {
+        onNavigate('/signin');
+      } else {
+        navigate('/signin');
+      }
+      return;
+    }
     try {
       // Optimistic update of like count and local liked set
       setReviews(prev =>
@@ -394,6 +402,14 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
 
   const handleToggleFavourite = async () => {
     if (!game) return;
+    if (!isAuthenticated) {
+      if (onNavigate) {
+        onNavigate('/signin');
+      } else {
+        navigate('/signin');
+      }
+      return;
+    }
     try {
       await toggleFavourite(game.id);
     } catch (err) {

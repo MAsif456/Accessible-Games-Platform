@@ -74,9 +74,18 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
           setTotalPages(result.totalPages ?? 1);
           setTotalResults(result.totalResults ?? safeGames.length);
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!isCancelled) {
-          setError('Failed to load games');
+          // Handle rate limit errors specifically
+          if (err?.status === 429) {
+            const retryAfter = err?.retryAfter;
+            setError(retryAfter 
+              ? `Too many requests. Please wait ${retryAfter} seconds and try again.`
+              : 'Too many requests. Please wait a moment and try again.'
+            );
+          } else {
+            setError('Failed to load games');
+          }
         }
       } finally {
         if (!isCancelled) setLoading(false);
@@ -94,11 +103,19 @@ export function useBrowseGames({ currentPage, pageSize, searchTerm, onPageChange
     let isCancelled = false;
     async function loadAllGamesForFilters() {
       try {
+        // Delay filter loading slightly to avoid hitting rate limits
+        await new Promise(resolve => setTimeout(resolve, 500));
         const result = await getGames({ page: 1, pageSize: 1000, sort: 'title_asc' });
         if (!isCancelled) {
           setAllGamesForFilters(Array.isArray(result.games) ? result.games : []);
         }
-      } catch {}
+      } catch (err: any) {
+        // Silently fail for filter loading - it's not critical
+        // Only log if it's not a rate limit (rate limits are expected)
+        if (err?.status !== 429) {
+          console.warn('Failed to load games for filters:', err);
+        }
+      }
     }
     loadAllGamesForFilters();
     return () => {
