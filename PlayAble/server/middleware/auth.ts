@@ -1,3 +1,4 @@
+export * from '../src/middleware/auth';
 /**
  * JWT Authentication Middleware
  *

@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from '../../src/App';
 import authService from '../../src/services/authService';

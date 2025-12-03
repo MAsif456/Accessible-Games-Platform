@@ -3,7 +3,8 @@
  * Provides functions for submitting user reports (general, game, or review).
  * @module reportApi
  */
-import { apiPost } from '../utils/apiHelper';
+import { apiPost, apiGet } from '../utils/apiHelper';
+import { getAuthHeaders } from './api';
 
 /** The type of report being submitted */
 export type ReportType = 'general' | 'game' | 'review';
@@ -44,15 +45,53 @@ export interface SubmitReportResponse {
   message: string;
 }
 
+
+export interface Report {
+  /** Unique identifier for the report */
+  id: string;
+  /** Human-readable report code */
+  reportCode: string;
+  /** Type of report */
+  type: ReportType;
+  /** Report description/content */
+  description: string;
+  /** Voice transcript if available */
+  transcript?: string;
+  /** Issue type for game reports */
+  issueType?: string;
+  /** Current status */
+  status: 'open' | 'resolved';
+  /** ISO timestamp when created */
+  createdAt: string;
+  /** ISO timestamp when resolved (if resolved) */
+  resolvedAt: string | null;
+  /** Array of admin replies */
+  adminReplies: Array<{
+    message: string;
+    adminName: string;
+    createdAt: string;
+  }>;
+  /** Game ID if applicable */
+  gameId: string | null;
+  /** Review ID if applicable */
+  reviewId: string | null;
+}
+
 /**
-<<<<<<< HEAD
- * Submit a report to the server. Voice transcript is optional; description must be validated upstream.
-=======
+ * Response structure from the get report endpoint.
+ * @interface GetReportResponse
+ */
+export interface GetReportResponse {
+  success: boolean;
+  report: Report;
+}
+
+
+/**
  * Submits a report to the server.
  * @param {SubmitReportPayload} payload - The report data to submit
  * @returns {Promise<SubmitReportResponse>} The server response
  * @throws {Error} If the API request fails
->>>>>>> 9db0d0b43cd08182e37ea7ca5a87b25280c4f3d4
  */
 export async function submitReport(payload: SubmitReportPayload): Promise<SubmitReportResponse> {
   const response = await apiPost('/api/reports', payload);
@@ -62,4 +101,23 @@ export async function submitReport(payload: SubmitReportPayload): Promise<Submit
   }
 
   return response.json();
+}
+
+/**
+ * Fetches a user's own report by ID.
+ * @param {string} reportId - The report ID
+ * @returns {Promise<Report>} The report data including admin replies
+ * @throws {Error} If the API request fails
+ */
+export async function getReportById(reportId: string): Promise<Report> {
+  const response = await apiGet(`/api/reports/${encodeURIComponent(reportId)}`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch report');
+  }
+
+  const data: GetReportResponse = await response.json();
+  return data.report;
 }

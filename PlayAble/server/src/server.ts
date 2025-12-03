@@ -10,8 +10,9 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { seedAdminUserIfNotExists } from './models/user';
 import { seedGamesIfEmpty, syncSpecificAccessibilityTags } from './models/game';
-import gamesRouter from '../routes/games.routes';
-import authRoutes from '../routes/authRoutes';
+import { ensureReviewPublicIds } from './models/review';
+import gamesRouter from './routes/games.routes';
+import authRoutes from './routes/authRoutes';
 import './models/settings';
 import UserSettings from './models/settings';
 import favouritesRoutes from './routes/favourites.routes';
@@ -21,6 +22,7 @@ import reviewReportsRoutes from './routes/reviewReports.routes';
 import recentlyViewedRoutes from './routes/recentlyViewed.routes';
 import adminGeneralReportsRoutes from './routes/adminGeneralReports.routes';
 import adminGameReportsRoutes from './routes/adminGameReports.routes';
+import notificationsRoutes from './routes/notifications.routes';
 
 // Import security middleware
 import cookieParser from 'cookie-parser';
@@ -67,13 +69,14 @@ if (process.env.NODE_ENV === 'development') {
 // STANDARD MIDDLEWARE
 // ============================================================================
 
-// Enable CORS for cross-origin requests from the frontend (Vite dev server).
-// Must specify origin explicitly when credentials are included (can't use wildcard '*')
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    "https://playable-frontend.onrender.com",
+    "http://localhost:3000"
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-User-Id', 'x-user-id'],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-User-Id", "x-user-id"],
 }));
 
 // Enhanced CORS security checks
@@ -123,11 +126,10 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/playab
 mongoose
   .connect(MONGODB_URI)
   .then(async () => {
-    console.log('Connected to MongoDB');    // Seed games collection from JSON if empty
+    console.log('Connected to MongoDB');
     await seedGamesIfEmpty();
     await syncSpecificAccessibilityTags();
-
-    // Seed admin user if it doesn't exist
+    await ensureReviewPublicIds();
     await seedAdminUserIfNotExists();
   })
   .catch(error => {
@@ -153,6 +155,7 @@ app.use('/api', reviewReportsRoutes);
 app.use('/api', recentlyViewedRoutes);
 app.use('/api/admin/general-reports', adminGeneralReportsRoutes);
 app.use('/api/admin/game-reports', adminGameReportsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Fix syntax error in `pickFirstString` function
 const pickFirstString = (value: unknown): string | undefined => {

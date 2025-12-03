@@ -186,7 +186,9 @@ function useGamesMetadata() {
     if (metadataCache.data) {
       setMetadata(metadataCache.data);
       setLoading(false);
-      return;
+      return () => {
+        mounted = false;
+      };
     }
 
     const promise = metadataCache.promise || getGamesMetadata();
@@ -199,7 +201,9 @@ function useGamesMetadata() {
         setLoading(false);
         setError('Failed to load filters');
       }
-      return;
+      return () => {
+        mounted = false;
+      };
     }
 
     metadataCache.promise = promise;

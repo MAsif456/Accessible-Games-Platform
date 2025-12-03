@@ -27,6 +27,7 @@ interface NavbarProps {
   onNavigate?: (path: string) => void;
   /** Function to call when user logs out */
   onLogout?: () => void;
+  unreadNotificationCount?: number;
 }
 
 const navItems = [
@@ -53,6 +54,7 @@ const Navbar: React.FC<NavbarProps> = ({
   currentPath = '/',
   onNavigate,
   onLogout,
+  unreadNotificationCount = 0,
 }) => {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -356,14 +358,16 @@ const Navbar: React.FC<NavbarProps> = ({
                               aria-hidden="true"
                             />
                             <span>Inbox</span>
-                            <span className="navbar__profile-menu-dot" aria-hidden="true" />
+                            {unreadNotificationCount > 0 && (
+                              <span className="navbar__profile-menu-dot" aria-hidden="true" aria-label={`${unreadNotificationCount} unread notifications`} />
+                            )}
                           </button>
                         </li>
-                        <li role="none">
+                        <li role="none" className="navbar__profile-menu-separator">
                           <button
                             type="button"
                             role="menuitem"
-                            className="navbar__profile-menu-item"
+                            className="navbar__profile-menu-item navbar__profile-menu-item--logout"
                             onClick={() => setShowLogoutConfirm(true)}
                           >
                             <span

@@ -142,11 +142,11 @@ describe('Voice Navigation Feature', () => {
 
     // Clear all recognition instances
     recognitionInstances.length = 0;
-    MockSpeechRecognitionConstructor.mockClear();
+  MockSpeechRecognitionConstructor.mockClear();
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { protect } from '../../middleware/auth';
+import { protect } from '../middleware/auth';
 import favouritesService from '../services/favourites.service';
 import { parsePagination } from '../../utils/validate';
 

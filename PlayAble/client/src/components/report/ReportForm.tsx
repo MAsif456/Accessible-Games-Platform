@@ -229,9 +229,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
           Record your report using your voice. Your speech will be typed directly into the description field above as you speak.
         </p>
         {voiceError && (
-          <p className="report-form__field-error" role="alert">
-            {voiceError}
-          </p>
+          <div className="report-form__voice-error-inline" role="alert" aria-live="polite">
+            <p className="report-form__voice-error-inline-text">
+              {voiceError}
+            </p>
+          </div>
         )}
         {(hasVoiceTranscript || isVoiceRecording) && (
           <div className="report-form__voice-transcript">

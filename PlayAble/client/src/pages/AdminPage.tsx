@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { GameDto } from '../services/api';
+import { getReviewStats } from '../services/api';
 import type { AdminResolvedReviewReport } from '../services/adminReviewsService';
 import {
   AdminGeneralReport,
@@ -19,6 +20,9 @@ import { useReviewsTable, useReportedReviewsTable, useResolvedReportedReviewsTab
 import useAdminReviewActions, { ADMIN_REPLY_MIN_CHARS, ADMIN_REPLY_MAX_CHARS } from '../hooks/useAdminReviewActions';
 
 // Consistent date formatting function for tests and display
+/**
+ * Formats a date string or Date object into DD/MM/YYYY for table readability and stable tests.
+ */
 const formatDate = (dateString: string | Date): string => {
   const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
   const day = date.getDate().toString().padStart(2, '0');
@@ -43,11 +47,59 @@ interface AdminPageProps {
   showPrompt?: (message: string, type?: 'success' | 'error') => void;
 }
 
+/**
+ * AdminPage brings together the admin dashboards (reports, reviews, games) with shared pagination,
+ * filtering, and modal management.
+ */
 const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [primaryTab, setPrimaryTab] = useState<PrimaryTab>('general-reports');
   const [generalSubTab, setGeneralSubTab] = useState<GeneralSubTab>('general');
   const [reviewsSubTab, setReviewsSubTab] = useState<ReviewsSubTab>('reviews');
   const [gamesSubTab, setGamesSubTab] = useState<GamesSubTab>('games');
+  const [activeReviewsCount, setActiveReviewsCount] = useState<number | null>(null);
+  const [loadingActiveReviews, setLoadingActiveReviews] = useState(false);
+  const [activeReviewsError, setActiveReviewsError] = useState<string | null>(null);
+
+  const refreshActiveReviews = useCallback(() => {
+    let isMounted = true;
+    setLoadingActiveReviews(true);
+    setActiveReviewsError(null);
+
+    Promise.resolve(getReviewStats())
+      .then(result => {
+        if (!isMounted) return;
+        const total = result?.totalReviews;
+        if (typeof total === 'number') {
+          setActiveReviewsCount(total);
+        } else {
+          setActiveReviewsError('Unable to load review count');
+          setActiveReviewsCount(null);
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setActiveReviewsError('Unable to load review count');
+        setActiveReviewsCount(null);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingActiveReviews(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    refreshActiveReviews();
+  }, [refreshActiveReviews]);
+  const activeReviewsAriaLabel = loadingActiveReviews
+    ? 'Loading active reviews'
+    : activeReviewsCount === null
+      ? 'Active reviews count unavailable'
+      : `${activeReviewsCount} published reviews`;
 
   // Reviews management state via hooks
   const reviewsTable = useReviewsTable();
@@ -60,15 +112,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     resolveReportedReview,
     error: adminActionsError,
   } = useAdminReviewActions({
-    // Toast is wired in App and passed to AdminPage via props in tests; keep optional for now
+
     showToast: showPrompt,
     onRefreshReviews: reviewsTable.refresh,
     onRefreshReported: reportedTable.refresh,
     onRefreshResolved: resolvedTable.refresh,
+    onRefreshStats: refreshActiveReviews,
   });
 
   // Local modal state
-  const [reviewToDelete, setReviewToDelete] = useState<null | { id: string; authorName?: string }>(null);
+  const [reviewToDelete, setReviewToDelete] = useState<null | { id: string; displayId?: string; authorName?: string }>(null);
   const [reviewToReply, setReviewToReply] = useState<null | any>(null);
   const [replyText, setReplyText] = useState('');
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -94,17 +147,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [gamesStatsLoading, setGamesStatsLoading] = useState(true);
   const GAMES_PAGE_SIZE = 10;
 
-  // Test-aware state updater used by games section to avoid act warnings
-  const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
-  const runStateUpdate = (fn: () => void) => {
-    if (isTestEnv) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { act } = require('react-dom/test-utils');
-      act(fn);
-    } else {
-      fn();
-    }
-  };
   // General reports state
   const [generalReports, setGeneralReports] = useState<AdminGeneralReport[]>([]);
   const [resolvedGeneralReports, setResolvedGeneralReports] = useState<AdminGeneralReport[]>([]);
@@ -114,6 +156,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [resolvedReportsError, setResolvedReportsError] = useState<string | null>(null);
   const [generalReportsSearch, setGeneralReportsSearch] = useState('');
   const [resolvedReportsSearch, setResolvedReportsSearch] = useState('');
+  const [generalReportsPage, setGeneralReportsPage] = useState(1);
+  const [resolvedGeneralReportsPage, setResolvedGeneralReportsPage] = useState(1);
+  const GENERAL_REPORTS_PAGE_SIZE = 10;
   const [activeReport, setActiveReport] = useState<AdminGeneralReport | null>(null);
   const [reportModalMode, setReportModalMode] = useState<'reply' | 'view'>('reply');
   const [reportReplyMessage, setReportReplyMessage] = useState('');
@@ -129,6 +174,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [resolvedGameReportsError, setResolvedGameReportsError] = useState<string | null>(null);
   const [gameReportsSearch, setGameReportsSearch] = useState('');
   const [resolvedGameReportsSearch, setResolvedGameReportsSearch] = useState('');
+  const [gameReportsPage, setGameReportsPage] = useState(1);
+  const [resolvedGameReportsPage, setResolvedGameReportsPage] = useState(1);
+  const GAME_REPORTS_PAGE_SIZE = 10;
   const [activeGameReport, setActiveGameReport] = useState<AdminGameReport | null>(null);
   const [gameReportModalMode, setGameReportModalMode] = useState<'reply' | 'view'>('reply');
   const [gameReportReplyMessage, setGameReportReplyMessage] = useState('');
@@ -137,25 +185,23 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
 
   useEffect(() => {
     let isCancelled = false;
-    runStateUpdate(() => setGamesStatsLoading(true));
+    setGamesStatsLoading(true);
     Promise.resolve(getAdminGames())
       .then(res => {
         if (!isCancelled) {
           const safeGames = (res && (res as any).games) || [];
-          runStateUpdate(() => setGames(safeGames));
+          setGames(safeGames);
         }
       })
       .catch(err => {
         if (!isCancelled) {
           console.error('Failed to load admin games', err);
-          runStateUpdate(() =>
-            setGamesError('Unable to load games. Please try again later.')
-          );
+          setGamesError('Unable to load games. Please try again later.');
         }
       })
       .finally(() => {
         if (!isCancelled) {
-          runStateUpdate(() => setGamesStatsLoading(false));
+          setGamesStatsLoading(false);
         }
       });
 
@@ -166,22 +212,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
 
   useEffect(() => {
     if (primaryTab === 'games') {
-      runStateUpdate(() => {
-        setGamesLoading(true);
-        setGamesError(null);
-      });
+      setGamesLoading(true);
+      setGamesError(null);
       Promise.resolve(getAdminGames())
         .then(res => {
           const safeGames = (res && (res as any).games) || [];
-          runStateUpdate(() => setGames(safeGames));
+          setGames(safeGames);
         })
         .catch(err => {
           console.error('Failed to load admin games', err);
-          runStateUpdate(() =>
-            setGamesError('Unable to load games. Please try again later.')
-          );
+          setGamesError('Unable to load games. Please try again later.');
         })
-        .finally(() => runStateUpdate(() => setGamesLoading(false)));
+        .finally(() => setGamesLoading(false));
     }
   }, [primaryTab]);
 
@@ -204,11 +246,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const pageGames = useMemo(() => {
     const start = (gamesPage - 1) * GAMES_PAGE_SIZE;
     return filteredGames.slice(start, start + GAMES_PAGE_SIZE);
-  }, [filteredGames, gamesPage]);
+  }, [GAMES_PAGE_SIZE, filteredGames, gamesPage]);
 
   useEffect(() => {
     setGamesPage(1);
   }, [gamesSearchTerm]);
+
+  useEffect(() => {
+    if (gamesPage > totalGamesPages) {
+      setGamesPage(totalGamesPages);
+    }
+  }, [gamesPage, totalGamesPages]);
 
   const loadGeneralReports = useCallback(async () => {
     setGeneralReportsLoading(true);
@@ -224,6 +272,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     }
   }, []);
 
+  /**
+   * Retrieves resolved general reports to populate the Resolved tab.
+   */
   const loadResolvedReports = useCallback(async () => {
     setResolvedReportsLoading(true);
     setResolvedReportsError(null);
@@ -243,6 +294,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     loadResolvedReports();
   }, [loadGeneralReports, loadResolvedReports]);
 
+  /**
+   * Fetches open game-related reports for the Reported Games tab.
+   */
   const loadGameReports = useCallback(async () => {
     setGameReportsLoading(true);
     setGameReportsError(null);
@@ -257,6 +311,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     }
   }, []);
 
+  /**
+   * Fetches resolved game reports for the Resolved Reported Games tab.
+   */
   const loadResolvedGameReports = useCallback(async () => {
     setResolvedGameReportsLoading(true);
     setResolvedGameReportsError(null);
@@ -348,6 +405,81 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     [resolvedGameReports, resolvedGameReportsSearch]
   );
 
+  const generalReportsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredGeneralReports.length / GENERAL_REPORTS_PAGE_SIZE)
+  );
+  const resolvedGeneralReportsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredResolvedReports.length / GENERAL_REPORTS_PAGE_SIZE)
+  );
+  const paginatedGeneralReports = useMemo(() => {
+    const start = (generalReportsPage - 1) * GENERAL_REPORTS_PAGE_SIZE;
+    return filteredGeneralReports.slice(start, start + GENERAL_REPORTS_PAGE_SIZE);
+  }, [GENERAL_REPORTS_PAGE_SIZE, filteredGeneralReports, generalReportsPage]);
+  const paginatedResolvedGeneralReports = useMemo(() => {
+    const start = (resolvedGeneralReportsPage - 1) * GENERAL_REPORTS_PAGE_SIZE;
+    return filteredResolvedReports.slice(start, start + GENERAL_REPORTS_PAGE_SIZE);
+  }, [GENERAL_REPORTS_PAGE_SIZE, filteredResolvedReports, resolvedGeneralReportsPage]);
+
+  const gameReportsTotalPages = Math.max(1, Math.ceil(filteredGameReports.length / GAME_REPORTS_PAGE_SIZE));
+  const resolvedGameReportsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredResolvedGameReports.length / GAME_REPORTS_PAGE_SIZE)
+  );
+  const paginatedGameReports = useMemo(() => {
+    const start = (gameReportsPage - 1) * GAME_REPORTS_PAGE_SIZE;
+    return filteredGameReports.slice(start, start + GAME_REPORTS_PAGE_SIZE);
+  }, [GAME_REPORTS_PAGE_SIZE, filteredGameReports, gameReportsPage]);
+  const paginatedResolvedGameReports = useMemo(() => {
+    const start = (resolvedGameReportsPage - 1) * GAME_REPORTS_PAGE_SIZE;
+    return filteredResolvedGameReports.slice(start, start + GAME_REPORTS_PAGE_SIZE);
+  }, [GAME_REPORTS_PAGE_SIZE, filteredResolvedGameReports, resolvedGameReportsPage]);
+
+  useEffect(() => {
+    setGeneralReportsPage(1);
+  }, [generalReportsSearch]);
+
+  useEffect(() => {
+    setResolvedGeneralReportsPage(1);
+  }, [resolvedReportsSearch]);
+
+  useEffect(() => {
+    setGameReportsPage(1);
+  }, [gameReportsSearch]);
+
+  useEffect(() => {
+    setResolvedGameReportsPage(1);
+  }, [resolvedGameReportsSearch]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredGeneralReports.length / GENERAL_REPORTS_PAGE_SIZE));
+    if (generalReportsPage > maxPage) {
+      setGeneralReportsPage(maxPage);
+    }
+  }, [GENERAL_REPORTS_PAGE_SIZE, filteredGeneralReports.length, generalReportsPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredResolvedReports.length / GENERAL_REPORTS_PAGE_SIZE));
+    if (resolvedGeneralReportsPage > maxPage) {
+      setResolvedGeneralReportsPage(maxPage);
+    }
+  }, [GENERAL_REPORTS_PAGE_SIZE, filteredResolvedReports.length, resolvedGeneralReportsPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredGameReports.length / GAME_REPORTS_PAGE_SIZE));
+    if (gameReportsPage > maxPage) {
+      setGameReportsPage(maxPage);
+    }
+  }, [GAME_REPORTS_PAGE_SIZE, filteredGameReports.length, gameReportsPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredResolvedGameReports.length / GAME_REPORTS_PAGE_SIZE));
+    if (resolvedGameReportsPage > maxPage) {
+      setResolvedGameReportsPage(maxPage);
+    }
+  }, [GAME_REPORTS_PAGE_SIZE, filteredResolvedGameReports.length, resolvedGameReportsPage]);
+
   const closeReportModal = () => {
     setActiveReport(null);
     setReportReplyMessage('');
@@ -426,13 +558,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
 
   const renderGeneralReportsSection = () => {
     const isResolved = generalSubTab === 'resolved';
-    const reports = isResolved ? filteredResolvedReports : filteredGeneralReports;
+    const reports = isResolved ? paginatedResolvedGeneralReports : paginatedGeneralReports;
     const loading = isResolved ? resolvedReportsLoading : generalReportsLoading;
     const error = isResolved ? resolvedReportsError : generalReportsError;
     const searchValue = isResolved ? resolvedReportsSearch : generalReportsSearch;
     const handleSearch = isResolved ? setResolvedReportsSearch : setGeneralReportsSearch;
     const searchInputId = isResolved ? 'resolved-reports-search' : 'general-reports-search';
     const dateLabel = isResolved ? 'Resolved On' : 'Date';
+    const totalPages = isResolved ? resolvedGeneralReportsTotalPages : generalReportsTotalPages;
+    const currentPage = isResolved ? resolvedGeneralReportsPage : generalReportsPage;
+    const onPageChange = isResolved ? setResolvedGeneralReportsPage : setGeneralReportsPage;
 
     return (
       <section
@@ -527,12 +662,22 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="admin-pagination">
+            <Pagination
+              page={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+              ariaLabel={isResolved ? 'Resolved general reports pagination' : 'General reports pagination'}
+            />
+          </div>
+        )}
       </section>
     );
   };
 
   const renderReviewsSection = () => {
-    // Confirm resolve modal should always be available for any reviews subtab
     const confirmResolveModal = (
       <Modal
         isOpen={!!resolveConfirmAction}
@@ -677,7 +822,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                         <button
                           type="button"
                           className="admin-table__action-button admin-table__action-button--secondary"
-                          onClick={() => setReviewToDelete({ id: review._id, authorName: review.authorName })}
+                          onClick={() =>
+                            setReviewToDelete({
+                              id: review._id,
+                              displayId: review.publicId ?? review._id,
+                              authorName: review.authorName,
+                            })
+                          }
                         >
                           Delete
                         </button>
@@ -708,8 +859,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             contentClassName="modal-content--wide"
           >
             <h2 id="delete-review-title" className="dialog__title">
-              Delete Review – Admin Action
+              Delete Review - Admin Action
             </h2>
+            {reviewToDelete && (
+              <p className="dialog__meta">
+                <strong>Review ID:</strong> {reviewToDelete.displayId ?? reviewToDelete.id}
+              </p>
+            )}
             <p className="dialog__message">
               {`Are you sure you want to delete this review${
                 reviewToDelete?.authorName ? ` from ${reviewToDelete.authorName}` : ''
@@ -838,7 +994,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </div>
           </header>
 
-          {/* Search across reported reviews by id, game, author or reason */}
           <div className="admin-section-card__search-wrapper">
             <div className="admin-section-card__search-input-wrapper">
               <input
@@ -863,7 +1018,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </div>
           </div>
 
-          {/* Surface any API / loading errors for the reported reviews table */}
           {reportedTable.error && (
             <div role="alert" className="admin-error-message">
               {reportedTable.error}
@@ -924,7 +1078,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </table>
           </div>
 
-          {/* Paginated navigation for reported reviews */}
           {reportedTable.total > reportedTable.pageSize && (
             <div className="admin-pagination">
               <Pagination
@@ -936,7 +1089,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </div>
           )}
 
-          {/* Resolve Modal: shows full report + review context and allows outcome selection */}
+          {/* Resolve Modal */}
           <Modal
             isOpen={!!reportToResolve}
             titleId="resolve-report-title"
@@ -953,7 +1106,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                   Resolve Reported Review
                 </h2>
                 <div className="report-modal__sections">
-                  {/* Left column: metadata about the report itself */}
                   <div className="report-modal__section">
                     <h3>Report Information</h3>
                     <p><strong>Report ID:</strong> {reportToResolve._id}</p>
@@ -961,7 +1113,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     <p><strong>Reported By:</strong> {reportToResolve.reporterEmail ?? 'Unknown'}</p>
                     <p><strong>Reported Date:</strong> {new Date(reportToResolve.createdAt).toLocaleDateString()}</p>
                   </div>
-                  {/* Right column: underlying review text and game context */}
                   <div className="report-modal__section">
                     <h3>Review Content</h3>
                     <p><strong>Review ID:</strong> {reportToResolve.reviewPublicId ?? reportToResolve.reviewId}</p>
@@ -969,7 +1120,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     <p><strong>Author:</strong> {reportToResolve.reviewAuthorName ?? ''}</p>
                     <p><strong>Text:</strong> {reportToResolve.reviewBody ?? 'No content available'}</p>
                   </div>
-                  {/* Optional moderator reply that will be persisted via adminResolveReviewReport */}
                   <div className="report-modal__section">
                     <h3>Admin Reply to Author (optional)</h3>
                     <textarea
@@ -999,6 +1149,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                         {adminActionsError}
                       </p>
                     )}
+                    <p className="admin-form-field-hint">
+                      Any reply entered here will be sent when you choose Complete or Delete Review.
+                    </p>
                   </div>
                 </div>
                 <div className="dialog__actions dialog__actions--split">
@@ -1040,7 +1193,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
       );
     }
 
-    // resolved reported reviews
     const totalPages = Math.max(1, Math.ceil(resolvedTable.total / resolvedTable.pageSize));
     return (
       <section className="admin-section-card" aria-labelledby="resolved-reviews-title">
@@ -1180,7 +1332,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                   <p><strong>Game:</strong> {resolvedReportToView.gameTitle ?? resolvedReportToView.gameSlug ?? ''}</p>
                   <p><strong>Author:</strong> {resolvedReportToView.reviewAuthorName ?? ''}</p>
                   <p><strong>Text:</strong> {resolvedReportToView.reportReason ?? 'No content available'}</p>
-                  <p><strong>Admin Reply:</strong> {resolvedReportToView.adminReply?.trim() || 'No admin reply recorded'}</p>
                 </div>
               </div>
               <div className="dialog__actions">
@@ -1285,35 +1436,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </table>
           </div>
 
-          <nav className="admin-pagination" aria-label="Games pagination">
-            <button
-              type="button"
-              className="admin-pagination__button"
-              onClick={() => setGamesPage(p => Math.max(1, p - 1))}
-              disabled={gamesPage === 1}
-            >
-              Previous
-            </button>
-            <ol className="admin-pagination__list">
-              <li>
-                <button
-                  type="button"
-                  className="admin-pagination__page admin-pagination__page--current"
-                  aria-current="page"
-                >
-                  {gamesPage}
-                </button>
-              </li>
-            </ol>
-            <button
-              type="button"
-              className="admin-pagination__button"
-              onClick={() => setGamesPage(p => Math.min(totalGamesPages, p + 1))}
-              disabled={gamesPage === totalGamesPages}
-            >
-              Next
-            </button>
-          </nav>
+          {totalGamesPages > 1 && (
+            <div className="admin-pagination">
+              <Pagination
+                page={gamesPage}
+                totalPages={totalGamesPages}
+                onPageChange={setGamesPage}
+                ariaLabel="Games pagination"
+              />
+            </div>
+          )}
         </section>
       );
     }
@@ -1377,7 +1509,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                     </td>
                   </tr>
                 ) : (
-                  filteredGameReports.map(report => (
+                  paginatedGameReports.map(report => (
                     <tr key={report.id}>
                       <td>{report.reportCode}</td>
                       <td>{report.gameTitle || 'Unknown game'}</td>
@@ -1403,6 +1535,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
               </tbody>
             </table>
           </div>
+
+          {gameReportsTotalPages > 1 && (
+            <div className="admin-pagination">
+              <Pagination
+                page={gameReportsPage}
+                totalPages={gameReportsTotalPages}
+                onPageChange={setGameReportsPage}
+                ariaLabel="Reported game issues pagination"
+              />
+            </div>
+          )}
         </section>
       );
     }
@@ -1465,7 +1608,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
                   </td>
                 </tr>
               ) : (
-                filteredResolvedGameReports.map(report => (
+                paginatedResolvedGameReports.map(report => (
                   <tr key={report.id}>
                     <td>{report.reportCode}</td>
                     <td>{report.gameTitle || 'Unknown game'}</td>
@@ -1503,6 +1646,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             </tbody>
           </table>
         </div>
+
+        {resolvedGameReportsTotalPages > 1 && (
+          <div className="admin-pagination">
+            <Pagination
+              page={resolvedGameReportsPage}
+              totalPages={resolvedGameReportsTotalPages}
+              onPageChange={setResolvedGameReportsPage}
+              ariaLabel="Resolved game issues pagination"
+            />
+          </div>
+        )}
       </section>
     );
   };
@@ -1807,10 +1961,22 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
             <div className="admin-stat-card__header">
               <h2 className="admin-stat-card__title">Active Reviews</h2>
             </div>
-            <p className="admin-stat-card__value" aria-label="4 published reviews">
-              4
+            <p
+              className={
+                'admin-stat-card__value' +
+                (loadingActiveReviews ? ' admin-stat-card__value--skeleton' : '')
+              }
+              aria-label={
+                loadingActiveReviews
+                  ? 'Loading active reviews count'
+                  : activeReviewsAriaLabel
+              }
+            >
+              {loadingActiveReviews ? '—' : activeReviewsCount ?? '--'}
             </p>
-            <p className="admin-stat-card__meta">Published reviews</p>
+            <p className="admin-stat-card__meta">
+              {activeReviewsError ? activeReviewsError : 'Published reviews'}
+            </p>
           </article>
         </section>
       </header>

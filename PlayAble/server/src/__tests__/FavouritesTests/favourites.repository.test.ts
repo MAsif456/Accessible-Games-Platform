@@ -47,6 +47,7 @@ describe('FavouritesRepository', () => {
   }, 10000);
 
   beforeEach(async () => {
+    await GameModel.deleteMany({});
     await FavouriteModel.deleteMany({});
   });
 

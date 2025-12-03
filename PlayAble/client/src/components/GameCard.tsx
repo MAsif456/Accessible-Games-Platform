@@ -1,18 +1,22 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GameDto } from '../services/api';
+import { deriveAccessibilityBadges } from '../utils/accessibility';
 
 /**
- * Minimal game shape needed by GameCard.
+ * Minimal game shape needed by GameCard, including specific accessibility tags for badge derivation.
  */
-interface BasicGameLike {
-  id: string;
-  title: string;
-  studio: string;
-  description: string;
-  thumbnailUrl: string;
-  genres: string[];
-  accessibilityTags: string[];
-}
+export interface BasicGameLike
+  extends Pick<
+    GameDto,
+    | 'id'
+    | 'title'
+    | 'studio'
+    | 'description'
+    | 'thumbnailUrl'
+    | 'genres'
+    | 'accessibilityTags'
+    | 'specificAccessibilityTags'
+  > {}
 
 /**
  * Props for the GameCard component.
@@ -43,6 +47,10 @@ const GameCard = <TGame extends BasicGameLike>({
   isFavourite,
 }: GameCardProps<TGame>) => {
   const favourite = !!isFavourite;
+  const derivedAccessibilityTags = useMemo(
+    () => deriveAccessibilityBadges(game),
+    [game.accessibilityTags, game.specificAccessibilityTags]
+  );
 
   /**
    * Handle click on the favourite button.
@@ -83,11 +91,18 @@ const GameCard = <TGame extends BasicGameLike>({
           </button>
         )}
       </div>
+      <button
+        type="button"
+        className="sr-only game-card__view-details"
+        onClick={onClick}
+      >
+        View Details
+      </button>
       <GameThumbnail url={game.thumbnailUrl} title={game.title} />
       <div className="game-card__body">
         <GameHeader title={game.title} studio={game.studio} />
         <GameDescription description={game.description} />
-        <GameTags genres={game.genres} tags={game.accessibilityTags} />
+        <GameTags genres={game.genres} tags={derivedAccessibilityTags} />
       </div>
     </article>
   );

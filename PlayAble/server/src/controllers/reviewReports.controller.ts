@@ -4,6 +4,7 @@ import type { ReviewReportOutcome } from '../models/reviewReport';
 import ReviewReport from '../models/reviewReport';
 import Review from '../models/review';
 import { ReportModel } from '../models/report';
+import { createNotification } from '../services/notificationService';
 
 let legacyReportsMigrated = false;
 
@@ -117,7 +118,9 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
 
     const searchRegex = search ? new RegExp(search, 'i') : null;
     const searchObjectId =
-      search && mongoose.Types.ObjectId.isValid(search) ? new mongoose.Types.ObjectId(search) : null;
+      search && mongoose.Types.ObjectId.isValid(search)
+        ? new mongoose.Types.ObjectId(search)
+        : null;
 
     const reviewReportPipeline: any[] = [
       { $match: { type: 'review' } },
@@ -155,6 +158,14 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
       },
       { $unwind: { path: '$reviewDoc', preserveNullAndEmptyArrays: true } },
       {
+        $lookup: {
+          from: 'users',
+          localField: 'reviewDoc.userId',
+          foreignField: '_id',
+          as: 'reviewAuthor',
+        },
+      },
+      {
         $addFields: {
           gameRef: {
             $cond: [
@@ -166,6 +177,17 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
               },
               { $toObjectId: '$game' },
               { $ifNull: ['$game', '$reviewDoc.gameId'] },
+            ],
+          },
+          reviewAuthorName: {
+            $ifNull: [
+              { $arrayElemAt: ['$reviewAuthor.name', 0] },
+              {
+                $ifNull: [
+                  { $arrayElemAt: ['$reviewAuthor.email', 0] },
+                  { $ifNull: ['$reviewDoc.authorName', 'Anonymous'] },
+                ],
+              },
             ],
           },
         },
@@ -209,8 +231,55 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
 
     const reportModelDocs = await ReportModel.aggregate(reviewReportPipeline);
 
-    const mappedReports = reportModelDocs
-      .map((doc: any) => {
+    const legacyPipeline: any[] = [
+      { $match: { resolved } },
+      {
+        $lookup: {
+          from: 'reviews',
+          localField: 'reviewId',
+          foreignField: '_id',
+          as: 'review',
+        },
+      },
+      { $unwind: { path: '$review', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'review.userId',
+          foreignField: '_id',
+          as: 'reviewAuthor',
+        },
+      },
+      {
+        $lookup: {
+          from: 'games',
+          localField: 'review.gameId',
+          foreignField: '_id',
+          as: 'game',
+        },
+      },
+      { $unwind: { path: '$game', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          reviewAuthorName: {
+            $ifNull: [
+              { $arrayElemAt: ['$reviewAuthor.name', 0] },
+              {
+                $ifNull: [
+                  { $arrayElemAt: ['$reviewAuthor.email', 0] },
+                  { $ifNull: ['$review.authorName', 'Anonymous'] },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    ];
+
+    const legacyDocs = await ReviewReport.aggregate(legacyPipeline);
+
+    const mappedReports = [
+      ...reportModelDocs.map((doc: any) => {
         const rawReviewId =
           doc.reviewRef?.toString?.() ?? doc.review?.toString?.() ?? doc.reviewDoc?._id?.toString?.();
         const friendlyReviewId =
@@ -229,11 +298,32 @@ export const adminListReviewReports = async (req: Request, res: Response) => {
           reporterEmail: doc.reporterUser?.email,
           gameTitle: doc.gameDoc?.title,
           gameSlug: doc.gameDoc?.slug,
-          reviewAuthorName: doc.reviewDoc?.authorName,
+          reviewAuthorName: doc.reviewAuthorName || doc.reviewDoc?.authorName || 'Anonymous',
           reviewBody: doc.reviewDoc?.body,
         };
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      }),
+      ...legacyDocs.map((doc: any) => {
+        const rawReviewId = doc.reviewId?.toString?.() ?? doc.review?._id?.toString?.();
+        const friendlyReviewId =
+          doc.review?.publicId || (rawReviewId ? `rev_${rawReviewId.slice(0, 8)}` : undefined);
+
+        return {
+          _id: doc._id.toString(),
+          reviewId: rawReviewId,
+          reviewPublicId: friendlyReviewId,
+          reportReason: doc.reasonText,
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+          resolved: !!doc.resolved,
+          outcome: doc.outcome as ReviewReportOutcome | undefined,
+          reporterEmail: undefined,
+          gameTitle: doc.game?.title,
+          gameSlug: doc.game?.slug,
+          reviewAuthorName: doc.reviewAuthorName || doc.review?.authorName || 'Anonymous',
+          reviewBody: doc.review?.body,
+        };
+      }),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const total = mappedReports.length;
     const start = (page - 1) * pageSize;
@@ -308,7 +398,14 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
     const reviewDoc = reviewId ? await Review.findById(reviewId) : null;
     const adminReplySnapshot = (reviewDoc as any)?.adminReply;
 
+    let reviewData: any = null;
     if (shouldDeleteReview && reviewId) {
+      const found = await Review.findById(reviewId);
+      if (found && typeof (found as any).populate === 'function') {
+        reviewData = await (found as any).populate('gameId', 'title slug').lean?.();
+      } else {
+        reviewData = found;
+      }
       await Review.findByIdAndDelete(reviewId);
     }
 
@@ -332,6 +429,37 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
     }
 
     await report.save();
+
+    // Create notification for the review author if review was deleted
+    if (shouldDeleteReview && reviewData && reviewData.userId) {
+      try {
+        const reviewContent = reviewData.body?.substring(0, 100) || 'your review';
+        const gameTitle = (reviewData.gameId as any)?.title || 'the game';
+        const gameSlug = (reviewData.gameId as any)?.slug;
+        const gameId = reviewData.gameId?.toString();
+        const deletionReason = reportDoc.description || 'Reported content violation';
+
+        await createNotification(
+          reviewData.userId,
+          'review_deleted',
+          'Your Review Has Been Deleted',
+          `Your review for "${gameTitle}" has been deleted by an administrator. Reason: ${deletionReason}`,
+          {
+            reviewId: reviewId.toString(),
+            gameId: gameId ? new mongoose.Types.ObjectId(gameId) : undefined,
+            metadata: {
+              reviewContent,
+              deletionReason,
+              gameTitle,
+              gameSlug,
+            },
+          }
+        );
+      } catch (notifError) {
+        // Don't fail the resolution if notification creation fails
+        console.error('Error creating notification for review deletion', notifError);
+      }
+    }
 
     return res.status(200).json(report.toObject());
   } catch (error) {

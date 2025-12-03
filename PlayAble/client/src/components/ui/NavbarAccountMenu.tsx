@@ -6,6 +6,7 @@ export interface AccountMenuProps {
   onToggle: () => void;
   onNavigate?: (path: string) => void;
   onRequestLogout: () => void;
+  unreadNotificationCount?: number;
 }
 
 const NavbarAccountMenu: React.FC<AccountMenuProps> = ({
@@ -13,6 +14,7 @@ const NavbarAccountMenu: React.FC<AccountMenuProps> = ({
   onToggle,
   onNavigate,
   onRequestLogout,
+  unreadNotificationCount = 0,
 }) => (
   <li className="navbar__profile">
     <div className="navbar__profile-wrapper">
@@ -60,14 +62,16 @@ const NavbarAccountMenu: React.FC<AccountMenuProps> = ({
                   aria-hidden="true"
                 />
                 <span>Inbox</span>
-                <span className="navbar__profile-menu-dot" aria-hidden="true" />
+                {unreadNotificationCount > 0 && (
+                  <span className="navbar__profile-menu-dot" aria-hidden="true" aria-label={`${unreadNotificationCount} unread notifications`} />
+                )}
               </button>
             </li>
-            <li role="none">
+            <li role="none" className="navbar__profile-menu-separator">
               <button
                 type="button"
                 role="menuitem"
-                className="navbar__profile-menu-item"
+                className="navbar__profile-menu-item navbar__profile-menu-item--logout"
                 onClick={onRequestLogout}
               >
                 <span

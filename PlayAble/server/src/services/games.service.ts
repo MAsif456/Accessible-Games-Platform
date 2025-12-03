@@ -1,7 +1,7 @@
 import { FilterQuery, SortOrder } from 'mongoose';
-import { IGame, GameModel } from '../src/models';
-import { GamesFilterQuery } from '../utils/validate';
-import GamesRepository from '../src/repositories/games.repository';
+import { IGame, GameModel } from '../models';
+import { GamesFilterQuery } from '../../utils/validate';
+import GamesRepository from '../repositories/games.repository';
 
 /**
  * Represents the result of a paginated games query.
@@ -349,3 +349,4 @@ export async function deleteGame(id: string): Promise<void> {
   const repository = GamesRepository;
   await repository.delete(id);
 }
+

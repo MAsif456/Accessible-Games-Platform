@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GameDto,
   getCachedGame,
@@ -16,8 +16,12 @@ import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useFavouritesNav } from '../context/FavouritesContext';
 import type { AppPath } from '../App';
+import { buildAccessibilitySections } from '../utils/accessibility';
 import { useVoiceRecording } from '../hooks/useVoiceRecording';
 import { useVoiceAssistant } from '../context/VoiceAssistantContext';
+
+const BASE_REVIEW_COUNT = 2;
+const LOAD_MORE_REVIEWS_STEP = 5;
 
 interface GameDetailsPageProps {
   gameId: string;
@@ -53,15 +57,12 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
   const [reviewerNames, setReviewerNames] = useState<Record<string, string>>({});
+  const [visibleReviewCount, setVisibleReviewCount] = useState(BASE_REVIEW_COUNT);
+  const reviewsListRef = useRef<HTMLDivElement | null>(null);
   const [showVoiceNavError, setShowVoiceNavError] = useState(false);
   const baseReviewTextRef = useRef<string>(''); // Track text before recording started
 
-  const { 
-    cancelListening, 
-    forceStopRecognition,
-    microphoneActive,
-    voiceInputEnabled
-  } = useVoiceAssistant();
+  const { cancelListening, forceStopRecognition, microphoneActive, voiceInputEnabled } = useVoiceAssistant();
   const {
     transcript: voiceTranscript,
     isRecording: isVoiceRecording,
@@ -77,33 +78,22 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     try {
       console.log('Starting voice recording...');
       
-      // Check if voice navigation is active (microphone active AND voice input enabled)
-      // This means voice navigation is ready to use the microphone
       const isVoiceNavigationActive = microphoneActive && voiceInputEnabled;
-      
+
       if (isVoiceNavigationActive) {
-        // Show the inline error message
         setShowVoiceNavError(true);
         return;
       }
-      
-      // Clear any previous errors
+
       setShowVoiceNavError(false);
-      
-      // Save current text as base before starting recording
       baseReviewTextRef.current = writtenReview.trim();
-      
-      // Temporarily pause voice assistant to avoid browser conflicts
-      // (Browsers don't support multiple recognition instances simultaneously)
+
       if (forceStopRecognition) {
         forceStopRecognition();
       }
       cancelListening();
-      
-      // Brief delay to ensure voice assistant recognition stops
+
       await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Start recording
       console.log('Calling startVoiceRecording...');
       await startVoiceRecording();
       console.log('Voice recording started successfully');
@@ -186,7 +176,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     getReviews(game.id)
       .then(data => {
         if (!isMounted) return;
-        setReviews(data);
+        setReviews(Array.isArray(data) ? data : []);
       })
       .catch(err => {
         console.error(err);
@@ -200,6 +190,15 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
       isMounted = false;
     };
   }, [game?.id]);
+
+  useEffect(() => {
+    setVisibleReviewCount(prev => {
+      if (reviews.length <= BASE_REVIEW_COUNT) {
+        return reviews.length;
+      }
+      return Math.max(BASE_REVIEW_COUNT, Math.min(prev, reviews.length));
+    });
+  }, [reviews]);
 
   // Fetch missing reviewer display names for reviews that don't include authorName
   useEffect(() => {
@@ -248,6 +247,41 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
       { platform: 'play-store', url: 'https://play.google.com/store' },
     ];
   }, [game]);
+
+  const displayedReviews = useMemo(
+    () => reviews.slice(0, visibleReviewCount),
+    [reviews, visibleReviewCount]
+  );
+  const totalReviews = reviews.length;
+  const canLoadMoreReviews = totalReviews > visibleReviewCount;
+  const showLoadMoreReviewsButton = totalReviews > 0;
+  const loadMoreButtonLabel = canLoadMoreReviews
+    ? 'Load More Reviews'
+    : totalReviews > BASE_REVIEW_COUNT
+      ? 'All Reviews Loaded'
+      : 'All Reviews Displayed';
+
+  /**
+   * Increments the number of visible reviews in fixed steps for the "Load More" interaction.
+   */
+  const handleLoadMoreReviews = () => {
+    setVisibleReviewCount(prev =>
+      Math.min(prev + LOAD_MORE_REVIEWS_STEP, totalReviews)
+    );
+  };
+
+  const handleReviewBlur = () => {
+    const trimmed = writtenReview.trim();
+    if (!trimmed) {
+      setReviewError(null);
+      return;
+    }
+    if (trimmed.length < minReviewLength) {
+      setReviewError(`Review must be at least ${minReviewLength} characters long.`);
+    } else {
+      setReviewError(null);
+    }
+  };
 
   const handlePostReview = async () => {
     const reviewText = writtenReview.trim();
@@ -320,6 +354,23 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     }
   };
 
+  const accessibilitySections = useMemo(
+    () => (game ? buildAccessibilitySections(game) : []),
+    [game]
+  );
+  const accessibilityCount = useMemo(() => {
+    if (!game) return 0;
+    if (game.specificAccessibilityTags) {
+      return Object.values(game.specificAccessibilityTags).reduce((sum, tags) => {
+        if (Array.isArray(tags)) {
+          return sum + tags.length;
+        }
+        return sum;
+      }, 0);
+    }
+    return game.accessibilityTags?.length ?? 0;
+  }, [game]);
+
   const handleReportGame = () => {
     if (!game) return;
     const dbId = (game as any)._id ?? game.id;
@@ -370,12 +421,6 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
     );
   }
 
-  const accessibilityCount = game.accessibilityTags?.length ?? 0;
-
-  // Split accessibility tags roughly between Visual and Motor sections
-  const visualTags = game.accessibilityTags.slice(0, Math.ceil(game.accessibilityTags.length / 2));
-  const motorTags = game.accessibilityTags.slice(Math.ceil(game.accessibilityTags.length / 2));
-
   const isMaxEvans = isAuthenticated && user?.name === 'Max Evans';
   const postingName = isMaxEvans ? user?.name : user?.name ?? user?.email ?? 'Guest';
 
@@ -398,7 +443,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
           <div className="game-details__hero-card">
             <img
               src={game.thumbnailUrl}
-              alt={game.title}
+              alt={`${game.title} game thumbnail`}
               className="game-details__hero-image"
             />
             <div className="game-details__hero-actions">
@@ -442,6 +487,11 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                       key={btn.platform}
                       type="button"
                       className={`download-button download-button--${btn.platform}`}
+                      aria-label={
+                        btn.platform === 'app-store'
+                          ? 'Download on the App Store'
+                          : 'Get it on Google Play'
+                      }
                       onClick={() => setExternalTarget(btn)}
                     >
                       <div className="download-button__inner">
@@ -449,7 +499,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                           className={`download-button__icon download-button__icon--${btn.platform}`}
                           aria-hidden="true"
                         />
-                        <span className="download-button__label">
+                        <span className="download-button__label" aria-hidden="true">
                           {btn.platform === 'app-store'
                             ? 'Download on the App Store'
                             : 'Get it on Google Play'}
@@ -466,8 +516,9 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
 
         <div className="game-details__hero-right">
           <h1 className="game-details__title">{game.title}</h1>
-          <p className="game-details__studio">By {game.studio}</p>
+          <p className="game-details__studio">Studio: {game.studio}</p>
 
+          <p className="game-details__genres-label">Genres</p>
           <div className="game-details__tags-row">
             {game.genres.map(genre => (
               <span key={genre} className="pill pill--genre">
@@ -481,42 +532,31 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
             aria-label="Accessibility features"
           >
             <h2 className="game-details__section-heading">Accessibility Features</h2>
-            <div className="game-details__accessibility-grid">
-              <article className="game-details__accessibility-card">
-                <header className="game-details__accessibility-card-header">
-                  <span className="game-details__accessibility-icon" aria-hidden="true" />
-                  <h3>Visual</h3>
-                </header>
-                <hr className="game-details__accessibility-divider" />
-                <ul className="game-details__feature-list">
-                  {visualTags.map(tag => (
-                    <li key={tag} className="game-details__feature-item">
-                      <span className="game-details__feature-tick" aria-hidden="true" />
-                      <span>{tag}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-
-              <article className="game-details__accessibility-card">
-                <header className="game-details__accessibility-card-header">
-                  <span
-                    className="game-details__accessibility-icon game-details__accessibility-icon--motor"
-                    aria-hidden="true"
-                  />
-                  <h3>Motor</h3>
-                </header>
-                <hr className="game-details__accessibility-divider" />
-                <ul className="game-details__feature-list">
-                  {motorTags.map(tag => (
-                    <li key={tag} className="game-details__feature-item">
-                      <span className="game-details__feature-tick" aria-hidden="true" />
-                      <span>{tag}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            </div>
+            {accessibilitySections.length > 0 ? (
+              <div className="game-details__accessibility-grid">
+                {accessibilitySections.map(section => (
+                  <article key={section.category} className="game-details__accessibility-card">
+                    <header className="game-details__accessibility-card-header">
+                      <span className="game-details__accessibility-icon" aria-hidden="true" />
+                      <h3>{section.category}</h3>
+                    </header>
+                    <hr className="game-details__accessibility-divider" />
+                    <ul className="game-details__feature-list">
+                      {section.tags.map(tag => (
+                        <li key={tag} className="game-details__feature-item">
+                          <span className="game-details__feature-tick" aria-hidden="true" />
+                          <span>{tag}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="game-details__about-text">
+                Accessibility feature information is not available for this title yet.
+              </p>
+            )}
           </section>
 
           <section className="game-details__about" aria-label="About this game">
@@ -547,15 +587,16 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                     className="game-details__reviews-textarea"
                     rows={4}
                     value={writtenReview}
-                    onChange={e => setWrittenReview(e.target.value)}
-                    placeholder="Share your thoughts on the accessibility of this game. What worked well? What could be improved?"
+                    onChange={e => {
+                      const nextValue = e.target.value;
+                      setWrittenReview(nextValue);
+                      if (reviewError && nextValue.trim().length >= minReviewLength) {
+                        setReviewError(null);
+                      }
+                    }}
+                    onBlur={handleReviewBlur}
+                    placeholder={`Share your thoughts on the game's accessibility (minimum ${minReviewLength} characters).`}
                   />
-                  <p className="game-details__reviews-note game-details__reviews-note--alert">
-                    A written review is required, or you can use voice recording below instead.
-                  </p>
-                  <p className="game-details__reviews-note game-details__reviews-note--alert">
-                    Minimum {minReviewLength} characters.
-                  </p>
                   {reviewError && (
                     <p className="game-details__reviews-error" role="alert">
                       {reviewError}
@@ -569,9 +610,11 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                     Record your review using your voice. Your speech will be typed directly into the review field above as you speak.
                   </p>
                   {voiceError && (
-                    <p className="game-details__reviews-error" role="alert">
-                      {voiceError}
-                    </p>
+                    <div className="game-details__voice-error-inline" role="alert" aria-live="polite">
+                      <p className="game-details__voice-error-inline-text">
+                        {voiceError}
+                      </p>
+                    </div>
                   )}
                   {(hasVoiceTranscript || isVoiceRecording) && (
                     <div className="game-details__voice-transcript">
@@ -641,11 +684,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                     type="button"
                     className="game-details__primary-btn game-details__primary-btn--submit"
                     onClick={handlePostReview}
-                    disabled={
-                      (writtenReview.trim().length < minReviewLength && !hasVoiceTranscript) ||
-                      isPostingReview ||
-                      isVoiceRecording
-                    }
+                    disabled={isPostingReview}
                   >
                     {isPostingReview ? 'Posting...' : 'Post Review'}
                   </button>
@@ -690,9 +729,10 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
               <p className="game-details__reviews-empty">No reviews yet. Be the first to share your experience.</p>
             )}
 
-            {!isLoadingReviews &&
-              reviews.map(review => {
-                const createdDate = new Date(review.createdAt).toLocaleDateString();
+            {!isLoadingReviews && (
+              <div ref={reviewsListRef} id="game-details__reviews-list">
+                {displayedReviews.map(review => {
+                  const createdDate = new Date(review.createdAt).toLocaleDateString();
                 const liked = likedReviews.has(review._id);
                 const canDelete = isAuthenticated && user && review.userId === user.id;
                 const displayAuthorName =
@@ -711,8 +751,8 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                   handleToggleLike(review, nextLiked);
                 };
 
-                return (
-                  <div key={review._id} className="game-details__review-card">
+                  return (
+                    <div key={review._id} className="game-details__review-card">
                     <header className="game-details__review-card-header">
                       <div className="game-details__review-avatar" aria-hidden="true">
                         {displayInitials}
@@ -760,14 +800,22 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                         </button>
                       )}
                     </footer>
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-            {reviews.length > 0 && (
-              <button type="button" className="game-details__load-more">
+            {showLoadMoreReviewsButton && (
+              <button
+                type="button"
+                className="game-details__load-more"
+                onClick={handleLoadMoreReviews}
+                disabled={!canLoadMoreReviews}
+                aria-disabled={!canLoadMoreReviews}
+              >
                 <span aria-hidden="true" className="game-details__load-more-caret" />
-                Load More Reviews
+                {loadMoreButtonLabel}
               </button>
             )}
           </section>
@@ -782,7 +830,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
       >
         <div className="game-details__external-modal">
           <h2 id="external-link-title" className="game-details__external-title">
-            You are leaving PlayAble
+            You are about to leave PlayAble
           </h2>
           <p id="external-link-description" className="game-details__external-body">
             You are about to open this game in the{' '}

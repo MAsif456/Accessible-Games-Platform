@@ -4,27 +4,7 @@
  * This middleware protects against CSRF attacks by ensuring that state-changing requests
  * (POST, PUT, PATCH, DELETE) include a valid CSRF token that matches the server's secret.
  *
- * CSRF Attack Example:
- * A malicious website tricks a logged-in user into submitting a request to your application
- * (e.g., transferring money, changing password) without the user's knowledge.
- *
- * How This Protection Works:
- * 1. Server generates a CSRF token and sends it to the client
- * 2. Client includes the token in state-changing requests (in header or body)
- * 3. Server validates the token before processing the request
- * 4. If token is missing or invalid, request is rejected (403 Forbidden)
- *
- * Implementation Details:
- * - Uses double-submit cookie pattern with signed cookies
- * - Tokens are generated per-session and validated on each request
- * - GET, HEAD, OPTIONS requests are excluded (safe methods)
- * - Integrates with existing cookie-parser middleware
- *
- * WCAG 2.1 AA Compliance:
- * - CSRF protection is transparent to users and doesn't affect accessibility
- * - Error messages are clear and descriptive
- *
- * @module csrfProtection
+ * @module middleware/csrfProtection
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -114,19 +94,10 @@ export const generateCsrfToken = (req: Request, res: Response): string => {
 /**
  * CSRF Error Handler Middleware
  *
- * Provides user-friendly error messages when CSRF validation fails.
- * This middleware should be applied AFTER the CSRF protection middleware.
+ * Handles CSRF token validation errors and returns user-friendly error responses.
+ * Should be used after csrfProtection middleware.
  *
- * Error Scenarios:
- * - Missing CSRF token
- * - Invalid CSRF token
- * - Expired CSRF token
- * - Tampered CSRF cookie
- *
- * Security Logging:
- * Logs all CSRF validation failures for security monitoring and incident response.
- *
- * @param err - Error object from previous middleware
+ * @param err - Error object (may be CSRF error or other error)
  * @param req - Express request object
  * @param res - Express response object
  * @param next - Express next function
@@ -137,88 +108,22 @@ export const csrfErrorHandler = (
   res: Response,
   next: NextFunction
 ): void => {
-  // Only handle CSRF errors, pass others to next error handler
-  if (err.code !== 'EBADCSRFTOKEN') {
-    return next(err);
+  if (err === invalidCsrfTokenError) {
+    res.status(403).json({
+      success: false,
+      message: 'Invalid or missing CSRF token. Please refresh the page and try again.',
+      code: 'CSRF_TOKEN_INVALID',
+    });
+    return;
   }
-
-  // Log CSRF validation failure for security monitoring
-  console.warn('[SECURITY] CSRF token validation failed:', {
-    ip: req.ip,
-    method: req.method,
-    url: req.url,
-    userAgent: req.headers['user-agent'],
-    origin: req.headers.origin,
-    referer: req.headers.referer,
-    timestamp: new Date().toISOString(),
-  });
-
-  // Send clear, actionable error response
-  res.status(403).json({
-    success: false,
-    message: 'Invalid or missing CSRF token. Please refresh the page and try again.',
-    code: 'CSRF_TOKEN_INVALID',
-  });
+  next(err);
 };
 
 /**
- * CSRF Token Validation Utility
+ * CSRF Development Bypass Flag
  *
- * Manually validate a CSRF token without using middleware.
- * Useful for custom validation logic or non-standard endpoints.
- *
- * @param req - Express request object
- * @param token - CSRF token to validate
- * @returns True if token is valid, false otherwise
- *
- * @example
- * ```typescript
- * const isValid = validateCsrfToken(req, req.headers['x-csrf-token']);
- * if (!isValid) {
- *   return res.status(403).json({ error: 'Invalid CSRF token' });
- * }
- * ```
+ * When set to true, allows development without CSRF tokens.
+ * Should NEVER be enabled in production.
  */
-export const validateCsrfToken = (req: Request, token: string): boolean => {
-  try {
-    // The csrf-csrf library doesn't expose a direct validation method,
-    // so we rely on the middleware for validation
-    // This is a placeholder for custom validation if needed
-    return !!token && token.length > 0;
-  } catch (error) {
-    return false;
-  }
-};
+export const csrfDevBypass = process.env.CSRF_DEV_BYPASS === 'true';
 
-/**
- * Development-Only CSRF Bypass Middleware
- *
- * WARNING: ONLY use this in development/testing environments!
- * Allows requests without CSRF tokens for easier testing.
- *
- * @param req - Express request object
- * @param res - Express response object
- * @param next - Express next function
- */
-export const csrfDevBypass = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
-  if (process.env.NODE_ENV === 'development' && process.env.CSRF_DEV_BYPASS === 'true') {
-    console.warn('[DEV] CSRF protection bypassed for development');
-    return next();
-  }
-  next();
-};
-
-/**
- * Export all CSRF utilities
- */
-export default {
-  csrfProtection,
-  generateCsrfToken,
-  csrfErrorHandler,
-  validateCsrfToken,
-  csrfDevBypass,
-};
