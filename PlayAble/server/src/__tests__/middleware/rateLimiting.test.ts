@@ -102,11 +102,11 @@ describe('Rate Limiting - Acceptance Criteria', () => {
       expect(response.body).toHaveProperty('code', 'RATE_LIMIT_EXCEEDED');
       expect(response.body).toHaveProperty('retryAfter');
       expect(response.body.message).toContain('Too many requests');
-    });
+    }, 15000);
 
     test('should include Retry-After header when rate limit exceeded', async () => {
-      // Exceed the limit
-      for (let i = 1; i <= 101; i++) {
+      // Exceed the limit (1000 is the limit, so 1001 will exceed)
+      for (let i = 1; i <= 1001; i++) {
         await request(app).get('/api/test');
       }
 
@@ -119,7 +119,7 @@ describe('Rate Limiting - Acceptance Criteria', () => {
       const retryAfter = parseInt(response.headers['retry-after']);
       expect(retryAfter).toBeGreaterThan(0);
       expect(retryAfter).toBeLessThanOrEqual(900); // Max 15 minutes = 900 seconds
-    });
+    }, 15000);
 
     test('should include X-RateLimit headers on all responses', async () => {
       const response = await request(app).get('/api/test');
@@ -131,7 +131,7 @@ describe('Rate Limiting - Acceptance Criteria', () => {
 
       // Verify X-RateLimit-Remaining decreases
       const remaining = parseInt(response.headers['x-ratelimit-remaining']);
-      expect(remaining).toBeLessThanOrEqual(100);
+      expect(remaining).toBeLessThanOrEqual(1000);
       expect(remaining).toBeGreaterThanOrEqual(0);
 
       // Verify X-RateLimit-Reset is a valid timestamp
@@ -149,7 +149,7 @@ describe('Rate Limiting - Acceptance Criteria', () => {
 
       expect(response.status).toBe(429);
       expect(response.headers['x-ratelimit-remaining']).toBe('0');
-    });
+    }, 15000);
   });
 
   /**
@@ -363,7 +363,7 @@ describe('Rate Limiting - Acceptance Criteria', () => {
 
       // 5. Verify X-RateLimit-Remaining is 0 when exceeded
       expect(exceededResponse.headers['x-ratelimit-remaining']).toBe('0');
-    });
+    }, 15000);
 
     test('login rate limit should meet acceptance criteria (50 attempts/15 min)', async () => {
       app.post('/api/auth/login', loginLimiter, (req, res) => {

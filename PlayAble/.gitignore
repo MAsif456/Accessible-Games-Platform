@@ -7,3 +7,8 @@ build/
 /client/package-lock.json
 /server/package-lock.json
 .vite
+
+# Documentation (auto-generated)
+# Uncomment the next two lines if you want to exclude docs from git
+# docs/
+# !docs/README.md
