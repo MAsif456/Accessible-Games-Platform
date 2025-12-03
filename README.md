@@ -193,7 +193,7 @@ When first loading the site, it may take 10-30 seconds for the site to wake up, 
 
 1. Create feature branch from `main`
 2. Implement changes with tests
-3. Ensure CI.CD pass
+3. Ensure CI/CD pass
 4. Submit merge request to `main`
 5. Once code reviewed, merge feature branch into `main`
 
@@ -204,7 +204,8 @@ https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Learning-Re
 https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Technologies-Used---Documentation-&-Reasons
 
 ## Authors
-#### Mohammad Asif (c23042139)
 
-#### Suliman Salih (c23049129)
+##### Mohammad Asif (c23042139)
+
+##### Suliman Salih (c23049129)
 
