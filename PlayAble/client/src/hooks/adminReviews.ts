@@ -110,31 +110,8 @@ function usePaginatedSearchTable<T>(
   useEffect(() => {
     effectiveSearchRef.current = effectiveSearch;
   }, [effectiveSearch]);
-=======
-        if (nextRequest !== requestId + 1) return;
-        // Guard against malformed responses to avoid runtime crashes.
-        const safeItems = Array.isArray(res.items) ? res.items : [];
-        runStateUpdate(() => {
-          setItems(safeItems);
-          setTotal(typeof res.total === 'number' ? res.total : safeItems.length);
-        });
-      })
-      .catch(err => {
-        console.error('Failed to load admin table', err);
-        runStateUpdate(() => setError('Unable to load data. Please try again later.'));
-      })
-      .finally(() => {
-        if (nextRequest === requestId + 1) {
-          runStateUpdate(() => setLoading(false));
-        }
-      });
-  }, [page, effectiveSearch, fetcher, pageSize, requestId]);
 
-  useEffect(() => {
-    load({ page: 1 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // Debounce search term
   useEffect(() => {
     const handle = window.setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -142,23 +119,17 @@ function usePaginatedSearchTable<T>(
     return () => window.clearTimeout(handle);
   }, [searchTerm]);
 
+  // Load data when debounced search or page changes
   useEffect(() => {
-    setPage(1);
-    load({ page: 1, search: effectiveSearch });
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveSearch]);
+  }, [effectiveSearch, page]);
 
-  // Use refs to track latest values for refresh
-  const pageRef = useRef(page);
-  const effectiveSearchRef = useRef(effectiveSearch);
-
+  // Initial load on mount
   useEffect(() => {
-    pageRef.current = page;
-  }, [page]);
-
-  useEffect(() => {
-    effectiveSearchRef.current = effectiveSearch;
-  }, [effectiveSearch]);
+    load({ page: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Refreshes the table by calling load() with the current page and search parameters.
@@ -213,13 +184,12 @@ export function useReportedReviewsTable(pageSize = 7): UseTableState<AdminReview
 }
 
 
-export function useResolvedReportedReviewsTable(pageSize = 7): UseTableState<AdminResolvedReviewReport> {
-/*************  ✨ Windsurf Command ⭐  *************/
 /**
  * Hook for loading admin resolved reported reviews table data.
  * Uses the getAdminResolvedReviewReports function under the hood.
- * @param {number} [pageSize=7] - Optional parameter to set the number of items per page.
- * @returns {UseTableState<AdminResolvedReviewReport>} - A state object containing the table data and functions to search and paginate.
+ * @param pageSize Optional parameter to set the number of items per page.
+ * @returns A UseTableState object containing the table data and functions to search and paginate.
  */
-/*******  193b87e0-7dd6-41f1-a7c6-f5eb5c986bc2  *******/  return usePaginatedSearchTable<AdminResolvedReviewReport>(getAdminResolvedReviewReports, pageSize);
+export function useResolvedReportedReviewsTable(pageSize = 7): UseTableState<AdminResolvedReviewReport> {
+  return usePaginatedSearchTable<AdminResolvedReviewReport>(getAdminResolvedReviewReports, pageSize);
 }
