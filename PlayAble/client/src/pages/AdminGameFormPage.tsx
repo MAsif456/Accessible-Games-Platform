@@ -201,8 +201,12 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
   useEffect(() => {
     if (mode === 'edit' && gameId) {
       setLoading(true);
+      let isMounted = true;
+      
       getAdminGameById(gameId)
         .then(res => {
+          if (!isMounted) return;
+          
           const game: GameDto = res.game;
 
           const releaseDate = game.releaseYear ? String(game.releaseYear) : '';
@@ -246,12 +250,31 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
           setOriginalReleaseYear(game.releaseYear ?? null);
         })
         .catch(err => {
+          // Don't log errors if component is unmounted or if it's a 404 (game was likely deleted)
+          if (!isMounted) return;
+          
+          // If it's a 404 or "not found", the game was likely deleted - navigate away silently
+          const errorMessage = err.message || String(err);
+          if (errorMessage.includes('404') || errorMessage.includes('not found') || errorMessage.includes('Not Found')) {
+            // Game was likely deleted, navigate away without showing error
+            onNavigate('/admin');
+            return;
+          }
+          
           console.error('Failed to load game', err);
           showPrompt('Unable to load game details.', 'error');
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (isMounted) {
+            setLoading(false);
+          }
+        });
+      
+      return () => {
+        isMounted = false;
+      };
     }
-  }, [mode, gameId, showPrompt]);
+  }, [mode, gameId, showPrompt, onNavigate]);
 
   useEffect(() => {
     // Load existing games once so we can prevent duplicate titles on create

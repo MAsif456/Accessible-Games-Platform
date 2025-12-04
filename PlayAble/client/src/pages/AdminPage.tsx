@@ -558,7 +558,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     }
   };
 
-  return (
+    return (
     <main className="admin-page" aria-label="Admin Management dashboard">
       <header className="admin-page__header">
         <div className="admin-page__title-row">

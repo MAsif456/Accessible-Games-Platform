@@ -61,14 +61,14 @@ function usePaginatedSearchTable<T>(
     }
   };
 
-  /**
-   * Loads the table data with the given page and search parameters.
-   * Automatically refreshes the table when the search term or page changes.
-   * Debounces the search term by 300ms to avoid excessive fetching.
-   * @param {object} [override] - An object with optional page and search parameters.
-   * @example
-   * const handleLoad = () => load({ page: 2, search: 'example' });
-   */
+/**
+ * Loads the table data with the given page and search parameters.
+ * Automatically refreshes the table when the search term or page changes.
+ * Debounces the search term by 300ms to avoid excessive fetching.
+ * @param {object} [override] - An object with optional page and search parameters.
+ * @example
+ * const handleLoad = () => load({ page: 2, search: 'example' });
+ */
   const load = useCallback((override?: { page?: number; search?: string }) => {
     const nextPage = override?.page ?? page;
     const nextSearch = override?.search ?? effectiveSearch;
@@ -150,10 +150,10 @@ function usePaginatedSearchTable<T>(
     pageSize,
     total,
     setSearchTerm,
-    /**
-     * Sets the current page number and loads the table with the updated page.
-     * @param p New page number.
-     */
+/**
+ * Sets the current page number and loads the table with the updated page.
+ * @param p New page number.
+ */
     setPage: (p: number) => {
       setPage(p);
       load({ page: p });

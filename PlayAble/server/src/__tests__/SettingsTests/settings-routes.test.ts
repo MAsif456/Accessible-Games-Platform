@@ -75,7 +75,7 @@ describe('Settings API Routes', () => {
             captions: true,
             microphoneActive: true,
             highContrastMode: false,
-            highContrastTheme: 'tidepool',
+            highContrastTheme: 'white',
             reducedMotion: false,
             darkMode: false,
           };
@@ -124,7 +124,7 @@ describe('Settings API Routes', () => {
             captions,
             microphoneActive,
             highContrastMode,
-            highContrastTheme: highContrastTheme || 'tidepool',
+            highContrastTheme: highContrastTheme || 'white',
             reducedMotion,
             darkMode,
           },
@@ -154,7 +154,7 @@ describe('Settings API Routes', () => {
             captions: true,
             microphoneActive: true,
             highContrastMode: false,
-            highContrastTheme: 'tidepool',
+            highContrastTheme: 'white',
             reducedMotion: false,
             darkMode: false,
           },
@@ -236,7 +236,7 @@ describe('Settings API Routes', () => {
       expect(response.body.captions).toBe(true);
       expect(response.body.microphoneActive).toBe(true);
       expect(response.body.highContrastMode).toBe(false);
-      expect(response.body.highContrastTheme).toBe('tidepool');
+      expect(response.body.highContrastTheme).toBe('white');
       expect(response.body.reducedMotion).toBe(false);
       expect(response.body.darkMode).toBe(false);
     });
@@ -249,7 +249,7 @@ describe('Settings API Routes', () => {
         captions: false,
         microphoneActive: false,
         highContrastMode: true,
-        highContrastTheme: 'midnight',
+        highContrastTheme: 'black',
         reducedMotion: true,
         darkMode: true,
       });
@@ -265,7 +265,7 @@ describe('Settings API Routes', () => {
       expect(response.body.captions).toBe(false);
       expect(response.body.microphoneActive).toBe(false);
       expect(response.body.highContrastMode).toBe(true);
-      expect(response.body.highContrastTheme).toBe('midnight');
+      expect(response.body.highContrastTheme).toBe('black');
       expect(response.body.reducedMotion).toBe(true);
       expect(response.body.darkMode).toBe(true);
     });
@@ -292,7 +292,7 @@ describe('Settings API Routes', () => {
           captions: false,
           microphoneActive: false,
           highContrastMode: true,
-          highContrastTheme: 'sunset',
+          highContrastTheme: 'white',
           reducedMotion: true,
           darkMode: true,
         })
@@ -304,7 +304,7 @@ describe('Settings API Routes', () => {
       expect(response.body.captions).toBe(false);
       expect(response.body.microphoneActive).toBe(false);
       expect(response.body.highContrastMode).toBe(true);
-      expect(response.body.highContrastTheme).toBe('sunset');
+      expect(response.body.highContrastTheme).toBe('white');
       expect(response.body.reducedMotion).toBe(true);
       expect(response.body.darkMode).toBe(true);
     });
@@ -317,7 +317,7 @@ describe('Settings API Routes', () => {
         captions: true,
         microphoneActive: true,
         highContrastMode: false,
-        highContrastTheme: 'tidepool',
+        highContrastTheme: 'white',
         reducedMotion: false,
         darkMode: false,
       });
@@ -331,7 +331,7 @@ describe('Settings API Routes', () => {
           captions: false,
           microphoneActive: false,
           highContrastMode: true,
-          highContrastTheme: 'twilight',
+          highContrastTheme: 'black',
           reducedMotion: true,
           darkMode: true,
         })
@@ -343,7 +343,7 @@ describe('Settings API Routes', () => {
       expect(response.body.captions).toBe(false);
       expect(response.body.microphoneActive).toBe(false);
       expect(response.body.highContrastMode).toBe(true);
-      expect(response.body.highContrastTheme).toBe('twilight');
+      expect(response.body.highContrastTheme).toBe('black');
       expect(response.body.reducedMotion).toBe(true);
       expect(response.body.darkMode).toBe(true);
     });
@@ -356,7 +356,7 @@ describe('Settings API Routes', () => {
         captions: true,
         microphoneActive: true,
         highContrastMode: false,
-        highContrastTheme: 'tidepool',
+        highContrastTheme: 'white',
         reducedMotion: false,
         darkMode: false,
       });
@@ -367,12 +367,12 @@ describe('Settings API Routes', () => {
         .set('X-User-Id', testUserId)
         .send({
           highContrastMode: true,
-          highContrastTheme: 'midnight',
+          highContrastTheme: 'black',
         })
         .expect(200);
 
       expect(response.body.highContrastMode).toBe(true);
-      expect(response.body.highContrastTheme).toBe('midnight');
+      expect(response.body.highContrastTheme).toBe('black');
       // Other settings should remain unchanged
       expect(response.body.voiceInput).toBe(true);
       expect(response.body.captions).toBe(true);
@@ -390,7 +390,7 @@ describe('Settings API Routes', () => {
         .expect(200);
 
       expect(response.body.highContrastMode).toBe(true);
-      expect(response.body.highContrastTheme).toBe('tidepool');
+      expect(response.body.highContrastTheme).toBe('white');
     });
 
     it('should persist settings to database', async () => {
@@ -432,7 +432,7 @@ describe('Settings API Routes', () => {
         captions: false,
         microphoneActive: false,
         highContrastMode: true,
-        highContrastTheme: 'midnight',
+        highContrastTheme: 'black',
         reducedMotion: true,
         darkMode: true,
       });
@@ -450,7 +450,7 @@ describe('Settings API Routes', () => {
       expect(response.body.settings.captions).toBe(true);
       expect(response.body.settings.microphoneActive).toBe(true);
       expect(response.body.settings.highContrastMode).toBe(false);
-      expect(response.body.settings.highContrastTheme).toBe('tidepool');
+      expect(response.body.settings.highContrastTheme).toBe('white');
       expect(response.body.settings.reducedMotion).toBe(false);
       expect(response.body.settings.darkMode).toBe(false);
     });
@@ -467,7 +467,7 @@ describe('Settings API Routes', () => {
       expect(response.body.settings.captions).toBe(true);
       expect(response.body.settings.microphoneActive).toBe(true);
       expect(response.body.settings.highContrastMode).toBe(false);
-      expect(response.body.settings.highContrastTheme).toBe('tidepool');
+      expect(response.body.settings.highContrastTheme).toBe('white');
       expect(response.body.settings.reducedMotion).toBe(false);
       expect(response.body.settings.darkMode).toBe(false);
     });

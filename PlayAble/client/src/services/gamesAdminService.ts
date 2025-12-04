@@ -78,6 +78,10 @@ export async function getAdminGames(): Promise<AdminGamesResponse> {
 export async function getAdminGameById(id: string): Promise<{ game: GameDto }> {
   const res = await authFetch(`/api/admin/games/${encodeURIComponent(id)}`);
   if (!res.ok) {
+    // For 404 errors, provide a more specific error message
+    if (res.status === 404) {
+      throw new Error(`Game not found: ${res.status}`);
+    }
     throw new Error(`Failed to fetch game: ${res.status}`);
   }
   return res.json();

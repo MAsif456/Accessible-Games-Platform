@@ -522,9 +522,10 @@ export const adminResolveReviewReport = async (req: Request, res: Response) => {
     }
 
     // Check if already resolved - handle both ReportModel (status) and ReviewReport (resolved) formats
+    // Idempotent resolve: return current report state instead of erroring
     const isResolved = (report as any).status === 'resolved' || (report as any).resolved === true;
     if (isResolved) {
-      return res.status(400).json({ message: 'Report is already resolved' });
+      return res.status(200).json(report.toObject ? report.toObject() : report);
     }
 
     const reviewId = (report as any).review ?? (report as any).reviewId;

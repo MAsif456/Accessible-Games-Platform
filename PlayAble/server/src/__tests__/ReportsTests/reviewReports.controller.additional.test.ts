@@ -9,6 +9,16 @@ import Review from '../../models/review';
 import { ReportModel } from '../../models/report';
 import ReviewReport from '../../models/reviewReport';
 
+jest.mock('../../services/notificationService', () => ({
+  createNotification: jest.fn().mockResolvedValue({ _id: new mongoose.Types.ObjectId() }),
+}));
+
+jest.mock('../../models/notification', () => ({
+  NotificationModel: {
+    findById: jest.fn().mockResolvedValue({ _id: new mongoose.Types.ObjectId() }),
+  },
+}));
+
 jest.mock('../../models/review', () => ({
   __esModule: true,
   default: {
@@ -32,6 +42,7 @@ jest.mock('../../models/reviewReport', () => ({
     find: jest.fn().mockResolvedValue([]),
     aggregate: jest.fn(),
     findById: jest.fn(),
+    create: jest.fn(),
   },
 }));
 
@@ -50,6 +61,7 @@ const mockLegacyReviewReport = ReviewReport as unknown as {
   find: jest.Mock;
   aggregate: jest.Mock;
   findById: jest.Mock;
+  create: jest.Mock;
 };
 
 /**
@@ -102,7 +114,11 @@ describe('reviewReports.controller additional coverage', () => {
 
     it('returns 404 when review is missing', async () => {
       const reviewId = new mongoose.Types.ObjectId().toHexString();
-      mockReviewModel.findById.mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+      const mockQuery = {
+        populate: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue(null),
+      };
+      mockReviewModel.findById.mockReturnValue(mockQuery);
 
       const req = {
         params: { id: reviewId },
@@ -119,10 +135,15 @@ describe('reviewReports.controller additional coverage', () => {
     it('creates a review report successfully', async () => {
       const reviewId = new mongoose.Types.ObjectId();
       const userId = new mongoose.Types.ObjectId();
-      const reviewDoc = { _id: reviewId, gameId: new mongoose.Types.ObjectId() };
+      const gameId = new mongoose.Types.ObjectId();
+      const reviewDoc = { _id: reviewId, gameId: { _id: gameId, title: 'Test Game', slug: 'test-game' } };
 
-      mockReviewModel.findById.mockReturnValue({ lean: jest.fn().mockResolvedValue(reviewDoc) });
-      mockReportModel.create.mockResolvedValue({ _id: 'report-1' });
+      const mockQuery = {
+        populate: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue({ ...reviewDoc, userId: userId, body: 'Test review body' }),
+      };
+      mockReviewModel.findById.mockReturnValue(mockQuery);
+      mockLegacyReviewReport.create.mockResolvedValue({ _id: 'report-1' });
 
       const req = {
         params: { id: reviewId.toHexString() },
@@ -133,12 +154,13 @@ describe('reviewReports.controller additional coverage', () => {
 
       await createReviewReport(req, res);
 
-      expect(mockReportModel.create).toHaveBeenCalledWith(
+      expect(mockQuery.populate).toHaveBeenCalledWith('gameId', 'title slug');
+      expect(mockLegacyReviewReport.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'review',
-          review: reviewId,
-          game: reviewDoc.gameId,
+          reviewId: reviewId,
           reporterId: userId,
+          reasonText: 'This review is clearly abusive.',
+          voiceTranscript: 'transcript',
           resolved: false,
         })
       );
