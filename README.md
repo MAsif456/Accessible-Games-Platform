@@ -197,11 +197,22 @@ When first loading the site, it may take 10-30 seconds for the site to wake up, 
 4. Submit merge request to `main`
 5. Once code reviewed, merge feature branch into `main`
 
-## Learning recources for new developers (Link to wiki)
+## Learning resources for new developers (Wiki)
 https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Learning-Resources
 
-## Documentation/Websites of the frameworks, languages and libraries used (Link to wiki)
+## Documentation/Websites of the frameworks, languages and libraries used (Wiki)
 https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Technologies-Used---Documentation-&-Reasons
+
+## If you would like more specific setup instructions, visit this page (Wiki)
+https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Step-by-Step-Guide:-Creating-PlayAble
+
+## Other wikis
+
+- C4 Diagrams https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/C4-Diagrams
+- Onboarding a new developer https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/New-Developer-
+- Chosen Tech Stack  https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/chosen-tech-stack
+- Working Agreement https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Working-Agreement
+- Git workflow https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Our-Git-Workflow
 
 ## Authors
 
