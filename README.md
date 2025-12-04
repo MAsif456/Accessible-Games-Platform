@@ -197,6 +197,28 @@ When first loading the site, it may take 10-30 seconds for the site to wake up, 
 4. Submit merge request to `main`
 5. Once code reviewed, merge feature branch into `main`
 
+## Documentation
+
+The project documentation is automatically generated using TypeDoc and deployed via GitLab Pages on every push to the `main` branch.
+
+### Client Documentation
+
+https://nathans-project-3358e9.gitpages.cardiff.ac.uk/client/
+
+### Server Documentation
+
+https://nathans-project-3358e9.gitpages.cardiff.ac.uk/server/
+
+Both documentation sites provide:
+
+- Full API documentation
+
+- Component and service descriptions
+
+- Types and interfaces
+
+- Project structure and architecture references
+
 ## Learning resources for new developers (Wiki)
 https://git.cardiff.ac.uk/c23049129/accessible-games-website/-/wikis/Learning-Resources
 
