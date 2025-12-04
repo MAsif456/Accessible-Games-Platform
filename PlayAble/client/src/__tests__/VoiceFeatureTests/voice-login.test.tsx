@@ -79,6 +79,10 @@ jest.mock('../../utils/apiHelper', () => ({
   })),
 }));
 
+/**
+ * Test suite for Voice Login Feature.
+ * Tests voice recording for login/signup, transcript parsing, and error handling.
+ */
 describe('Voice Login Feature', () => {
   let mockOnNavigate: jest.Mock;
   let mockSetSearchTerm: jest.Mock;

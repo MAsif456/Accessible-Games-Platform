@@ -20,6 +20,8 @@ import ReviewsSection from './admin/ReviewsSection';
 import GamesSection from './admin/GamesSection';
 import GeneralReportModal from './admin/modals/GeneralReportModal';
 import GameReportModal from './admin/modals/GameReportModal';
+import { useAuth } from '../context/AuthContext';
+import { applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 
 // Consistent date formatting function for tests and display
 /**
@@ -54,6 +56,7 @@ interface AdminPageProps {
  * filtering, and modal management.
  */
 const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
+  const { userSettings } = useAuth();
   const [primaryTab, setPrimaryTab] = useState<PrimaryTab>('general-reports');
   const [generalSubTab, setGeneralSubTab] = useState<GeneralSubTab>('general');
   const [reviewsSubTab, setReviewsSubTab] = useState<ReviewsSubTab>('reviews');
@@ -61,6 +64,49 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
   const [activeReviewsCount, setActiveReviewsCount] = useState<number | null>(null);
   const [loadingActiveReviews, setLoadingActiveReviews] = useState(false);
   const [activeReviewsError, setActiveReviewsError] = useState<string | null>(null);
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   const refreshActiveReviews = useCallback(() => {
     let isMounted = true;
@@ -558,7 +604,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
     }
   };
 
-  return (
+    return (
     <main className="admin-page" aria-label="Admin Management dashboard">
       <header className="admin-page__header">
         <div className="admin-page__title-row">
@@ -930,4 +976,3 @@ const AdminPage: React.FC<AdminPageProps> = ({ onNavigate, showPrompt }) => {
 };
 
 export default AdminPage;
-

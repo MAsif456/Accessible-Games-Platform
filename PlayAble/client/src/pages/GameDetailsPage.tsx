@@ -17,7 +17,7 @@ import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useFavouritesNav } from '../context/FavouritesContext';
 import type { AppPath } from '../App';
-import { buildAccessibilitySections } from '../utils/accessibility';
+import { buildAccessibilitySections, applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 import { useVoiceRecording } from '../hooks/useVoiceRecording';
 import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 
@@ -44,7 +44,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   onOpenGameReport,
   onOpenReviewReport,
 }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, userSettings } = useAuth();
   const navigate = useNavigate();
   const { toggleFavourite, isFavourite } = useFavouritesNav();
 
@@ -63,6 +63,8 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
   const reviewsListRef = useRef<HTMLDivElement | null>(null);
   const [showVoiceNavError, setShowVoiceNavError] = useState(false);
   const baseReviewTextRef = useRef<string>(''); // Track text before recording started
+  const [reviewToDelete, setReviewToDelete] = useState<string | null>(null);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
 
   const { cancelListening, forceStopRecognition, microphoneActive, voiceInputEnabled } = useVoiceAssistant();
   const {
@@ -126,6 +128,49 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
       setWrittenReview(combined);
     }
   }, [voiceTranscript, isVoiceRecording]);
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   const minReviewLength = 10;
 
@@ -808,17 +853,7 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
                         <button
                           type="button"
                           className="game-details__review-delete"
-                          onClick={async () => {
-                            const confirmed = window.confirm('Are you sure you want to delete this review?');
-                            if (!confirmed) return;
-
-                            try {
-                              await deleteReview(review._id);
-                              setReviews(prev => prev.filter(r => r._id !== review._id));
-                            } catch (err) {
-                              console.error('Failed to delete review', err);
-                            }
-                          }}
+                          onClick={() => setReviewToDelete(review._id)}
                         >
                           Delete
                         </button>
@@ -882,6 +917,50 @@ const GameDetailsPage: React.FC<GameDetailsPageProps> = ({
               Proceed
             </button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!reviewToDelete}
+        titleId="delete-review-title"
+        descriptionId="delete-review-description"
+        onClose={() => !isDeletingReview && setReviewToDelete(null)}
+      >
+        <h2 id="delete-review-title" className="dialog__title">
+          Delete Review?
+        </h2>
+        <p id="delete-review-description" className="dialog__message">
+          Are you sure you want to delete this review? This action cannot be undone.
+        </p>
+        <div className="dialog__actions">
+          <button
+            type="button"
+            className="dialog__button dialog__button--secondary"
+            onClick={() => setReviewToDelete(null)}
+            disabled={isDeletingReview}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="dialog__button dialog__button--primary"
+            onClick={async () => {
+              if (!reviewToDelete) return;
+              setIsDeletingReview(true);
+              try {
+                await deleteReview(reviewToDelete);
+                setReviews(prev => prev.filter(r => r._id !== reviewToDelete));
+                setReviewToDelete(null);
+              } catch (err) {
+                console.error('Failed to delete review', err);
+              } finally {
+                setIsDeletingReview(false);
+              }
+            }}
+            disabled={isDeletingReview}
+          >
+            {isDeletingReview ? 'Deleting...' : 'Delete Review'}
+          </button>
         </div>
       </Modal>
     </main>

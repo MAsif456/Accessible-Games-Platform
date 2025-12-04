@@ -61,6 +61,13 @@ const { useAuth } = require('../../context/AuthContext');
 const mockApplyVoiceInputPreference = jest.fn();
 const mockApplyMicrophonePreference = jest.fn();
 
+/**
+ * Renders a component with all necessary providers for testing.
+ * 
+ * @param {React.ReactElement} ui - The component to render
+ * @param {string[]} [initialEntries=['/settings/voice']] - Initial router entries
+ * @returns {RenderResult} The rendered component
+ */
 const renderWithProviders = (ui: React.ReactElement, initialEntries: string[] = ['/settings/voice']) => {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
@@ -74,6 +81,10 @@ const renderWithProviders = (ui: React.ReactElement, initialEntries: string[] = 
   );
 };
 
+/**
+ * Test suite for SettingsPage component.
+ * Tests loading, navigation, toggling settings, theme selection, and reset functionality.
+ */
 describe('SettingsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -85,6 +96,9 @@ describe('SettingsPage', () => {
     });
   });
 
+  /**
+   * Test suite for loading states and initial render behavior.
+   */
   describe('Loading and Initial Render', () => {
     test('displays loading state initially', async () => {
       useAuth.mockReturnValue({
@@ -144,6 +158,9 @@ describe('SettingsPage', () => {
     });
   });
 
+  /**
+   * Test suite for section navigation functionality.
+   */
   describe('Section Navigation', () => {
     beforeEach(() => {
       useAuth.mockReturnValue({
@@ -185,6 +202,9 @@ describe('SettingsPage', () => {
     });
   });
 
+  /**
+   * Test suite for toggling individual settings.
+   */
   describe('Toggle Settings', () => {
     beforeEach(() => {
       useAuth.mockReturnValue({
@@ -259,6 +279,9 @@ describe('SettingsPage', () => {
     });
   });
 
+  /**
+   * Test suite for high contrast theme selection functionality.
+   */
   describe('High Contrast Theme Selection', () => {
     beforeEach(() => {
       useAuth.mockReturnValue({
@@ -309,8 +332,8 @@ describe('SettingsPage', () => {
         expect(screen.getByText('Contrast Themes')).toBeInTheDocument();
       });
 
-      const sunsetTheme = await screen.findByRole('radio', { name: /Sunset Ember/i });
-      await userEvent.click(sunsetTheme);
+      const blackTheme = await screen.findByRole('radio', { name: /Black High Contrast/i });
+      await userEvent.click(blackTheme);
 
       await waitFor(() => {
         expect(mockedSettingsApi.updateSettings).toHaveBeenCalled();
@@ -318,6 +341,9 @@ describe('SettingsPage', () => {
     });
   });
 
+  /**
+   * Test suite for resetting settings to default values.
+   */
   describe('Reset Settings', () => {
     beforeEach(() => {
       useAuth.mockReturnValue({
@@ -445,6 +471,9 @@ describe('SettingsPage', () => {
     });
   });
 
+  /**
+   * Test suite for nested settings display (e.g., microphone settings when voice input is enabled).
+   */
   describe('Nested Settings Display', () => {
     beforeEach(() => {
       useAuth.mockReturnValue({

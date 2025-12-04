@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import authService from '../services/authService';
 import { apiPost, apiDelete } from '../utils/apiHelper';
+import Modal from '../components/ui/Modal';
 
 export interface FavouriteGameDto {
   id: string;
@@ -76,12 +78,14 @@ interface Props {
  */
 export const FavouritesProvider: React.FC<Props> = ({ children }) => {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [favourites, setFavourites] = useState<FavouriteGameDto[]>([]);
   const [pagesCache, setPagesCache] = useState<Map<number, FavouriteGameDto[]>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [pageSize] = useState(9);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showSignInModal, setShowSignInModal] = useState(false);
   const requestRef = useRef(0);
   const lastPageRef = useRef(1);
 
@@ -174,7 +178,7 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
    */
   const addFavourite = async (gameId: string) => {
     if (!isAuthenticated) {
-      alert('Please sign in to favourite games.');
+      setShowSignInModal(true);
       return;
     }
     const token = authService.getToken();
@@ -221,7 +225,7 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
   /**
    * Toggle the favourite status of a game.
    *
-   * If the user is not signed in, show an alert and do nothing.
+   * If the user is not signed in, show a modal and do nothing.
    * If the game is already favourited, remove it from the user's favourites list.
    * If the game is not favourited, add it to the user's favourites list.
    *
@@ -231,7 +235,7 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
    */
   const toggleFavourite = async (gameId: string) => {
     if (!isAuthenticated) {
-      alert('Please sign in to favourite games.');
+      setShowSignInModal(true);
       return;
     }
     if (favouriteIds.has(gameId)) {
@@ -257,5 +261,41 @@ export const FavouritesProvider: React.FC<Props> = ({ children }) => {
     isFavourite,
   };
 
-  return <FavouritesContext.Provider value={value}>{children}</FavouritesContext.Provider>;
+  return (
+    <>
+      <FavouritesContext.Provider value={value}>{children}</FavouritesContext.Provider>
+      <Modal
+        isOpen={showSignInModal}
+        titleId="sign-in-required-title"
+        descriptionId="sign-in-required-description"
+        onClose={() => setShowSignInModal(false)}
+      >
+        <h2 id="sign-in-required-title" className="dialog__title">
+          Sign In Required
+        </h2>
+        <p id="sign-in-required-description" className="dialog__message">
+          Please sign in to favourite games.
+        </p>
+        <div className="dialog__actions">
+          <button
+            type="button"
+            className="dialog__button dialog__button--secondary"
+            onClick={() => setShowSignInModal(false)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="dialog__button dialog__button--primary"
+            onClick={() => {
+              setShowSignInModal(false);
+              navigate('/signin');
+            }}
+          >
+            Sign In
+          </button>
+        </div>
+      </Modal>
+    </>
+  );
 };

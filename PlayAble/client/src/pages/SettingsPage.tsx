@@ -11,7 +11,16 @@ import {
 } from '../utils/accessibility';
 import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 
+/**
+ * Available settings sections in the settings page.
+ * @typedef {'voice' | 'keyboard' | 'visual'} SettingsSection
+ */
 type SettingsSection = 'voice' | 'keyboard' | 'visual';
+
+/**
+ * Settings that can be toggled on/off.
+ * @typedef {'voiceInput' | 'captions' | 'microphoneActive' | 'highContrastMode' | 'reducedMotion' | 'darkMode'} ToggleableSetting
+ */
 type ToggleableSetting =
   | 'voiceInput'
   | 'captions'
@@ -20,12 +29,35 @@ type ToggleableSetting =
   | 'reducedMotion'
   | 'darkMode';
 
+/**
+ * SettingsPage Component
+ * 
+ * Main component for managing user accessibility settings. Provides a comprehensive
+ * interface for configuring voice input, keyboard navigation, and visual preferences.
+ * Settings are automatically saved with debouncing to reduce API calls, and persist
+ * either in the database (for logged-in users) or in session storage (for guests).
+ * 
+ * Features:
+ * - Voice & Audio Settings: Voice input, microphone, and captions
+ * - Keyboard & Navigation: Keyboard shortcuts guide
+ * - Visual Settings: High contrast mode, reduced motion, and dark mode
+ * - Auto-save with visual indicator
+ * - Reset to defaults functionality
+ * 
+ * @component
+ * @returns {JSX.Element} The rendered settings page
+ */
 const SettingsPage = () => {
   const { user, userSettings, updateUserSettingsState } = useAuth();
   const navigate = useNavigate();
   const params = useParams<{ section: string }>();
   
-  // Get active section from URL parameter, default to 'voice'
+  /**
+   * Gets the active settings section from URL parameter.
+   * Defaults to 'voice' if the section parameter is invalid or missing.
+   * 
+   * @returns {SettingsSection} The active settings section
+   */
   const getActiveSection = (): SettingsSection => {
     const section = params.section;
     if (section === 'keyboard' || section === 'visual' || section === 'voice') {
@@ -36,7 +68,11 @@ const SettingsPage = () => {
   
   const activeSection = getActiveSection();
   
-  // Function to navigate to a section
+  /**
+   * Navigates to a specific settings section by updating the URL.
+   * 
+   * @param {SettingsSection} section - The section to navigate to ('voice', 'keyboard', or 'visual')
+   */
   const setActiveSection = (section: SettingsSection) => {
     navigate(`/settings/${section}`, { replace: true });
   };
@@ -66,8 +102,15 @@ const SettingsPage = () => {
   const skipNextSaveRef = useRef(false);
   const lastUserSettingsRef = useRef<UserSettings | null>(null);
 
+  /** Session storage key for storing guest user settings */
   const SESSION_STORAGE_KEY = 'playable_session_settings';
 
+  /**
+   * Loads settings from session storage for guest users.
+   * Ensures highContrastTheme has a valid default value if missing.
+   * 
+   * @returns {UserSettings | null} The loaded settings, or null if not found or on error
+   */
   const loadSessionSettings = (): UserSettings | null => {
     try {
       const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -84,6 +127,12 @@ const SettingsPage = () => {
     return null;
   };
 
+  /**
+   * Saves settings to session storage for guest users.
+   * Settings persist across page navigation but are cleared when the session ends.
+   * 
+   * @param {UserSettings} settingsToSave - The settings object to save
+   */
   const saveSessionSettings = (settingsToSave: UserSettings) => {
     try {
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(settingsToSave));
@@ -92,7 +141,14 @@ const SettingsPage = () => {
     }
   };
 
-  // I check if settings actually changed before updating to avoid unnecessary state updates and save operations
+  /**
+   * Loads user settings from the authentication context or session storage.
+   * For logged-in users, loads from userSettings. For guests, loads from session storage.
+   * Skips the next save operation after loading to prevent unnecessary API calls.
+   * 
+   * @effect
+   * @dependencies user?.id, userSettings
+   */
   useEffect(() => {
     if (user?.id && userSettings) {
       const settingsChanged = !lastUserSettingsRef.current || 
@@ -140,6 +196,14 @@ const SettingsPage = () => {
     }
   }, [user?.id, userSettings]);
 
+  /**
+   * Compares two settings objects to determine if any values have changed.
+   * Used to prevent unnecessary save operations when settings haven't actually changed.
+   * 
+   * @param {UserSettings | null} prev - The previous settings object, or null if no previous settings
+   * @param {UserSettings} current - The current settings object to compare
+   * @returns {boolean} True if settings have changed, false otherwise
+   */
   const settingsChanged = (prev: UserSettings | null, current: UserSettings): boolean => {
     if (!prev) return true;
     
@@ -154,7 +218,15 @@ const SettingsPage = () => {
     );
   };
 
-  // I debounce saves with a 500ms delay to batch rapid changes and avoid excessive API calls
+  /**
+   * Auto-saves settings when they change, with debouncing to batch rapid changes.
+   * For logged-in users, saves to the database via API. For guests, saves to session storage.
+   * Shows an auto-save indicator for 2 seconds after successful save.
+   * Skips save on initial load and when explicitly skipped to prevent unnecessary API calls.
+   * 
+   * @effect
+   * @dependencies settings, isLoading, user?.id
+   */
   useEffect(() => {
     // Skip save on initial load or when explicitly skipped
     if (isInitialLoadRef.current || skipNextSaveRef.current) {
@@ -200,6 +272,14 @@ const SettingsPage = () => {
     }
   }, [settings, isLoading, user?.id]);
 
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies settings.highContrastMode, settings.highContrastTheme, settings.reducedMotion, settings.darkMode
+   */
   useEffect(() => {
     applyAccessibilityPreferences(settings);
   }, [
@@ -209,10 +289,49 @@ const SettingsPage = () => {
     settings.darkMode,
   ]);
 
-  // I apply voice preferences immediately when toggled so the voice assistant responds instantly, before the save completes
+  /**
+   * Handles toggling a setting on/off.
+   * Applies voice preferences immediately for instant feedback, before the save completes.
+   * Handles mutual exclusivity between high contrast mode and dark mode.
+   * When voice input is turned off, also mutes the microphone.
+   * 
+   * @param {ToggleableSetting} key - The setting key to toggle
+   */
   const handleToggle = (key: ToggleableSetting) => {
     setSettings((prev) => {
       const nextValue = !prev[key];
+      
+      // High contrast mode and dark mode are mutually exclusive
+      if (key === 'highContrastMode') {
+        if (nextValue) {
+          // If turning on high contrast, turn off dark mode
+          return {
+            ...prev,
+            highContrastMode: true,
+            darkMode: false,
+          };
+        } else {
+          return {
+            ...prev,
+            highContrastMode: false,
+          };
+        }
+      } else if (key === 'darkMode') {
+        if (nextValue) {
+          // If turning on dark mode, turn off high contrast
+          return {
+            ...prev,
+            darkMode: true,
+            highContrastMode: false,
+          };
+        } else {
+          return {
+            ...prev,
+            darkMode: false,
+          };
+        }
+      }
+      
       if (key === 'voiceInput') {
         applyVoiceInputPreference(nextValue);
         // When voice input is turned off, also mute the microphone
@@ -234,6 +353,12 @@ const SettingsPage = () => {
     });
   };
 
+  /**
+   * Handles changing the high contrast theme.
+   * Updates the settings state with the new theme ID.
+   * 
+   * @param {HighContrastThemeId} themeId - The ID of the theme to apply
+   */
   const handleHighContrastThemeChange = (themeId: HighContrastThemeId) => {
     setSettings((prev) => ({
       ...prev,
@@ -241,6 +366,15 @@ const SettingsPage = () => {
     }));
   };
 
+  /**
+   * Resets all settings to their default values.
+   * For logged-in users, calls the API to reset settings in the database.
+   * For guests, resets local state and session storage.
+   * Shows a success notification for 3 seconds after reset.
+   * 
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleReset = async () => {
     try {
       const defaultSettings = {

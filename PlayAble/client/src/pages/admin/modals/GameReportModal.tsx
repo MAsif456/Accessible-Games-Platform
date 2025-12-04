@@ -52,7 +52,7 @@ const GameReportModal: React.FC<GameReportModalProps> = ({
             onClick={closeGameReportModal}
             aria-label="Close"
           >
-            A-
+            ×
           </button>
         </header>
 

@@ -17,9 +17,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
-  // Avoid redirecting while auth state is still being determined on refresh
+  // Wait for auth initialization to complete before making redirect decision
   if (isLoading) {
-    return null;
+    // Show a loading state while checking authentication
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '50vh',
+        fontSize: '1.1rem',
+        color: '#6b7280'
+      }}>
+        Loading...
+      </div>
+    );
   }
 
   if (!isAuthenticated) {

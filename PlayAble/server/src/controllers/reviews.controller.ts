@@ -488,14 +488,15 @@ export const adminDeleteReview = async (req: Request, res: Response) => {
     }
 
     // Create notification for the review author BEFORE deleting
-    // This ensures we have all the data we need
     if (reviewUserId) {
       try {
+        console.log(`[adminDeleteReview] Creating notification: userId=${reviewUserId}, reviewId=${id}, gameTitle=${gameTitle}`);
+        
         await createNotification(
           reviewUserId,
           'review_deleted',
           'Your Review Has Been Deleted',
-          `Your review for "${gameTitle}" has been deleted by an administrator.${reason ? ` Reason: ${reason}` : ''}`,
+          `Your review has been deleted by an administrator.`,
           {
             reviewId: id,
             gameId: gameId ? new mongoose.Types.ObjectId(gameId) : undefined,
@@ -508,9 +509,8 @@ export const adminDeleteReview = async (req: Request, res: Response) => {
             },
           }
         );
-        console.log(`[adminDeleteReview] Notification created successfully: userId=${reviewUserId}, reviewId=${id}, gameTitle=${gameTitle}`);
+        console.log(`[adminDeleteReview] Notification created successfully for userId=${reviewUserId}`);
       } catch (notifError) {
-        // Log the error but don't fail the deletion
         console.error('[adminDeleteReview] Error creating notification:', notifError);
         console.error('[adminDeleteReview] Error details:', {
           reviewUserId,
@@ -520,12 +520,7 @@ export const adminDeleteReview = async (req: Request, res: Response) => {
         });
       }
     } else {
-      console.warn(`[adminDeleteReview] No userId found for review ${id}, skipping notification creation`);
-      console.warn(`[adminDeleteReview] Review data:`, { 
-        reviewId: id, 
-        userId: review.userId, 
-        userIdType: typeof review.userId 
-      });
+      console.warn(`[adminDeleteReview] No userId found for review ${id}`);
     }
 
     // Delete the review after notification is created

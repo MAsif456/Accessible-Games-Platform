@@ -1,10 +1,10 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import App from '../../src/App';
-import * as api from '../../src/services/api';
-import settingsApi from '../../src/services/settingsApi';
-import { AuthProvider } from '../../src/context/AuthContext';
-import { FavouritesProvider } from '../../src/context/FavouritesContext';
+import App from '../../App';
+import * as api from '../../services/api';
+import settingsApi from '../../services/settingsApi';
+import { AuthProvider } from '../../context/AuthContext';
+import { FavouritesProvider } from '../../context/FavouritesContext';
 
 // Polyfill TextEncoder for react-router-dom and other libraries that expect it in the test environment
 import { TextEncoder as NodeTextEncoder } from 'util';
@@ -15,8 +15,8 @@ if (typeof global.TextEncoder === 'undefined') {
 }
 
 // Mock AuthContext to return authenticated user
-jest.mock('../../src/context/AuthContext', () => {
-  const actual = jest.requireActual('../../src/context/AuthContext');
+jest.mock('../../context/AuthContext', () => {
+  const actual = jest.requireActual('../../context/AuthContext');
   return {
     ...actual,
     useAuth: () => ({
@@ -29,11 +29,11 @@ jest.mock('../../src/context/AuthContext', () => {
 });
 
 // Mock the API module
-jest.mock('../../src/services/api');
+jest.mock('../../services/api');
 const mockedApi = api as jest.Mocked<typeof api>;
 
 // Mock the settings API module
-jest.mock('../../src/services/settingsApi', () => ({
+jest.mock('../../services/settingsApi', () => ({
   __esModule: true,
   default: {
     getSettings: jest.fn(),
@@ -148,9 +148,10 @@ beforeEach(() => {
   });
 });
 
-const makeReview = (id: string, userId = 'reviewer-1', likes = 0): api.ReviewDto => ({
+const makeReview = (id: string, userId = 'reviewer-1', likes = 0, gameId = '1'): api.ReviewDto => ({
   _id: id,
   userId,
+  gameId,
   authorName: '',
   body: `Review ${id}`,
   likes,

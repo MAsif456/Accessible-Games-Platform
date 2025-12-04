@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ReportForm from '../components/report/ReportForm';
 import { useGameReportDetails, useReviewReportDetails } from '../hooks/useReportDetails';
 import type { ReportType } from '../services/reportApi';
+import { useAuth } from '../context/AuthContext';
+import { applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 
 /** Route params expected from react-router for the report flow. */
 interface RouteParams {
@@ -62,6 +64,7 @@ const ReportPage: React.FC<ReportPageProps> = ({
   initialReviewId,
   onBack,
 }) => {
+  const { userSettings } = useAuth();
   const rawParams = useParams();
   const params = rawParams as RouteParams;
   const navigate = useNavigate();
@@ -89,6 +92,49 @@ const ReportPage: React.FC<ReportPageProps> = ({
   // Fetch additional details to provide context when reporting a game or review.
   const gameDetails = useGameReportDetails(isGame ? gameId : undefined);
   const reviewDetails = useReviewReportDetails(isReview ? reviewId : undefined);
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   // Ensure the user is scrolled to the top when opening the report page.
   useEffect(() => {

@@ -5,7 +5,7 @@ export interface AccessibilitySection {
   tags: string[];
 }
 
-export type HighContrastThemeId = 'classic' | 'dusk' | 'pastel' | 'bold' | 'sunset';
+export type HighContrastThemeId = 'white' | 'black';
 
 export interface HighContrastTheme {
   id: HighContrastThemeId;
@@ -16,38 +16,20 @@ export interface HighContrastTheme {
 
 export const HIGH_CONTRAST_THEMES: HighContrastTheme[] = [
   {
-    id: 'classic',
-    name: 'Classic',
-    description: 'Pure black and white for maximum contrast.',
+    id: 'white',
+    name: 'White High Contrast',
+    description: 'Industry standard white background with black text for maximum contrast.',
+    swatches: ['#ffffff', '#000000', '#ffffff', '#000000'],
+  },
+  {
+    id: 'black',
+    name: 'Black High Contrast',
+    description: 'Industry standard black background with white text for maximum contrast.',
     swatches: ['#000000', '#ffffff', '#000000', '#ffffff'],
-  },
-  {
-    id: 'dusk',
-    name: 'Dusk',
-    description: 'Dark navy base with soft yellow accents.',
-    swatches: ['#0f172a', '#fbbf24', '#1e293b', '#fef9c3'],
-  },
-  {
-    id: 'sunset',
-    name: 'Sunset Ember',
-    description: 'Warm orange accents on dark charcoal.',
-    swatches: ['#111827', '#f97316', '#0f172a', '#fde68a'],
-  },
-  {
-    id: 'pastel',
-    name: 'Pastel Focus',
-    description: 'Steel blue backgrounds with ivory highlights.',
-    swatches: ['#1f2937', '#f5f5f4', '#0ea5e9', '#fcd34d'],
-  },
-  {
-    id: 'bold',
-    name: 'Bold Accent',
-    description: 'High energy palette with cobalt buttons.',
-    swatches: ['#111827', '#ffffff', '#2563eb', '#f97316'],
   },
 ];
 
-export const DEFAULT_HIGH_CONTRAST_THEME: HighContrastThemeId = 'classic';
+export const DEFAULT_HIGH_CONTRAST_THEME: HighContrastThemeId = 'white';
 
 const CATEGORY_ORDER = ['Vision', 'Visual', 'Hearing', 'Audio', 'Motor', 'Cognitive'] as const;
 
@@ -131,21 +113,40 @@ export function applyAccessibilityPreferences(preferences?: PreferenceLike | nul
   }
 
   const root = document.documentElement;
-  if (preferences?.highContrastMode) {
+  const body = document.body;
+  
+  // High contrast mode and dark mode are mutually exclusive
+  // If high contrast is on, dark mode must be off, and vice versa
+  const highContrastMode = preferences?.highContrastMode ?? false;
+  const darkMode = highContrastMode ? false : (preferences?.darkMode ?? false);
+  
+  // Apply high contrast mode
+  if (highContrastMode) {
     root.classList.add('prefers-high-contrast');
+    body.classList.add('prefers-high-contrast');
+    // Ensure dark mode is off when high contrast is on
+    root.classList.remove('prefers-dark-mode');
+    body.classList.remove('prefers-dark-mode');
   } else {
     root.classList.remove('prefers-high-contrast');
+    body.classList.remove('prefers-high-contrast');
   }
 
-  if (preferences?.darkMode) {
+  // Apply dark mode (only if high contrast is off)
+  if (darkMode && !highContrastMode) {
     root.classList.add('prefers-dark-mode');
+    body.classList.add('prefers-dark-mode');
   } else {
     root.classList.remove('prefers-dark-mode');
+    body.classList.remove('prefers-dark-mode');
   }
 
-  if (preferences?.highContrastMode && preferences.highContrastTheme) {
+  // Apply high contrast theme
+  if (highContrastMode && preferences?.highContrastTheme) {
     root.dataset.highContrastTheme = preferences.highContrastTheme;
+    body.dataset.highContrastTheme = preferences.highContrastTheme;
   } else {
     delete root.dataset.highContrastTheme;
+    delete body.dataset.highContrastTheme;
   }
 }

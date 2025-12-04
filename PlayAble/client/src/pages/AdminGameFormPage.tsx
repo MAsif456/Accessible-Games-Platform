@@ -8,6 +8,8 @@ import {
   updateAdminGame,
   getAdminGames,
 } from '../services/gamesAdminService';
+import { useAuth } from '../context/AuthContext';
+import { applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 
 /**
  * Props for the AdminGameFormPage component.
@@ -168,6 +170,7 @@ interface ValidationErrors {
  * />
  */
 const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onNavigate, showPrompt }) => {
+  const { userSettings } = useAuth();
   const [form, setForm] = useState<FormState>(initialFormState);
   const [loading, setLoading] = useState(mode === 'edit');
   const [saving, setSaving] = useState(false);
@@ -186,6 +189,49 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
 
   const [originalReleaseYear, setOriginalReleaseYear] = useState<number | null>(null);
 
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
+
   // Helper: list of years for the dropdown (e.g., from 2000 to current year)
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -201,8 +247,12 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
   useEffect(() => {
     if (mode === 'edit' && gameId) {
       setLoading(true);
+      let isMounted = true;
+      
       getAdminGameById(gameId)
         .then(res => {
+          if (!isMounted) return;
+          
           const game: GameDto = res.game;
 
           const releaseDate = game.releaseYear ? String(game.releaseYear) : '';
@@ -246,12 +296,31 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
           setOriginalReleaseYear(game.releaseYear ?? null);
         })
         .catch(err => {
+          // Don't log errors if component is unmounted or if it's a 404 (game was likely deleted)
+          if (!isMounted) return;
+          
+          // If it's a 404 or "not found", the game was likely deleted - navigate away silently
+          const errorMessage = err.message || String(err);
+          if (errorMessage.includes('404') || errorMessage.includes('not found') || errorMessage.includes('Not Found')) {
+            // Game was likely deleted, navigate away without showing error
+            onNavigate('/admin');
+            return;
+          }
+          
           console.error('Failed to load game', err);
           showPrompt('Unable to load game details.', 'error');
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (isMounted) {
+            setLoading(false);
+          }
+        });
+      
+      return () => {
+        isMounted = false;
+      };
     }
-  }, [mode, gameId, showPrompt]);
+  }, [mode, gameId, showPrompt, onNavigate]);
 
   useEffect(() => {
     // Load existing games once so we can prevent duplicate titles on create

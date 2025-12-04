@@ -38,7 +38,9 @@ export interface AdminReviewReport {
   updatedAt: string;
   resolved: boolean;
   outcome?: 'kept' | 'deleted';
+  reporterName?: string;
   reporterEmail?: string;
+  reporterDisplay?: string;
   gameTitle?: string;
   gameSlug?: string;
   reviewAuthorName?: string;

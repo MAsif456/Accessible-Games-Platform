@@ -9,6 +9,9 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   getUnreadNotificationCount,
+  markNotificationAsUnread,
+  markAllNotificationsAsUnread,
+  deleteAllNotifications,
 } from '../services/notificationService';
 
 /**
@@ -118,6 +121,69 @@ export const markAllAsRead = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error marking all notifications as read', error);
     return res.status(500).json({ success: false, message: 'Failed to mark all notifications as read' });
+  }
+};
+
+/**
+ * PATCH /api/notifications/:id/unread
+ * Marks a specific notification as unread.
+ */
+export const markAsUnread = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    const { id } = req.params;
+    const notification = await markNotificationAsUnread(id, userId);
+
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+
+    return res.json({ success: true, notification: toNotificationDto(notification) });
+  } catch (error) {
+    console.error('Error marking notification as unread', error);
+    return res.status(500).json({ success: false, message: 'Failed to mark notification as unread' });
+  }
+};
+
+/**
+ * PATCH /api/notifications/unread-all
+ * Marks all notifications as unread for the authenticated user.
+ */
+export const markAllAsUnread = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    await markAllNotificationsAsUnread(userId);
+    return res.json({ success: true, message: 'All notifications marked as unread' });
+  } catch (error) {
+    console.error('Error marking all notifications as unread', error);
+    return res.status(500).json({ success: false, message: 'Failed to mark all notifications as unread' });
+  }
+};
+
+/**
+ * DELETE /api/notifications
+ * Deletes all notifications for the authenticated user.
+ */
+export const deleteAll = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    await deleteAllNotifications(userId);
+    return res.json({ success: true, message: 'All notifications deleted' });
+  } catch (error) {
+    console.error('Error deleting all notifications', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete all notifications' });
   }
 };
 

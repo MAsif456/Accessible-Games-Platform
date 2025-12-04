@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import type { ReviewDto } from '../services/api';
 import type { AdminReviewReport, AdminResolvedReviewReport } from '../services/adminReviewsService';
 import {
@@ -69,7 +69,7 @@ function usePaginatedSearchTable<T>(
  * @example
  * const handleLoad = () => load({ page: 2, search: 'example' });
  */
-  const load = (override?: { page?: number; search?: string }) => {
+  const load = useCallback((override?: { page?: number; search?: string }) => {
     const nextPage = override?.page ?? page;
     const nextSearch = override?.search ?? effectiveSearch;
     const nextRequest = requestId + 1;
@@ -97,12 +97,21 @@ function usePaginatedSearchTable<T>(
           runStateUpdate(() => setLoading(false));
         }
       });
-  };
+  }, [page, effectiveSearch, fetcher, pageSize, requestId]);
+
+  // Use refs to track latest values for refresh
+  const pageRef = useRef(page);
+  const effectiveSearchRef = useRef(effectiveSearch);
 
   useEffect(() => {
-    load({ page: 1 });
-  }, []);
+    pageRef.current = page;
+  }, [page]);
 
+  useEffect(() => {
+    effectiveSearchRef.current = effectiveSearch;
+  }, [effectiveSearch]);
+
+  // Debounce search term
   useEffect(() => {
     const handle = window.setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -110,19 +119,27 @@ function usePaginatedSearchTable<T>(
     return () => window.clearTimeout(handle);
   }, [searchTerm]);
 
+  // Load data when debounced search or page changes
   useEffect(() => {
-    setPage(1);
-    load({ page: 1, search: effectiveSearch });
-  }, [effectiveSearch]);
-
-/**
- * Refreshes the table by calling load() with the current page and search parameters.
- * This is useful when the table data changes outside of the hook's control, such as when
- * the user creates a new review or resolves a reported review.
- */
-  const refresh = () => {
     load();
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSearch, page]);
+
+  // Initial load on mount
+  useEffect(() => {
+    load({ page: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Refreshes the table by calling load() with the current page and search parameters.
+   * This is useful when the table data changes outside of the hook's control, such as when
+   * the user creates a new review or resolves a reported review.
+   */
+  const refresh = useCallback(() => {
+    // Force a fresh load using the latest page and search values
+    load({ page: pageRef.current, search: effectiveSearchRef.current });
+  }, [load]);
 
   return {
     items,
@@ -167,13 +184,12 @@ export function useReportedReviewsTable(pageSize = 7): UseTableState<AdminReview
 }
 
 
-export function useResolvedReportedReviewsTable(pageSize = 7): UseTableState<AdminResolvedReviewReport> {
-/*************  ✨ Windsurf Command ⭐  *************/
 /**
  * Hook for loading admin resolved reported reviews table data.
  * Uses the getAdminResolvedReviewReports function under the hood.
- * @param {number} [pageSize=7] - Optional parameter to set the number of items per page.
- * @returns {UseTableState<AdminResolvedReviewReport>} - A state object containing the table data and functions to search and paginate.
+ * @param pageSize Optional parameter to set the number of items per page.
+ * @returns A UseTableState object containing the table data and functions to search and paginate.
  */
-/*******  193b87e0-7dd6-41f1-a7c6-f5eb5c986bc2  *******/  return usePaginatedSearchTable<AdminResolvedReviewReport>(getAdminResolvedReviewReports, pageSize);
+export function useResolvedReportedReviewsTable(pageSize = 7): UseTableState<AdminResolvedReviewReport> {
+  return usePaginatedSearchTable<AdminResolvedReviewReport>(getAdminResolvedReviewReports, pageSize);
 }

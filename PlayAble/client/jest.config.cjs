@@ -3,8 +3,8 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
 
-  // Look for tests in both src and tests folders
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  // Look for tests in src folder (including __tests__ subdirectories)
+  roots: ['<rootDir>/src'],
 
   // Pick up *.test.tsx / *.spec.tsx etc
   testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
@@ -12,12 +12,12 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 
   moduleNameMapper: {
-    // Use explicit style mock file
-    '^.+\\.(css|less|scss|sass)$': '<rootDir>/tests/styleMock.js',
+    // Mock CSS imports
+    '^.+\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '^src/(.*)$': '<rootDir>/src/$1',
   },
 
-  setupFilesAfterEnv: ['<rootDir>/tests/setupTests.ts'],
+  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
 
   // Enable coverage collection and use v8 provider
   collectCoverage: true,

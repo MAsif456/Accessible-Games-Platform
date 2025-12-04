@@ -83,6 +83,10 @@ jest.mock('../../services/settingsApi', () => ({
   })),
 }));
 
+/**
+ * Test suite for Voice Navigation Feature.
+ * Tests voice assistant activation, command processing, navigation, and error handling.
+ */
 describe('Voice Navigation Feature', () => {
   let mockOnNavigate: jest.Mock;
   let mockSetSearchTerm: jest.Mock;

@@ -1,12 +1,12 @@
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import App from '../../src/App';
-import authService from '../../src/services/authService';
-import * as adminReportsService from '../../src/services/adminReportsService';
-import * as gamesAdminService from '../../src/services/gamesAdminService';
-import * as api from '../../src/services/api';
-import * as adminReviewsHooks from '../../src/hooks/adminReviews';
-import * as adminReviewActionsHook from '../../src/hooks/useAdminReviewActions';
+import App from '../../App';
+import authService from '../../services/authService';
+import * as adminReportsService from '../../services/adminReportsService';
+import * as gamesAdminService from '../../services/gamesAdminService';
+import * as api from '../../services/api';
+import * as adminReviewsHooks from '../../hooks/adminReviews';
+import * as adminReviewActionsHook from '../../hooks/useAdminReviewActions';
 
 jest.mock('../../src/services/gamesAdminService', () => ({
   __esModule: true,

@@ -9,7 +9,7 @@ export interface UserSettings {
   captions: boolean;
   microphoneActive: boolean;
   highContrastMode: boolean;
-  highContrastTheme: 'tidepool' | 'sunset' | 'twilight' | 'midnight';
+  highContrastTheme: 'white' | 'black';
   reducedMotion: boolean;
   darkMode: boolean;
 }

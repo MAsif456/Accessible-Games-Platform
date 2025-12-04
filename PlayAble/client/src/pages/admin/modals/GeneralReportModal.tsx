@@ -45,7 +45,7 @@ const GeneralReportModal: React.FC<GeneralReportModalProps> = ({
             </h2>
           </div>
           <button type="button" className="admin-report-modal__close" onClick={closeReportModal} aria-label="Close">
-            A-
+            ×
           </button>
         </header>
 

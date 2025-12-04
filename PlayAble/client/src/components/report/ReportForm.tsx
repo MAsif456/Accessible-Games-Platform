@@ -61,13 +61,18 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
   const hasValidDescription =
     trimmedDescription.length >= MIN_CHARS && trimmedDescription.length <= MAX_CHARS;
 
-  const contactEmail = (user?.email ?? '').trim();
+  const isLoggedIn = !!user;
+  const contactEmail = isLoggedIn ? (user?.email ?? '').trim() : '';
   const contactName = (user?.name ?? '').trim();
+
+  // For general reports, logged-in users need a valid email, but non-logged-in users don't
+  const hasValidContactEmail = !requiresContact || !isLoggedIn || (contactEmail && EMAIL_REGEX.test(contactEmail));
+  
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const canSubmit =
     (hasValidDescription || hasVoiceTranscript) &&
-    (!requiresContact || (contactEmail && EMAIL_REGEX.test(contactEmail)));
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+    hasValidContactEmail;
 
   const getDescriptionError = () => {
     if (!hasSubmitted) return null;
@@ -165,9 +170,10 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
       stopVoiceRecording();
     }
 
-    if (requiresContact) {
+    // For general reports, validate contact email only for logged-in users
+    if (requiresContact && isLoggedIn) {
       if (!contactEmail) {
-        setContactError('A valid contact email is required to submit this report.');
+        setContactError('A valid contact email is required to submit this report. Please update your account email.');
         return;
       }
       if (!EMAIL_REGEX.test(contactEmail)) {
@@ -188,7 +194,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
         description: hasValidDescription ? trimmedDescription : undefined,
         // Transcript support will be wired in later when voice recording is implemented
         transcript: hasVoiceTranscript && !hasValidDescription ? voiceTranscript.trim() : undefined,
-        reporterEmail: requiresContact ? contactEmail : user?.email,
+        reporterEmail: requiresContact ? contactEmail : (user?.email || undefined),
         reporterName: contactName || undefined,
         reporterId: user?.id,
         gameId,
@@ -332,11 +338,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ type, gameId, reviewId, onSucce
           {errorMessage}
         </p>
       )}
-      {contactError && (
-        <p className="report-form__error" role="alert">
-          {contactError}
-        </p>
-      )}
+        {contactError && (
+          <p className="report-form__error" role="alert">
+            {contactError}
+          </p>
+        )}
 
       <div className="report-form__actions">
         <button

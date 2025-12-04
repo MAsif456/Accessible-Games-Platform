@@ -1,9 +1,19 @@
 import { useState, useRef, useCallback } from 'react';
 
-// I track all active recognition instances globally to prevent conflicts when multiple components try to use the microphone simultaneously
+/**
+ * Global set tracking all active speech recognition instances.
+ * Used to prevent conflicts when multiple components try to use the microphone simultaneously.
+ * @type {Set<any>}
+ */
 const activeRecognitionInstances = new Set<any>();
 
-// I stop all recognition instances to ensure clean shutdown when switching between voice services
+/**
+ * Stops all active speech recognition instances.
+ * Ensures clean shutdown when switching between voice services (e.g., voice assistant to voice recording).
+ * 
+ * @function
+ * @returns {void}
+ */
 export function stopAllRecognitionInstances() {
   activeRecognitionInstances.forEach((instance) => {
     try {
@@ -19,8 +29,25 @@ export function stopAllRecognitionInstances() {
   activeRecognitionInstances.clear();
 }
 
+/**
+ * Possible states for voice recording.
+ * @typedef {'idle' | 'recording' | 'processing' | 'completed' | 'error'} RecordingState
+ */
 type RecordingState = 'idle' | 'recording' | 'processing' | 'completed' | 'error';
 
+/**
+ * Return type for the useVoiceRecording hook.
+ * 
+ * @interface UseVoiceRecordingReturn
+ * @property {string} transcript - The current voice transcript text
+ * @property {boolean} isRecording - Whether recording is currently active
+ * @property {RecordingState} recordingState - Current state of the recording
+ * @property {string | null} error - Error message if recording failed, null otherwise
+ * @property {() => Promise<void>} startRecording - Function to start voice recording
+ * @property {() => void} stopRecording - Function to stop voice recording
+ * @property {() => void} clearTranscript - Function to clear the transcript
+ * @property {boolean} hasTranscript - Whether there is any transcript text
+ */
 interface UseVoiceRecordingReturn {
   transcript: string;
   isRecording: boolean;
@@ -32,6 +59,19 @@ interface UseVoiceRecordingReturn {
   hasTranscript: boolean;
 }
 
+/**
+ * Browser Speech Recognition API interface.
+ * @typedef {Object} BrowserSpeechRecognition
+ * @property {() => void} start - Starts speech recognition
+ * @property {() => void} stop - Stops speech recognition
+ * @property {() => void} [abort] - Aborts speech recognition
+ * @property {((event: any) => void) | null} onresult - Handler for recognition results
+ * @property {((event: any) => void) | null} onerror - Handler for recognition errors
+ * @property {(() => void) | null} onend - Handler for recognition end
+ * @property {boolean} continuous - Whether recognition should continue after each result
+ * @property {boolean} interimResults - Whether to return interim (partial) results
+ * @property {string} lang - Language code for recognition
+ */
 type BrowserSpeechRecognition = {
   start: () => void;
   stop: () => void;
@@ -44,8 +84,37 @@ type BrowserSpeechRecognition = {
   lang: string;
 };
 
+/**
+ * Constructor type for creating Speech Recognition instances.
+ * @typedef {new () => BrowserSpeechRecognition} SpeechRecognitionConstructor
+ */
 type SpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
+/**
+ * useVoiceRecording Hook
+ * 
+ * Custom React hook for managing voice recording using the Web Speech Recognition API.
+ * Provides functionality to start, stop, and manage voice transcription with proper
+ * error handling and state management.
+ * 
+ * Features:
+ * - Browser compatibility detection (Chrome, Edge, Safari)
+ * - Microphone permission handling
+ * - Real-time transcript updates (interim and final results)
+ * - Conflict prevention with other voice services
+ * - Error handling with user-friendly messages
+ * 
+ * @returns {UseVoiceRecordingReturn} Object containing recording state and control functions
+ * 
+ * @example
+ * ```tsx
+ * const { transcript, isRecording, startRecording, stopRecording } = useVoiceRecording();
+ * 
+ * const handleStart = async () => {
+ *   await startRecording();
+ * };
+ * ```
+ */
 export function useVoiceRecording(): UseVoiceRecordingReturn {
   const [transcript, setTranscript] = useState('');
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
@@ -54,12 +123,33 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const finalTranscriptRef = useRef<string>('');
 
-  // I check for browser support at runtime since different browsers expose the API differently
+  /**
+   * Gets the Speech Recognition constructor for the current browser.
+   * Checks for both standard and webkit-prefixed versions since different browsers
+   * expose the API differently.
+   * 
+   * @returns {SpeechRecognitionConstructor | null} The constructor if available, null otherwise
+   */
   const getSpeechRecognition = useCallback((): SpeechRecognitionConstructor | null => {
     if (typeof window === 'undefined') return null;
     return window.SpeechRecognition || window.webkitSpeechRecognition || null;
   }, []);
 
+  /**
+   * Starts voice recording using the Web Speech Recognition API.
+   * 
+   * Process:
+   * 1. Checks browser support for speech recognition
+   * 2. Requests microphone permission
+   * 3. Stops any existing recognition instances
+   * 4. Creates and configures a new recognition instance
+   * 5. Sets up event handlers for results, errors, and end events
+   * 6. Starts recognition
+   * 
+   * @async
+   * @returns {Promise<void>}
+   * @throws {Error} If browser doesn't support speech recognition or microphone access is denied
+   */
   const startRecording = useCallback(async () => {
     const SpeechRecognition = getSpeechRecognition();
     
@@ -224,7 +314,13 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
     }
   }, [getSpeechRecognition, recordingState]);
 
-  // I set state to 'processing' briefly before 'completed' to give the UI time to show a stopping state
+  /**
+   * Stops voice recording.
+   * Sets state to 'processing' briefly before 'completed' to give the UI time to show a stopping state.
+   * Removes the recognition instance from the global tracking set.
+   * 
+   * @returns {void}
+   */
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {
       try {
@@ -243,6 +339,12 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
     }
   }, []);
 
+  /**
+   * Clears the transcript and resets recording state to idle.
+   * Also clears any error messages.
+   * 
+   * @returns {void}
+   */
   const clearTranscript = useCallback(() => {
     setTranscript('');
     finalTranscriptRef.current = '';
