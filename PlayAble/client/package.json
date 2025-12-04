@@ -12,7 +12,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --config jest.config.cjs --coverage --coverageReporters=html --coverageReporters=text",
     "test:coverage:open": "jest --config jest.config.cjs --coverage --coverageReporters=html && start coverage/index.html",
-    "docs": "jsdoc -c jsdoc.json",
+    "docs": "typedoc --skipErrorChecking",
+    "docs:serve": "npx serve docs",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -41,6 +42,7 @@
     "prettier": "^3.6.2",
     "react-router-dom": "^7.9.6",
     "ts-jest": "^29.4.5",
+    "typedoc": "^0.28.15",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
     "whatwg-fetch": "^3.6.20"
