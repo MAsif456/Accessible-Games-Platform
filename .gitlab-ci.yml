@@ -53,28 +53,31 @@ pages:
   stage: deploy
   image: node:18
   script:
-    # Install dependencies so TypeDoc runs
+    # Install dependencies and generate client docs
     - cd PlayAble/client
     - npm install
     - npm run docs
 
+    # Install dependencies and generate server docs
     - cd ../server
     - npm install
     - npm run docs
 
-    # Create Pages folder
+    # Go back to project root
     - cd ../..
-    - mkdir .public
 
-    # Copy docs into the public folder
-    - cp -r PlayAble/client/docs .public/client
-    - cp -r PlayAble/server/docs .public/server
+    # GitLab Pages folder MUST be named 'public'
+    - mkdir public
+
+    # Copy documentation into public/
+    - cp -r PlayAble/client/docs public/client
+    - cp -r PlayAble/server/docs public/server
 
   artifacts:
     paths:
-      - .public   # GitLab Pages publishes this folder
+      - public   # GitLab Pages publishes this folder
   only:
-    - main       # Only deploy when main branch is updated
+    - main       # Only deploy Pages when main branch is updated
 
 trigger_mirror:
   stage: mirror
