@@ -8,6 +8,8 @@ import {
   updateAdminGame,
   getAdminGames,
 } from '../services/gamesAdminService';
+import { useAuth } from '../context/AuthContext';
+import { applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 
 /**
  * Props for the AdminGameFormPage component.
@@ -168,6 +170,7 @@ interface ValidationErrors {
  * />
  */
 const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onNavigate, showPrompt }) => {
+  const { userSettings } = useAuth();
   const [form, setForm] = useState<FormState>(initialFormState);
   const [loading, setLoading] = useState(mode === 'edit');
   const [saving, setSaving] = useState(false);
@@ -185,6 +188,49 @@ const AdminGameFormPage: React.FC<AdminGameFormPageProps> = ({ mode, gameId, onN
   const [originalTitle, setOriginalTitle] = useState<string | null>(null);
 
   const [originalReleaseYear, setOriginalReleaseYear] = useState<number | null>(null);
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   // Helper: list of years for the dropdown (e.g., from 2000 to current year)
   const yearOptions = useMemo(() => {

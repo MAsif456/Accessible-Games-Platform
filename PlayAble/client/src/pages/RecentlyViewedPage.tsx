@@ -5,6 +5,7 @@ import { useFavouritesNav } from '../context/FavouritesContext';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/ui/Modal';
 import type { AppPath } from '../App';
+import { applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 
 /**
  * Props for the RecentlyViewedPage component.
@@ -53,12 +54,55 @@ const RecentlyViewedPage: React.FC<RecentlyViewedPageProps> = ({
   onGameClick,
   showPrompt,
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userSettings } = useAuth();
   const { isFavourite, toggleFavourite } = useFavouritesNav();
   const { games, total, isLoading, fetchRecentlyViewed, clearRecentlyViewed } = useRecentlyViewed();
 
   const [isClearing, setIsClearing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   useEffect(() => {
     if (isAuthenticated) {

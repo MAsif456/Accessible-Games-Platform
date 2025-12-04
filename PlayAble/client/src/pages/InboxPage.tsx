@@ -14,6 +14,7 @@ import { getReportById, type Report } from '../services/reportApi';
 import { getReviewById } from '../services/api';
 import Modal from '../components/ui/Modal';
 import type { AppPath } from '../App';
+import { applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 
 /**
  * Props for the InboxPage component.
@@ -52,7 +53,7 @@ interface InboxPageProps {
  * @returns {JSX.Element} The rendered inbox page
  */
 const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onOpenReviewReport, onUnreadCountChange }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, userSettings } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +70,49 @@ const InboxPage: React.FC<InboxPageProps> = ({ onNavigate, onOpenGameReport, onO
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isMarkingUnread, setIsMarkingUnread] = useState(false);
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   /**
    * Loads notifications from the API when the component mounts or when authentication state changes.

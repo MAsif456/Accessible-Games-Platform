@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useFavourites, FavouriteGameDto } from '../context/FavouritesContext';
 import GameCard from '../components/GameCard';
 import Pagination from '../components/ui/Pagination';
 import Modal from '../components/ui/Modal';
+import { useAuth } from '../context/AuthContext';
+import { applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 
 /**
  * Props for the favourites page. Navigation and game-click behaviour are
@@ -25,6 +27,7 @@ interface FavouritesPageProps {
  * - Delegate data fetching and mutation to the FavouritesContext hook.
  */
 const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate, onGameClick }) => {
+  const { userSettings } = useAuth();
   const { favourites, isLoading, fetchFavourites, removeFavourite, total, pageSize, error } =
     useFavourites();
 
@@ -32,6 +35,49 @@ const FavouritesPage: React.FC<FavouritesPageProps> = ({ onNavigate, onGameClick
   const [gameIdToRemove, setGameIdToRemove] = useState<string | null>(null);
   // Current pagination index for the favourites list.
   const [currentPage, setCurrentPage] = useState(1);
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   // Compute total number of pages; never show less than one page.
   const totalPages = Math.max(1, Math.ceil(total / pageSize));

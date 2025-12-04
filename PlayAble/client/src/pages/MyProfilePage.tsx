@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
+import { applyAccessibilityPreferences, DEFAULT_HIGH_CONTRAST_THEME } from '../utils/accessibility';
 
 /**
  * Props for the MyProfilePage component.
@@ -44,13 +45,56 @@ interface MyProfilePageProps {
  * <MyProfilePage onNavigate={navigate} onLogout={handleLogout} />
  */
 const MyProfilePage: React.FC<MyProfilePageProps> = ({ onNavigate, onLogout }) => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, userSettings } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
   const [editBio, setEditBio] = useState(
     user?.bio || 'Passionate gamer who loves accessible games and inclusive gaming experiences.'
   );
+
+  /**
+   * Applies accessibility preferences to the document when visual settings change.
+   * Updates CSS custom properties and classes to reflect high contrast mode, theme,
+   * reduced motion, and dark mode preferences.
+   * 
+   * @effect
+   * @dependencies userSettings
+   */
+  useEffect(() => {
+    if (userSettings) {
+      applyAccessibilityPreferences(userSettings);
+    } else {
+      // For non-logged-in users, check session storage for settings
+      const SESSION_STORAGE_KEY = 'playable_session_settings';
+      try {
+        const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const sessionSettings = {
+            ...parsed,
+            highContrastTheme: parsed.highContrastTheme || DEFAULT_HIGH_CONTRAST_THEME,
+          };
+          applyAccessibilityPreferences(sessionSettings);
+        } else {
+          // Apply default preferences (all off)
+          applyAccessibilityPreferences({
+            highContrastMode: false,
+            darkMode: false,
+            highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load session settings:', error);
+        // Apply default preferences on error
+        applyAccessibilityPreferences({
+          highContrastMode: false,
+          darkMode: false,
+          highContrastTheme: DEFAULT_HIGH_CONTRAST_THEME,
+        });
+      }
+    }
+  }, [userSettings]);
 
   // Keep local editBio in sync when the user object changes (e.g. after login/logout)
   useEffect(() => {

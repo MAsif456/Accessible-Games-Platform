@@ -260,15 +260,15 @@
 }
 
 .signin-message--success {
-  background-color: #d1fae5;
-  color: #065f46;
-  border: 1px solid #6ee7b7;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-accent-success);
+  border: 1px solid var(--color-accent-success);
 }
 
 .signin-message--error {
-  background-color: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fca5a5;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-accent-error);
+  border: 1px solid var(--color-accent-error);
 }
 
 /* Accessible Sign In Section */
@@ -319,8 +319,8 @@
 }
 
 .keyboard-navigation-info {
-  background-color: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-primary);
   border-radius: 8px;
   padding: 1rem;
   display: flex;
@@ -338,14 +338,14 @@
 
 .keyboard-text strong {
   display: block;
-  color: #1e40af;
+  color: var(--color-accent-primary);
   margin-bottom: 0.25rem;
 }
 
 .keyboard-text p {
   margin: 0;
   font-size: 0.875rem;
-  color: #1e3a8a;
+  color: var(--color-text-primary);
   line-height: 1.5;
 }
 
@@ -402,7 +402,7 @@
 /* High Contrast Mode Support */
 @media (prefers-contrast: high) {
   .signin-card {
-    border: 2px solid #000;
+    border: 2px solid var(--color-border-primary);
   }
 
   .form-input {
@@ -410,7 +410,7 @@
   }
 
   .submit-button {
-    border: 2px solid #1d4ed8;
+    border: 2px solid var(--color-border-primary);
   }
 }
 
