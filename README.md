@@ -1,5 +1,61 @@
-## Accessible Games Website
-A full‑stack, React + Express application for discovering, reviewing, and reporting accessible games, with admin workflows for moderation.
+## PlayAble: Accessible Games Platform
+
+A Steam-style website that lists only games accessible to people with
+motor, dexterity and other disabilities, so the community can find
+games they can actually play. Each game appears as a card with its
+accessibility tags and categories. Clicking a card opens a full game
+page with all the key information, which disabilities the game suits
+and its specific accessibility features, and a link to the game's store
+page, since the platform does not sell games itself. Users can read and
+post reviews and report reviews or games, and admins review and
+resolve those reports in an admin panel.
+
+*Commits in this project appear under my former university username,
+MASAsif.*
+
+**Team:** 4 | **Tech:** MERN stack (MongoDB, Express, React, Node.js),
+TypeScript, Jest, TypeDoc, GitLab CI/CD
+
+## My contribution
+
+This was a team project. My work covered accessibility, the game pages,
+the review and reporting features, testing, and the deployment
+pipeline.
+
+### Accessibility
+- Implemented global keyboard navigation across the whole website,
+  including a skip link, so users with dexterity impairments can use the
+  platform fully by keyboard.
+- Added specific accessibility tags and categories for each game, and
+  the accessibility features shown on every game's details page.
+
+### Features
+- Built the individual game information pages: clicking a game card
+  opens the full details of the game, including which disabilities it
+  suits and its specific accessibility features, with a link to the
+  game's store page.
+- Built the review system: users can post reviews and report reviews,
+  and both are saved to the database.
+- Built the general reports management feature: user reports go to the
+  admin panel, where an admin can reply and resolve them, and resolved
+  reports move to a resolved section.
+- Built the game reports management feature, with separate Reported
+  Games and Resolved Reported Games sections for admins.
+- Improved the UI and CSS of the game details page.
+
+### Testing and quality
+- Set up Jest for the project and wrote the tests for keyboard
+  navigation, general reports management and game reports management.
+- Added tests to raise code coverage in files that were weakly covered.
+- Added JSDoc comments to the relevant files.
+
+### DevOps and documentation
+- Set up the CI/CD pipeline (.gitlab-ci.yml) for backend and frontend
+  deployment.
+- Generated TypeDoc documentation for the client and server and
+  configured the pipeline to host it on GitLab Pages.
+- Fixed the repository structure, resolved merge conflicts, and kept
+  the README up to date.
 
 ## Features
 - Game catalogue with search, sorting, filters (genres, accessibility tags) and pagination  
